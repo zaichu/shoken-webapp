@@ -87,7 +87,7 @@ export const SCREENS = [
     loaded: ['[data-testid="asset-kind-tabs"]'],
     ready: ['[data-testid="asset-merged-table"] tbody tr', '[data-testid="asset-merged-list"] li'],
     prepare: async (page) => {
-      await page.getByTestId('asset-kind-tab-all').click();
+      await page.getByRole('tab', { name: 'すべて', exact: true }).click();
     },
     scroll: true,
   },
@@ -98,7 +98,7 @@ export const SCREENS = [
     loaded: ['[data-testid="asset-kind-tabs"]'],
     ready: ['[data-testid="asset-holdings-table"] tbody tr', '[data-testid="asset-holdings-list"] li'],
     prepare: async (page) => {
-      await page.getByTestId('asset-kind-tab-stock').click();
+      await page.getByRole('tab', { name: '国内株式', exact: true }).click();
     },
     scroll: true,
   },
@@ -109,7 +109,7 @@ export const SCREENS = [
     loaded: ['[data-testid="asset-kind-tabs"]'],
     ready: ['[data-testid="asset-fund-table"] tbody tr', '[data-testid="asset-fund-list"] li'],
     prepare: async (page) => {
-      await page.getByTestId('asset-kind-tab-fund').click();
+      await page.getByRole('tab', { name: '投資信託', exact: true }).click();
     },
     scroll: true,
   },

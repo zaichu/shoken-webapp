@@ -14,10 +14,7 @@ use crate::features::asset_balance::model::{
     normalize_security_code, portfolio_valuation, total_purchase_amount,
 };
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
-use crate::features::asset_balance::store::csv::{
-    ResolvedAssetBalance, ResolvedFundBalance, asset_balance_counts, fund_balance_counts,
-    resolve_asset_balance, resolve_fund_balance,
-};
+use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
@@ -611,27 +608,6 @@ fn filtered_portfolio_all_views_ignore_search_and_follow_lookup() {
 }
 
 #[test]
-fn balance_counts_match_resolved_rows() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let generation = Generation::new(1);
-        let slot: BalanceSlot = Some((
-            generation,
-            Ok(LoadedAssetBalances {
-                total: 150000,
-                rows: vec![balance_row(9904)],
-                summary: None,
-                truncated: true,
-            }),
-        ));
-        let resolved = resolve_asset_balance(generation, &slot).expect("resolved");
-        let counts = asset_balance_counts(generation, &slot).expect("counts");
-        assert_eq!(counts.0, resolved.rows.len());
-        assert_eq!(counts.1, 150000);
-    });
-}
-
-#[test]
 fn filtered_views_are_subset_of_all_views() {
     let owner = Owner::new();
     owner.with(|| {
@@ -654,54 +630,6 @@ fn filtered_views_are_subset_of_all_views() {
                 .all(|view| all_views.iter().any(|all| all.code == view.code)),
             "検索結果は全保有分の中にある"
         );
-    });
-}
-
-#[test]
-fn balance_counts_cover_error_and_stale_slots() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let generation = Generation::new(1);
-        let err_slot: BalanceSlot = Some((generation, Err("取得失敗".to_string())));
-        assert_eq!(asset_balance_counts(generation, &err_slot), Some((0, 0)));
-
-        let empty: BalanceSlot = None;
-        assert_eq!(asset_balance_counts(generation, &empty), None);
-
-        let stale: BalanceSlot = Some((
-            Generation::new(9),
-            Ok(LoadedAssetBalances {
-                total: 1,
-                rows: vec![balance_row(9904)],
-                summary: None,
-                truncated: false,
-            }),
-        ));
-        assert_eq!(asset_balance_counts(generation, &stale), None);
-    });
-}
-
-#[test]
-fn fund_counts_prefer_api_total_like_tab_counts() {
-    let owner = Owner::new();
-    owner.with(|| {
-        let generation = Generation::new(1);
-        let slot: FundSlot = Some((
-            generation,
-            Ok(LoadedFundBalances {
-                total: 7,
-                rows: Vec::new(),
-                summary: None,
-                truncated: false,
-            }),
-        ));
-        let counts = fund_balance_counts(generation, &slot).expect("counts");
-        assert_eq!(counts.1.max(counts.0), 7);
-        let resolved = resolve_fund_balance(generation, &slot).expect("resolved");
-        assert_eq!(resolved.rows, [] as [FundBalanceRow; 0]);
-
-        let empty: FundSlot = None;
-        assert_eq!(fund_balance_counts(generation, &empty), None);
     });
 }
 
@@ -1052,14 +980,6 @@ fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
         let as_of = super::summary::oldest_combined_as_of(&[stock], &fund).expect("as_of");
         assert!(as_of.contains("1/16"), "{as_of}");
     });
-}
-
-#[test]
-fn fund_tab_count_prefers_api_total_when_truncated() {
-    // 行が取り切れていないときは API 集計の総件数をタブに出す
-    assert_eq!(super::summary::fund_tab_count(3, 9), 9);
-    assert_eq!(super::summary::fund_tab_count(3, 3), 3);
-    assert_eq!(super::summary::fund_tab_count(1, 1), 1);
 }
 
 #[test]

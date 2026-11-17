@@ -1,5 +1,4 @@
 use crate::features::asset_balance::fund::AssetKind;
-use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
@@ -17,27 +16,22 @@ const fn tab_id(kind: AssetKind) -> &'static str {
 }
 
 /// 保有種別の切り替えピル(すべて/国内株式/投資信託)。
-/// 取引明細のタブと同じ構造で、件数はラベルの横に出す
-/// 件数は Signal<usize> で受け取り、データ読み込み完了時に更新されるようにする
+/// 取引明細のタブと同じ構造。
+/// スマホでは集計の下にもう1組出すため、その分は suffix="-mobile" で
+/// id と testid を分け、隠れている側と取り違えないようにする
 #[component]
 pub(crate) fn AssetKindTabs(
     kind: RwSignal<AssetKind>,
-    all_count: Signal<usize>,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
     motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
-    let count = move |k: AssetKind| match k {
-        AssetKind::All => all_count.get(),
-        AssetKind::Stock => stock_count.get(),
-        AssetKind::Fund => fund_count.get(),
-    };
+    let suffix = suffix.unwrap_or("");
     view! {
         <div
             class="page-tab-list no-print relative"
             role="tablist"
             aria-label=labels::ASSET_KIND_TABS_LABEL
-            data-testid="asset-kind-tabs"
+            data-testid=format!("asset-kind-tabs{suffix}")
             data-swiping=move || motion.dragging.get().to_string()
         >
             {AssetKind::ALL
@@ -49,9 +43,9 @@ pub(crate) fn AssetKindTabs(
                     let guard = motion;
                     view! {
                         <TabButton
-                            id=tab_id(item).to_string()
+                            id=format!("{}{}", tab_id(item), suffix)
                             selected=selected
-                            testid=format!("asset-kind-tab-{}", item.value())
+                            testid=format!("asset-kind-tab-{}{}", item.value(), suffix)
                             on_click=move |event| {
                                 if event.detail() != 0
                                     && swipe_should_ignore_input(
@@ -71,14 +65,15 @@ pub(crate) fn AssetKindTabs(
                                 if let Some(next) = next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
-                                    focus_tab_by_id(tab_id(AssetKind::ALL[next]));
+                                    focus_tab_by_id(&format!(
+                                        "{}{}",
+                                        tab_id(AssetKind::ALL[next]),
+                                        suffix
+                                    ));
                                 }
                             }
                         >
                             {item.label()}
-                            <Badge variant=BadgeVariant::Count>
-                                {move || count(item)}
-                            </Badge>
                         </TabButton>
                     }
                 })

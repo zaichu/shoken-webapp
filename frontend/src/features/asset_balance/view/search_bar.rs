@@ -299,7 +299,7 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
             SortOrder::Desc => labels::SORT_HIGH_TO_LOW,
             SortOrder::Asc => labels::SORT_LOW_TO_HIGH,
         };
-        format!("{} {order}", key_label(sort_key.get()))
+        labels::sort_summary(key_label(sort_key.get()), order)
     };
     let sheet_placeholder = placeholder;
     let sort_summary = Signal::derive(sort_summary);

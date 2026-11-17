@@ -60,7 +60,7 @@ if (screens.length === 0) {
 
 mkdirSync(options.out, { recursive: true });
 const baseUrl = `http://127.0.0.1:${options.port}`;
-const browser = await chromium.launch({ executablePath: process.env.UI_SHOTS_CHROMIUM_PATH });
+const browser = await chromium.launch();
 const files = [];
 const unexpected = [];
 

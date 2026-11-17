@@ -611,10 +611,6 @@
     anchor-name: --selected-page-tab;
   }
 
-  .page-tab[aria-selected="true"] .badge-count {
-    @apply bg-accent-softer text-accent-text;
-  }
-
   .page-tab-list::after {
     content: "";
     position: absolute;
@@ -663,10 +659,6 @@
     }
   }
 
-  .badge-count {
-    @apply font-medium tabular-nums text-eyebrow;
-  }
-
   /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
   @media (width < 64rem) {
     .page-tab-list {
@@ -679,19 +671,6 @@
 
     .page-tab[aria-selected="true"] {
       @apply bg-transparent font-bold text-text-deep;
-    }
-  }
-
-  @media (width >= 64rem) {
-    .badge-count {
-      @apply bg-row-group text-cell text-text-soft;
-      border-radius: 9px;
-      padding-inline: var(--space-condition);
-      line-height: 18px;
-    }
-
-    .page-tab[aria-selected="true"] .badge-count {
-      @apply bg-accent font-bold text-page;
     }
   }
 
@@ -1040,14 +1019,6 @@
 
   .mobile-sort-entry-chevron {
     @apply h-4 w-4 shrink-0 text-text-muted;
-  }
-
-  .mobile-list-heading-links {
-    @apply flex min-h-11 items-center justify-end gap-4 max-lg:hidden;
-  }
-
-  .asset-mobile-heading-links {
-    @apply flex min-h-11 items-center justify-end gap-2 px-4;
   }
 
   .receipts-mobile-search {

@@ -244,7 +244,7 @@ pub fn ReceiptsMainContent(
         }}
         {move || (store.active_tab.get() == tab).then(|| view! {
             <SkeletonTabs><div class="lg:hidden">
-                <ReceiptsTabNav store=store motion=motion />
+                <ReceiptsTabNav store=store motion=motion suffix="-mobile" />
             </div></SkeletonTabs>
         })}
         {move || {

@@ -270,7 +270,6 @@ test('検索欄で銘柄コードで絞り込んでも残る行は同じ書式',
   await sheet.getByTestId('search-dialog-search').click();
   await expect(sheet).toBeHidden();
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(1);
-  await expect(page.getByTestId('tab-count-dividend')).toHaveText('1');
 
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-meta')).toContainText('9910');

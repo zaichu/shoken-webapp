@@ -55,21 +55,10 @@ fn filtered_count(
     })
 }
 
-fn asset_tabs(
-    kind: RwSignal<AssetKind>,
-    motion: SwipeMotion,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
-) -> impl IntoView {
+fn asset_tabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
     view! {
         <SkeletonTabs>
-            <AssetKindTabs
-                kind=kind
-                all_count=Signal::derive(move || stock_count.get() + fund_count.get())
-                stock_count=stock_count
-                fund_count=fund_count
-                motion=motion
-            />
+            <AssetKindTabs kind=kind motion=motion suffix="-mobile" />
         </SkeletonTabs>
     }
 }
@@ -229,8 +218,6 @@ fn StockContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
     motion: SwipeMotion,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let total_count = rows.len();
     let empty = rows.is_empty();
@@ -297,7 +284,7 @@ fn StockContent(
                             />
                         </SkeletonSummary>
                         <div class="asset-mobile-tabs-links lg:hidden">
-                            {asset_tabs(kind, motion, stock_count, fund_count)}
+                            {asset_tabs(kind, motion)}
                         </div>
                         <SkeletonNote filtered=filtered_count />
                     }
@@ -380,8 +367,6 @@ fn FundContent(
     sort_order: RwSignal<SortOrder>,
     kind: RwSignal<AssetKind>,
     motion: SwipeMotion,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let total_count = resolved.rows.len();
     let account_rows = resolved.rows.clone();
@@ -422,7 +407,7 @@ fn FundContent(
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
-            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion, stock_count, fund_count)}</div>
+            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -500,8 +485,6 @@ fn AllContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
     motion: SwipeMotion,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
 ) -> impl IntoView {
     let stock_total = stock_rows.len();
     let fund_total = fund_resolved.rows.len();
@@ -599,7 +582,7 @@ fn AllContent(
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
-            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion, stock_count, fund_count)}</div>
+            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -672,8 +655,6 @@ pub(crate) fn AssetBalanceMainContent(
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
     motion: SwipeMotion,
-    stock_count: Signal<usize>,
-    fund_count: Signal<usize>,
 ) -> impl IntoView {
     view! {
         {move || match kind.get() {
@@ -691,8 +672,6 @@ pub(crate) fn AssetBalanceMainContent(
                         lookup=lookup
                         generation=generation
                         motion=motion
-                        stock_count=stock_count
-                        fund_count=fund_count
                     />
                 }
                     .into_any()
@@ -707,8 +686,6 @@ pub(crate) fn AssetBalanceMainContent(
                         sort_order=fund_sort_order
                         kind=kind
                         motion=motion
-                        stock_count=stock_count
-                        fund_count=fund_count
                     />
                 }
                     .into_any()
@@ -728,8 +705,6 @@ pub(crate) fn AssetBalanceMainContent(
                         lookup=lookup
                         generation=generation
                         motion=motion
-                        stock_count=stock_count
-                        fund_count=fund_count
                     />
                 }
                     .into_any()

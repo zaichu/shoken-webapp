@@ -1,8 +1,6 @@
 use super::TAB_IDS;
-use crate::features::receipts::filter::filter_receipts;
 use crate::features::receipts::view::ReceiptsMainContent;
-use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::ui::badge::{Badge, BadgeVariant};
+use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
@@ -15,8 +13,8 @@ pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
     shared_next_tab_index(TAB_IDS.len(), current, key)
 }
 
-fn focus_tab(index: usize) {
-    focus_tab_by_id(&format!("tab-{}", TAB_IDS[index]));
+fn focus_tab(index: usize, suffix: &str) {
+    focus_tab_by_id(&format!("tab-{}{}", TAB_IDS[index], suffix));
 }
 
 #[component]
@@ -24,17 +22,19 @@ pub fn ReceiptsTabButton(
     store: ReceiptsStore,
     tab: ReceiptsTab,
     motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
     let slug = TAB_IDS[tab as usize];
+    let suffix = suffix.unwrap_or("");
+    let id = format!("tab-{slug}{suffix}");
     let label = tab.label();
     let selected = store;
     let keyed = store;
     let clicked = store;
     let guard = motion;
-    let counted_store = store;
     view! {
         <TabButton
-            id=format!("tab-{slug}")
+            id=id
             controls=format!("tabpanel-{slug}")
             selected=move || selected.active_tab.get() == tab
             on_click=move |event| {
@@ -56,26 +56,21 @@ pub fn ReceiptsTabButton(
                 if let Some(next) = next_tab_index(current, &event.key()) {
                     event.prevent_default();
                     keyed.select_tab(ReceiptsTab::ALL[next]);
-                    focus_tab(next);
+                    focus_tab(next, suffix);
                 }
             }
         >
             {label}
-            <Badge variant=BadgeVariant::Count testid=format!("tab-count-{slug}")>
-                {move || match counted_store.tab_state(tab) {
-                    TabState::Ready(data) => {
-                        let query = counted_store.search.with(|s| s.query.clone());
-                        filter_receipts(tab, &data.rows, &query).len().to_string()
-                    }
-                    TabState::Loading | TabState::Failed(_) => "—".to_string(),
-                }}
-            </Badge>
         </TabButton>
     }
 }
 
 #[component]
-pub fn ReceiptsTabNav(store: ReceiptsStore, motion: SwipeMotion) -> impl IntoView {
+pub fn ReceiptsTabNav(
+    store: ReceiptsStore,
+    motion: SwipeMotion,
+    #[prop(optional)] suffix: Option<&'static str>,
+) -> impl IntoView {
     let active_tab = store.active_tab;
     view! {
         <nav aria-label=crate::ui::labels::KIND>
@@ -87,7 +82,16 @@ pub fn ReceiptsTabNav(store: ReceiptsStore, motion: SwipeMotion) -> impl IntoVie
                 {ReceiptsTab::ALL
                     .iter()
                     .copied()
-            .map(|tab| view! { <ReceiptsTabButton store=store tab=tab motion=motion /> })
+            .map(|tab| {
+                        view! {
+                            <ReceiptsTabButton
+                                store=store
+                                tab=tab
+                                motion=motion
+                                suffix=suffix.unwrap_or("")
+                            />
+                        }
+                    })
                     .collect_view()}
                 <span
                     class="tab-swipe-ink"

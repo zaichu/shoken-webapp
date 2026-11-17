@@ -313,10 +313,11 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
     let products = categories.products;
     let accounts = categories.accounts;
     let has_years = move || categories.has_years();
-    let sort_summary = move || match sort_order.get() {
-        ReceiptSortOrder::Newest => labels::RECEIPT_SORT_NEWEST.to_string(),
-        ReceiptSortOrder::Oldest => {
-            format!("{} {SORT_OLDEST_FIRST}", receipt_date_label(tab.get()))
+    let sort_summary = move || {
+        let date = receipt_date_label(tab.get());
+        match sort_order.get() {
+            ReceiptSortOrder::Newest => labels::sort_summary(date, SORT_NEWEST_FIRST),
+            ReceiptSortOrder::Oldest => format!("{date} {SORT_OLDEST_FIRST}"),
         }
     };
 

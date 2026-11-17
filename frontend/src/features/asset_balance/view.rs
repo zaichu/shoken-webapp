@@ -24,8 +24,7 @@ use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey, 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, asset_balance_counts, fund_balance_counts, resolve_asset_balance,
-    resolve_fund_balance,
+    AssetBalanceCsvStore, resolve_asset_balance, resolve_fund_balance,
 };
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
@@ -33,6 +32,7 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
 use crate::ui::labels;
+use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -124,8 +124,6 @@ impl KindContent {
                     lookup=self.lookup
                     generation=generation
                     motion=self.motion
-                    stock_count=Signal::derive(move || self.counts[1].get().1)
-                    fund_count=Signal::derive(move || self.counts[2].get().1)
                 />
             }
             .into_any(),
@@ -302,21 +300,6 @@ pub fn AssetBalancePage() -> impl IntoView {
         prev_kind.set(next);
         search.update(|search| *search = text_only_search(search));
     });
-    // タブの件数表示用。タブ行をページレベルで描くためここで算出
-    let stock_count = Signal::derive(move || {
-        let generation = rail_session.generation.get();
-        balances
-            .with(|slot| asset_balance_counts(generation, slot))
-            .map_or(0, |(rows_len, _)| rows_len)
-    });
-    let fund_count = Signal::derive(move || {
-        let generation = rail_session.generation.get();
-        funds
-            .with(|slot| fund_balance_counts(generation, slot))
-            .map_or(0, |(rows_len, total)| {
-                summary::fund_tab_count(rows_len, total)
-            })
-    });
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
@@ -346,9 +329,17 @@ pub fn AssetBalancePage() -> impl IntoView {
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
             </span>
-            <span class="flex items-center gap-2 lg:hidden">
-                <a class="page-secondary-link-sm" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
-                <a class="page-secondary-link-sm" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
+            <span class="flex items-center gap-3 lg:hidden">
+                <MoreLink
+                    href="/assetbalance/composition".to_string()
+                    label=labels::COMPOSITION_VIEW_LINK
+                    testid="asset-composition-link"
+                />
+                <MoreLink
+                    href="/csv".to_string()
+                    label=labels::CSV_MANAGE_TITLE
+                    testid="asset-csv-link"
+                />
             </span>
         }
         .into_any()
@@ -373,13 +364,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         >
             <div class="content-gutter no-print max-lg:hidden">
                 <SkeletonTabs>
-                    <AssetKindTabs
-                        kind=state.kind
-                        all_count=Signal::derive(move || stock_count.get() + fund_count.get())
-                        stock_count=stock_count
-                        fund_count=fund_count
-                        motion=motion
-                    />
+                    <AssetKindTabs kind=state.kind motion=motion />
                 </SkeletonTabs>
             </div>
             {/* 本文: スクロール可能。スマホ幅では横スワイプでタブを切り替える */}
@@ -444,12 +429,9 @@ pub fn AssetBalancePage() -> impl IntoView {
                     .enumerate()
                     .map(|(index, kind)| {
                         let kind = *kind;
-                        let first = index == 0;
                         view! {
                             <SwipeSlide index=index current=current_tab motion=motion>
-                                <div class:asset-mobile-summary-order=first>
-                                    {move || content.render(kind)}
-                                </div>
+                                {move || content.render(kind)}
                             </SwipeSlide>
                         }
                     })

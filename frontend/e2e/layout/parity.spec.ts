@@ -157,8 +157,13 @@ async function selectReceiptTab(page: Page, tab: ReceiptTab) {
   const button = page.getByRole('tab', { name: tab.name });
   await button.click();
   await expect(button).toHaveAttribute('aria-selected', 'true');
-  // 件数バッジはタブ別フェッチの完了を意味する
-  await expect(page.getByTestId(`tab-count-${tab.slug}`)).toHaveText(String(tab.count));
+  // タブの取得完了は一覧の表示で確かめる(タブに件数は出さない)
+  await expect(page.getByTestId('receipt-table-card')).toBeVisible();
+  if (await page.getByRole('table').isVisible()) {
+    await expect(page.getByRole('table')).toBeVisible();
+  } else {
+    await expect(page.getByTestId('receipt-card-list')).toBeVisible();
+  }
 }
 
 async function expectNoPageOverflow(page: Page, width: number) {
