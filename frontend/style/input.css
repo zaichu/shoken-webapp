@@ -2031,7 +2031,7 @@
 }
 
 .receipt-instrument-cell .copyable-name > span {
-  @apply min-w-0 truncate whitespace-nowrap;
+  @apply min-w-0 whitespace-normal break-words line-clamp-2;
 }
 
 .receipt-instrument-cell .copy-icon {
