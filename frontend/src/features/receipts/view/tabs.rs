@@ -4,8 +4,8 @@ use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id, next_tab_index as shared_next_tab_index, prefers_reduced_motion,
-    swipe_should_ignore_input, tab_ink_offset,
+    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index as shared_next_tab_index,
+    prefers_reduced_motion, swipe_should_ignore_input, tab_ink_offset,
 };
 use leptos::prelude::*;
 
@@ -14,7 +14,7 @@ pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
 }
 
 fn focus_tab(index: usize, suffix: &str) {
-    focus_tab_by_id(&format!("tab-{}{}", TAB_IDS[index], suffix));
+    focus_tab_by_id_after_paint(format!("tab-{}{}", TAB_IDS[index], suffix));
 }
 
 #[component]

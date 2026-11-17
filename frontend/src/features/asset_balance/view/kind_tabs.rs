@@ -2,7 +2,7 @@ use crate::features::asset_balance::fund::AssetKind;
 use crate::ui::button::TabButton;
 use crate::ui::labels;
 use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id, next_tab_index, prefers_reduced_motion,
+    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index, prefers_reduced_motion,
     swipe_should_ignore_input, tab_ink_offset,
 };
 use leptos::prelude::*;
@@ -65,7 +65,7 @@ pub(crate) fn AssetKindTabs(
                                 if let Some(next) = next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
-                                    focus_tab_by_id(&format!(
+                                    focus_tab_by_id_after_paint(format!(
                                         "{}{}",
                                         tab_id(AssetKind::ALL[next]),
                                         suffix

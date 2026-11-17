@@ -32,7 +32,6 @@ use crate::features::asset_balance::store::{
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{SessionStore, use_session};
 use crate::ui::labels;
-use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
@@ -50,6 +49,7 @@ struct KindContent {
     search: RwSignal<AssetSearch>,
     counts: [RwSignal<(usize, usize)>; 3],
     kinds: [RwSignal<AssetKind>; 3],
+    page_kind: RwSignal<AssetKind>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
     fund_sort_key: RwSignal<FundSortKey>,
@@ -120,6 +120,7 @@ impl KindContent {
                     fund_sort_key=self.fund_sort_key
                     fund_sort_order=self.fund_sort_order
                     kind=self.kinds[index]
+                    page_kind=self.page_kind
                     dividends=self.dividends
                     lookup=self.lookup
                     generation=generation
@@ -280,6 +281,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         search,
         counts: std::array::from_fn(|_| RwSignal::new((0usize, 0usize))),
         kinds: std::array::from_fn(|index| RwSignal::new(AssetKind::ALL[index])),
+        page_kind: state.kind,
         sort_key: state.sort_key,
         sort_order: state.sort_order,
         fund_sort_key: state.fund_sort_key,
@@ -326,21 +328,9 @@ pub fn AssetBalancePage() -> impl IntoView {
     });
     let csv_link: Children = Box::new(move || {
         view! {
-            <span class="hidden items-center gap-2 lg:flex">
+            <span class="flex items-center gap-2">
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
-            </span>
-            <span class="flex items-center gap-3 lg:hidden">
-                <MoreLink
-                    href="/assetbalance/composition".to_string()
-                    label=labels::COMPOSITION_VIEW_LINK
-                    testid="asset-composition-link"
-                />
-                <MoreLink
-                    href="/csv".to_string()
-                    label=labels::CSV_MANAGE_TITLE
-                    testid="asset-csv-link"
-                />
             </span>
         }
         .into_any()

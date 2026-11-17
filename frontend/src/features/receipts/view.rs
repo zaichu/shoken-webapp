@@ -14,7 +14,6 @@ pub use tabs::{ReceiptsTabNav, TabPanel};
 use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
 use crate::session::use_session;
 use crate::ui::labels::{CSV_MANAGE_TITLE, RECEIPTS_TITLE};
-use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::underline_tabs::{SwipeArea, SwipeMotion};
@@ -45,12 +44,7 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     let csv_link: Children = Box::new(move || {
         view! {
-            <>
-                <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{CSV_MANAGE_TITLE}</a>
-                <span class="lg:hidden">
-                    <MoreLink href="/csv".to_string() label=CSV_MANAGE_TITLE testid="receipts-csv-link" />
-                </span>
-            </>
+            <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{CSV_MANAGE_TITLE}</a>
         }
         .into_any()
     });

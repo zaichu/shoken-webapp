@@ -307,7 +307,7 @@ test('資産管理の検索とCSV管理ページに390pxでもアクセスでき
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/assetbalance');
   await expectAssetDataLoaded(page);
-  // 検索・並べ替えは入口の1行にまとめ、入力欄はシートの中にある
+  // 検索入力は常時表示し、並べ替えは入口の1行にまとめる。条件はシートで付ける
   await page.getByTestId('asset-search-sheet-entry').click();
   await expect(page.getByTestId('asset-search-input')).toBeEditable();
   await page.keyboard.press('Escape');
@@ -418,7 +418,8 @@ type Box = { y: number; height: number };
 
 async function skeletonBox(page: Page, selector: string): Promise<Box> {
   await page.evaluate(() => window.scrollTo(0, 0));
-  const locator = page.locator(selector).first();
+  // タブは PC 用とスマホ用が両方描かれるため、見えている側だけを比べる
+  const locator = page.locator(`${selector}:visible`).first();
   await expect(locator).toBeVisible();
   const box = await locator.boundingBox();
   expect(box).not.toBeNull();

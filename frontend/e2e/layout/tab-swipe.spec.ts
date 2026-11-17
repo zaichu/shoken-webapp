@@ -244,8 +244,9 @@ async function slideX(page: Page, testid: string): Promise<number | null> {
 }
 
 async function inkPercent(page: Page): Promise<number | null> {
+  // PC 用とスマホ用の下線が両方あるため、見えている側を読む
   const transform = await page
-    .locator('.tab-swipe-ink')
+    .locator('.tab-swipe-ink:visible')
     .evaluate((element) => (element as HTMLElement).style.transform);
   return parseTranslateXPercent(transform);
 }
@@ -337,7 +338,7 @@ test.describe('下線タブの横スワイプ', () => {
       .locator('#assetbalance-fund-list')
       .evaluate((element) => element.getBoundingClientRect().left);
     expect(fundLeft).toBeLessThan(390);
-    await expect(page.locator('.tab-swipe-ink[data-on="true"]')).toHaveCount(1);
+    await expect(page.locator('.tab-swipe-ink[data-on="true"]:visible')).toHaveCount(1);
 
     await touchEnd(page, 'assetbalance-main-stage', 100, 400);
     await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(

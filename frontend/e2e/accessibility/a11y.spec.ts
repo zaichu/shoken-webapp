@@ -311,8 +311,9 @@ test('取引明細の3タブに moderate 以上の WCAG 違反がない', async 
     await page.goto('/receipts');
     await page.waitForLoadState('networkidle');
     for (const tab of tabs) {
-      await page.click(`button[role="tab"][id="${tab.id}"]`);
-      await expect(page.locator(`#${tab.id}`)).toHaveAttribute('aria-selected', 'true');
+      // 見えている側のタブを押す(スマホは集計の下、PC はページ上部)
+      await page.getByRole('tab', { name: tab.label, exact: true }).click();
+      await expect(page.getByRole('tab', { name: tab.label, exact: true })).toHaveAttribute('aria-selected', 'true');
       await expect(
         page
           .locator(`#tabpanel-${tab.id.replace('tab-', '')}`)
@@ -386,7 +387,7 @@ test('取引明細の検索と条件を足す小窓に moderate 以上の WCAG �
     await page.waitForTimeout(400);
     // 資産管理の検索入力は行がある時だけ描画されるので
     // 空・取得失敗だと入力欄が無くスキャンが黙って飛ばされる。
-    // PC は一覧の上の入力欄、モバイルはシートの中の入力欄
+    // PC は一覧の上の入力欄、モバイルは常時表示の入力欄とシートの中の入力欄
     if (name === 'PC') {
       await expect(page.getByTestId('asset-search-input-pc')).toBeVisible({ timeout: 10000 });
     } else {
@@ -597,8 +598,11 @@ async function assertTargetSize(
     [
       '取引明細(国内株式)',
       async () => {
-        await page.click('button[role="tab"][id="tab-domesticstock"]');
-        await expect(page.locator('#tab-domesticstock')).toHaveAttribute('aria-selected', 'true');
+        // 見えている側のタブを押す(スマホは集計の下、PC はページ上部)
+        await page.getByRole('tab', { name: '国内株式', exact: true }).click();
+        await expect(
+          page.getByRole('tab', { name: '国内株式', exact: true }),
+        ).toHaveAttribute('aria-selected', 'true');
         await expect(
           page.getByText(NEGATIVE_DOMESTIC_ROW.security_name).filter({ visible: true }).first(),
         ).toBeVisible({ timeout: 10000 });

@@ -1029,7 +1029,7 @@
     @apply flex flex-col items-end gap-0.5 whitespace-normal;
   }
 
-  .receipt-after-tax-sub {
+  .receipt-before-tax-sub {
     @apply text-xs font-normal text-text-soft;
   }
 

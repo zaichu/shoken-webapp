@@ -36,6 +36,17 @@ pub fn focus_tab_by_id(id: &str) {
     }
 }
 
+/// タブ切り替えの矢印キー用。パネルごと描き変わる配置では、切り替え直後は
+/// 旧パネルのボタンしか無いため、次の描画を待ってから新ボタンを探す
+pub fn focus_tab_by_id_after_paint(id: String) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let restore = Closure::once(Box::new(move || focus_tab_by_id(&id)) as Box<dyn FnOnce()>);
+    let _ = window.request_animation_frame(restore.as_ref().unchecked_ref());
+    restore.forget();
+}
+
 /// 横スワイプでタブを切り替える判定のしきい値。縦スクロールとの区別と端末差を吸収するため少し余裕を持つ
 pub const SWIPE_MIN_DISTANCE_PX: f64 = 60.0;
 pub const SWIPE_AXIS_RATIO: f64 = 2.0;

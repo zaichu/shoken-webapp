@@ -55,10 +55,10 @@ fn filtered_count(
     })
 }
 
-fn asset_tabs(kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
+fn asset_tabs(page_kind: RwSignal<AssetKind>, motion: SwipeMotion) -> impl IntoView {
     view! {
         <SkeletonTabs>
-            <AssetKindTabs kind=kind motion=motion suffix="-mobile" />
+            <AssetKindTabs kind=page_kind motion=motion suffix="-mobile" />
         </SkeletonTabs>
     }
 }
@@ -213,7 +213,7 @@ fn StockContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<SortKey>,
     sort_order: RwSignal<SortOrder>,
-    kind: RwSignal<AssetKind>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
@@ -261,7 +261,7 @@ fn StockContent(
     });
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-stock-list" hidden=empty>
+        <section id="assetbalance-stock-list">
             {move || {
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
@@ -283,13 +283,19 @@ fn StockContent(
                                 show_pending=pending
                             />
                         </SkeletonSummary>
-                        <div class="asset-mobile-tabs-links lg:hidden">
-                            {asset_tabs(kind, motion)}
-                        </div>
                         <SkeletonNote filtered=filtered_count />
                     }
                 })
             }}
+            // 空のときもタブは出す。株式0件・投信のみでも投信へ移れるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::Stock).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">
+                    {asset_tabs(page_kind, motion)}
+                </div>
+            })}
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -312,6 +318,7 @@ fn StockContent(
                     key_from_value=|value: &str| SortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -353,6 +360,8 @@ fn StockContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -365,7 +374,7 @@ fn FundContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
-    kind: RwSignal<AssetKind>,
+    page_kind: RwSignal<AssetKind>,
     motion: SwipeMotion,
 ) -> impl IntoView {
     let total_count = resolved.rows.len();
@@ -393,7 +402,9 @@ fn FundContent(
     let pending = valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-fund-list" hidden=empty>
+        <section id="assetbalance-fund-list">
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSummary>
                 <AssetSummaryBand
                     market=Some(market)
@@ -406,8 +417,12 @@ fn FundContent(
                     show_pending=pending
                 />
             </SkeletonSummary>
+            // 空のときもタブは出す。投信0件・株式のみでも株式へ移れるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::Fund).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(page_kind, motion)}</div>
+            })}
             <SkeletonNote filtered=filtered_count />
-            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -430,6 +445,7 @@ fn FundContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -459,6 +475,8 @@ fn FundContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -480,7 +498,7 @@ fn AllContent(
     search_count: RwSignal<(usize, usize)>,
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
-    kind: RwSignal<AssetKind>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
@@ -568,7 +586,9 @@ fn AllContent(
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
         {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
-        <section id="assetbalance-all-list" hidden=empty>
+        <section id="assetbalance-all-list">
+            {(!empty).then(|| view! {
+                <>
             <SkeletonSummary>
                 <AssetSummaryBand
                     market=Some(market)
@@ -581,8 +601,12 @@ fn AllContent(
                     show_pending=pending
                 />
             </SkeletonSummary>
+            // 空のときもタブは出す。どちらか0件でも行き来できるようにする。
+            // 前面のスライドだけに描く(横スワイプ中に隣の面まで出すと重複する)
+            {move || (page_kind.get() == AssetKind::All).then(|| view! {
+                <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(page_kind, motion)}</div>
+            })}
             <SkeletonNote filtered=filtered_count />
-            <div class="asset-mobile-tabs-links lg:hidden">{asset_tabs(kind, motion)}</div>
             <SkeletonSearch>
                 <AssetSearchBar
                     search=search
@@ -605,6 +629,7 @@ fn AllContent(
                     key_from_value=|value: &str| FundSortKey::from_value(value)
                     sort_key=sort_key
                     sort_order=sort_order
+                    composition=true
                 />
             </SkeletonSearch>
             <div class="asset-list-surface">
@@ -634,6 +659,8 @@ fn AllContent(
                     view! { <EmptyFilteredSearch search=search /> }
                 })
             }}
+                </>
+            })}
         </section>
     }
     .into_any()
@@ -651,6 +678,7 @@ pub(crate) fn AssetBalanceMainContent(
     fund_sort_key: RwSignal<FundSortKey>,
     fund_sort_order: RwSignal<SortOrder>,
     kind: RwSignal<AssetKind>,
+    page_kind: RwSignal<AssetKind>,
     dividends: RwSignal<DividendMaps>,
     lookup: RwSignal<AssetBalanceLookupStore>,
     generation: Generation,
@@ -667,7 +695,7 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=sort_key
                         sort_order=sort_order
-                        kind=kind
+                        page_kind=page_kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation
@@ -684,7 +712,7 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
-                        kind=kind
+                        page_kind=page_kind
                         motion=motion
                     />
                 }
@@ -700,7 +728,7 @@ pub(crate) fn AssetBalanceMainContent(
                         search_count=search_count
                         sort_key=fund_sort_key
                         sort_order=fund_sort_order
-                        kind=kind
+                        page_kind=page_kind
                         dividends=dividends
                         lookup=lookup
                         generation=generation

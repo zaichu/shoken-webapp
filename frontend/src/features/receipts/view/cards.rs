@@ -302,12 +302,12 @@ fn compact_value(details: &[CardDetail], label: &str) -> (String, bool, bool) {
         })
 }
 
-pub(crate) fn after_tax_subtext(tab: ReceiptsTab, details: &[CardDetail]) -> Option<String> {
+pub(crate) fn before_tax_subtext(tab: ReceiptsTab, details: &[CardDetail]) -> Option<String> {
     if tab == ReceiptsTab::Dividend {
         return None;
     }
-    let (value, _, _) = compact_value(details, AFTER_TAX);
-    (!value.is_empty()).then(|| format!("{AFTER_TAX} {value}"))
+    let (value, _, _) = compact_value(details, REALIZED_PROFIT_LOSS);
+    (!value.is_empty()).then(|| format!("{BEFORE_TAX} {value}"))
 }
 
 fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
@@ -440,7 +440,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         ..
     } = card;
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
-    let after_tax_sub = after_tax_subtext(tab, &details);
+    let before_tax_sub = before_tax_subtext(tab, &details);
     let hero_is_profit = is_profit_label(tab, AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
@@ -488,8 +488,8 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                             negative=hero_negative
                             positive=hero_positive
                         />
-                        {after_tax_sub.clone().map(|text| view! {
-                            <span class="receipt-after-tax-sub">{text}</span>
+                        {before_tax_sub.clone().map(|text| view! {
+                            <span class="receipt-before-tax-sub">{text}</span>
                         })}
                     </span>
                 }

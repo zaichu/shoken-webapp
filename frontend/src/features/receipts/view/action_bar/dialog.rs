@@ -4,10 +4,11 @@ use crate::features::receipts::filter::{DateSegment, ReceiptSearch, ReceiptSortO
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::support::list_search::SearchOption;
 use crate::ui::labels::{
-    self, ACCOUNT, ALL, CONDITION, PAYMENT_DATE, PERIOD, PRODUCT, RECEIPT_SEARCH_TARGET, SEARCH,
-    SEARCH_AND_SORT, SORT_BY, SORT_NEWEST_FIRST, SORT_OLDEST_FIRST, SORT_ORDER_LABEL, SORT_TARGET,
-    TRADE_DATE,
+    self, ACCOUNT, ALL, CONDITION, CSV_MANAGE_TITLE, PAYMENT_DATE, PERIOD, PRODUCT,
+    RECEIPT_SEARCH_TARGET, SEARCH, SEARCH_AND_SORT, SORT_BY, SORT_NEWEST_FIRST, SORT_OLDEST_FIRST,
+    SORT_ORDER_LABEL, SORT_TARGET, TRADE_DATE,
 };
+use crate::ui::more_link::MoreLink;
 use crate::ui::search_controls::{SearchBox, SearchTextInput};
 use crate::ui::search_dialog::SearchDialog;
 use crate::ui::search_entry::MobileSearchEntryShell;
@@ -332,12 +333,19 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
             placeholder=sheet_placeholder.clone()
             value=Signal::derive(move || search.with(|s| s.selected_queries.securities.clone()))
             on_input=Callback::new(move |value| search.update(|s| s.set_securities_query(value)))
-            search_input_testid="receipts-search-input"
+            search_input_testid="receipts-search-input-inline"
             sort_summary=sort_summary
             open=open
         >
             <ConditionTags search=search has_years=has_years />
-            <ReceiptSearchCount store=store tab=tab />
+            <div class="flex w-full items-center justify-between gap-2">
+                <ReceiptSearchCount store=store tab=tab />
+                <MoreLink
+                    href="/csv".to_string()
+                    label=CSV_MANAGE_TITLE.to_string()
+                    testid="receipts-csv-link".to_string()
+                />
+            </div>
         </MobileSearchEntryShell>
         {move || {
             open.get()

@@ -81,16 +81,20 @@ test('390px では検索入力とCSV管理へのリンクにそのまま届く',
 
   // CSV 操作は専用ページに移ったため、一覧にはドロワーがない
   await expect(page.getByTestId('asset-utility-toggle')).toHaveCount(0);
-  // 検索・並べ替えは紺帯の下の入口1行にまとめ、操作はシートで行う
+  // 検索入力は常時表示し、並べ替えは入口の1行にまとめる。条件はシートで付ける
   const entry = page.getByTestId('asset-search-sheet-entry');
   await expect(entry).toBeVisible();
-  await expect(entry).toContainText('検索・並べ替え');
+  await expect(entry).toContainText('並べ替え');
+  await expect(entry).toContainText('評価額の高い順');
+  const inline = page.getByTestId('asset-search-input-inline');
+  await expect(inline).toBeVisible();
+  await expect(inline).toBeEditable();
   const main = page.getByTestId('assetbalance-main-stage');
-  // 検索欄は入口を開いたダイアログの中にある。並べ替えは対象と順序の選択
+  // 入口を開くと条件と並べ替えのシートが出る
   await entry.click();
   const sheet = page.getByTestId('asset-search-sheet');
   await expect(sheet).toBeVisible();
-  const searchInput = page.getByTestId('asset-search-input');
+  const searchInput = sheet.getByTestId('asset-search-input');
   await expect(searchInput).toBeVisible();
   await expect(searchInput).toBeEditable();
   await expect(sheet.getByTestId('asset-dialog-sort-target')).toHaveValue('market_value');
@@ -198,7 +202,7 @@ test('Enter で検索して閉じる。IME 変換中は閉じない', async ({ p
   const reopenedInput = reopened.getByTestId('asset-search-input');
   await reopenedInput.fill('架空');
   await page.evaluate(() => {
-    const input = document.querySelector('[data-testid="asset-search-input"]') as HTMLInputElement;
+    const input = document.querySelector('[data-testid="asset-search-sheet"] [data-testid="asset-search-input"]') as HTMLInputElement;
     const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
     Object.defineProperty(event, 'isComposing', { value: true });
     input.dispatchEvent(event);

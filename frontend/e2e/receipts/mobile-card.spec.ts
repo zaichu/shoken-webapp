@@ -151,7 +151,9 @@ test('マイナスの損益は符号と色を保つ', async ({ page }) => {
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.list-row-primary')).toHaveText('-¥5,000');
+  await expect(card.locator('.list-row-primary')).toContainText('-¥5,000');
+  // 金額の下に税引前を小さく添える(国内株式・投資信託のみ)
+  await expect(card.locator('.receipt-before-tax-sub')).toHaveText('税引前 -¥5,000');
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
   ).toHaveCount(1);
