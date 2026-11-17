@@ -141,11 +141,14 @@
   --radius-note: 1.35rem;
 
   /* ページの骨格の余白。見出し行・タブ行・帯・注記・検索・条件・表の間隔を
-     1セットのトークンで決め、資産管理・取引明細で同じ値を使う */
-  --space-tabs: 1rem;
+     1セットのトークンで決め、資産管理・取引明細で同じ値を使う。
+     PC の値は変えない。スマホだけ別値が必要な箇所は -mobile 側を使う */
+  --space-tabs: 0.75rem;
+  --space-tabs-mobile: 1rem;
   --space-summary: 0.75rem;
   --space-note: 0.25rem;
-  --space-search: 0.5rem;
+  --space-search: 0.75rem;
+  --space-search-mobile: 0.5rem;
   --space-condition: 0.5rem;
   --space-table: 0.75rem;
   --space-page: 1rem;
@@ -1389,19 +1392,22 @@
   @media (width < 64rem) {
     .page-skeleton-search {
       @apply px-4;
-      margin-top: var(--space-tabs);
+      /* タブ→検索は16px。共通トークンは PC の値のまま残し、スマホだけ別トークンを使う */
+      margin-top: var(--space-tabs-mobile);
       margin-bottom: var(--space-table);
     }
 
     .mobile-sort-entry {
-      margin-top: var(--space-search);
+      /* 検索→並べ替えは8px。共通トークンは PC の値のまま残し、スマホだけ別トークンを使う */
+      margin-top: var(--space-search-mobile);
     }
 
-    .asset-mobile-tabs-links {
-      @apply px-4;
-    }
+    /* タブ操作域の左右16pxは .page-tab-list 側が持つ。ここで重ねると
+       資産管理だけ32pxになるため付けない(.asset-mobile-tabs-links に余白は付けない) */
 
-    .asset-compact-row .list-row-action,
+    /* 資産管理の一覧行は class ではなく data-testid="asset-compact-row" を
+       持つ(li.list-row-item)。class セレクタでは一致しないため属性で指定する */
+    .list-row-item[data-testid="asset-compact-row"] .list-row-action,
     .list-row-item[data-testid="receipt-card"] .list-row-action {
       @apply py-2;
     }
