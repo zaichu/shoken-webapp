@@ -67,7 +67,7 @@
 
 ## 採点: 新案 idea4
 
-- 指定の `docs/design/work/phase8-visual/shots/idea4-simple-mobile-light.png` は本調査時点でリポジトリに存在しないため採点不可
+- idea4 の見本画像は削除済みのため採点不可
 - 画像が用意できたら下のチェックリストで採点すること(作画時の受け入れ条件として使う)
 
 ### idea4 受け入れチェックリスト

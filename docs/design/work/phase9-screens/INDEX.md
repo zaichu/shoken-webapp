@@ -14,11 +14,11 @@
 ## ホーム(`/`、完成形)
 
 #1973 で本番に入った画面を正とする。静的見本・スクリーンショットは置かない。
-資産管理・取引明細の見本は [Phase 10](../phase10-redesign/README.md) を参照。
+資産管理・取引明細も本番画面を正とする。静的見本・スクリーンショットは置かない。
 
 ## 資産管理(`/assetbalance`、完成形)
 
-現行見本: `../phase10-redesign/assetbalance-mobile.html` / `assetbalance-pc.html` と `../phase10-redesign/shots/assetbalance-{mobile|pc}-{light|dark}.png`。旧phase9の完成形・状態HTML/PNGは削除済み。
+旧phase9の完成形・状態HTML/PNGは削除済み。本番画面に変更を入れて撮影した画像を見本にする。
 
 既存(`../phase1-codex/shots/asset-all-1440x900-pc-light.png`・`asset-all-mobile-light.png`)との対応:
 
@@ -61,7 +61,7 @@
 
 ## 取引明細(`/receipts`、完成形)
 
-現行見本: `../phase10-redesign/receipts-mobile.html` / `receipts-pc.html` と `../phase10-redesign/shots/receipts-{mobile|pc}-{light|dark}.png`。旧phase9の完成形・状態HTML/PNGは削除済み。
+旧phase9の完成形・状態HTML/PNGは削除済み。本番画面に変更を入れて撮影した画像を見本にする。
 
 ## CSV管理(`/csv`、完成形 4 枚 + 状態 5 種 ×2 = 10 枚)
 

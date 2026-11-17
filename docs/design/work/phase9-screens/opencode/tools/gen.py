@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Phase9 opencode担当分の新案HTMLを生成する。数値は fixtures.json 由来の架空データを直書き。
-旧見本用の生成スクリプト。現行デザイン見本は docs/design/work/phase10-redesign/ を参照する。"""
+"""Phase9 opencode担当分の新案HTMLを生成する。数値は fixtures.json 由来の架空データを直書き。"""
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
