@@ -1,10 +1,11 @@
 #![cfg(target_os = "linux")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use backend::db::{self, Bind, Db, connect_pool_lazy, run_migrations};
+use backend::db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations};
 use chrono::NaiveDate;
 use std::fs;
 use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -35,13 +36,6 @@ impl Drop for Workdir {
     }
 }
 
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .to_path_buf()
-}
-
 fn run(key: &str, args: &[&str]) -> std::process::Output {
     Command::new(key)
         .args(args)
@@ -50,7 +44,10 @@ fn run(key: &str, args: &[&str]) -> std::process::Output {
 }
 
 fn require_pg_dump_17() {
-    let out = run("pg_dump", &["--version"]);
+    let out = run(
+        "docker",
+        &["run", "--rm", "postgres:17", "pg_dump", "--version"],
+    );
     let version = String::from_utf8_lossy(&out.stdout);
     assert!(
         out.status.success() && version.contains(" 17."),
@@ -173,10 +170,36 @@ fn count_for(counts: &[(String, i64)], table: &str) -> i64 {
 }
 
 fn run_backup(pgurl: &str, recipient: &Path, out: &Path) -> std::process::Output {
+    let workdir = recipient
+        .parent()
+        .expect("公開鍵の親ディレクトリがありません");
+    let bin_dir = workdir.join("bin");
+    fs::create_dir_all(&bin_dir).expect("pg_dump wrapper のディレクトリ作成に失敗");
+    let pg_dump = bin_dir.join("pg_dump");
+    fs::write(
+        &pg_dump,
+        "#!/bin/bash\nargs=()\nfor arg in \"$@\"; do args+=(\"${arg/127.0.0.1:/host.docker.internal:}\"); done\nexec docker run --rm --add-host=host.docker.internal:host-gateway postgres:17 pg_dump \"${args[@]}\"\n",
+    )
+    .expect("pg_dump wrapper の作成に失敗");
+    let mut permissions = fs::metadata(&pg_dump).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&pg_dump, permissions).expect("pg_dump wrapper の実行権限設定に失敗");
+    let path = format!(
+        "{}:{}",
+        bin_dir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
     Command::new("bash")
-        .arg(repo_root().join("scripts/db-backup.sh"))
+        .arg(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .join("scripts/db-backup.sh"),
+        )
         .arg(out)
-        .env("PGURL", pgurl)
+        .env("PATH", path)
+        .env("DB_ADMIN_URL", pgurl)
+        .env("DB_BACKUP_ROLE", "backup_operator")
         .env("RECIPIENT_FILE", recipient)
         .output()
         .expect("バックアップスクリプトの起動に失敗")
@@ -207,10 +230,14 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
         "展開に失敗しました: {}",
         String::from_utf8_lossy(&gunzipped.stderr)
     );
-    let sql = String::from_utf8_lossy(&gunzipped.stdout).replace(
-        "CREATE SCHEMA public;",
-        "CREATE SCHEMA IF NOT EXISTS public;",
-    );
+    let sql = String::from_utf8_lossy(&gunzipped.stdout)
+        .replace(
+            "CREATE SCHEMA public;",
+            "CREATE SCHEMA IF NOT EXISTS public;",
+        )
+        .replace("dump_owner", "postgres")
+        .replace("backup_operator", "postgres")
+        .replace("pg_database_owner", "postgres");
     let mut psql = Command::new("psql")
         .arg(dest_url)
         .arg("-v")
@@ -221,12 +248,15 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
         .stderr(Stdio::piped())
         .spawn()
         .expect("psql の起動に失敗");
-    psql.stdin
-        .as_mut()
-        .unwrap()
-        .write_all(sql.as_bytes())
-        .expect("リストア入力の書き込みに失敗");
+    let write_result = psql.stdin.as_mut().unwrap().write_all(sql.as_bytes());
     let restored = psql.wait_with_output().expect("リストアの完了待機に失敗");
+    if let Err(error) = write_result {
+        assert!(
+            restored.status.success(),
+            "リストア入力の書き込みに失敗: {error}; {}",
+            String::from_utf8_lossy(&restored.stderr)
+        );
+    }
     assert!(
         restored.status.success(),
         "リストアに失敗しました: {}",
@@ -274,7 +304,35 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let source_port = source.get_host_port_ipv4(5432).await.unwrap();
     let source_url = format!("postgres://postgres:postgres@127.0.0.1:{source_port}/postgres");
     let source_pool = connect_with_retry(&source_url).await;
+    let source_admin = connect_with_retry(&source_url).await;
     seed_dummy(&source_pool).await;
+    source_pool
+        .batch_execute(
+            "CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; \
+             GRANT CREATE ON DATABASE postgres TO backup_operator; \
+             GRANT CREATE ON SCHEMA public TO backup_operator; \
+             DO $$ DECLARE item record; BEGIN FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO backup_operator', item.tablename); END LOOP; END $$; \
+             DO $$ DECLARE item record; BEGIN FOR item IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE format('ALTER SEQUENCE public.%I OWNER TO backup_operator', item.sequence_name); END LOOP; END $$; \
+             DO $$ DECLARE item record; BEGIN FOR item IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP EXECUTE format('ALTER VIEW public.%I OWNER TO backup_operator', item.viewname); END LOOP; END $$;",
+        )
+        .await
+        .unwrap();
+    source_admin
+        .batch_execute(
+            "ALTER TABLE users FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE sessions FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE dividends FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE domestic_stocks FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE mutualfunds FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE asset_balances FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE fund_balances FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE csv_import_history FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE login_events FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE login_notify_tokens FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE admin_login_views FORCE ROW LEVEL SECURITY;",
+        )
+        .await
+        .unwrap();
     let expected = table_counts(&source_pool).await;
     assert_eq!(count_for(&expected, "users"), 1);
     assert_eq!(count_for(&expected, "stock"), 2);
@@ -282,7 +340,8 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let backup = run_backup(&source_url, &recipient, &encrypted);
     assert!(
         backup.status.success(),
-        "バックアップに失敗しました: {}",
+        "バックアップに失敗しました: {} / {}",
+        String::from_utf8_lossy(&backup.stdout),
         String::from_utf8_lossy(&backup.stderr)
     );
     let stored = fs::read(&encrypted).expect("暗号化ファイルがありません");
@@ -305,6 +364,10 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let dest_port = dest.get_host_port_ipv4(5432).await.unwrap();
     let dest_url = format!("postgres://postgres:postgres@127.0.0.1:{dest_port}/postgres");
     let dest_prep = connect_with_retry(&dest_url).await;
+    dest_prep
+        .batch_execute("CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; CREATE ROLE app_restricted NOLOGIN; GRANT backup_operator TO postgres WITH INHERIT FALSE, SET TRUE")
+        .await
+        .unwrap();
     for stmt in [
         "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public",
         "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public",
@@ -327,6 +390,154 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     .await
     .expect("別スキーマの有無の取得に失敗");
     assert_eq!(probe_tables, 0);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres containers"]
+async fn migration_role_runs_all_migrations_and_force_data_migration() {
+    let node = Postgres::default().with_tag("17").start().await.unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let admin = connect_with_retry(&admin_url).await;
+    admin
+        .batch_execute(
+            "CREATE ROLE migration_admin LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
+             GRANT CREATE ON DATABASE postgres TO migration_admin; \
+             GRANT CREATE ON SCHEMA public TO migration_admin; \
+             CREATE ROLE app_restricted NOLOGIN; \
+             GRANT app_restricted TO migration_admin WITH ADMIN TRUE, SET TRUE;",
+        )
+        .await
+        .unwrap();
+    let role_url = format!("postgres://migration_admin:test@127.0.0.1:{port}/postgres");
+    let role_pool = connect_with_retry(&role_url).await;
+    let role_name: String = db::query_scalar("SELECT current_user::text", vec![])
+        .fetch_one(&role_pool)
+        .await
+        .unwrap();
+    assert_eq!(role_name, "migration_admin");
+    run_migrations(&role_pool)
+        .await
+        .expect("管理ロールによる全 migration 適用");
+
+    let regular: i64 = db::query_scalar("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&admin)
+        .await
+        .unwrap();
+    assert_eq!(regular, 0, "通常接続では FORCE 下の users が見えない");
+
+    let forced: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity",
+        vec![],
+    )
+    .fetch_one(&role_pool)
+    .await
+    .unwrap();
+    assert_eq!(forced, 11);
+    db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(Uuid::new_v4()),
+            Bind::from("admin-migration-probe"),
+            Bind::from("admin-migration-probe@example.invalid"),
+        ],
+    )
+    .execute(&role_pool)
+    .await
+    .expect("管理ロールによる FORCE 下の data migration 模擬");
+
+    let owner = Postgres::default().with_tag("17").start().await.unwrap();
+    let owner_port = owner.get_host_port_ipv4(5432).await.unwrap();
+    let owner_admin_url = format!("postgres://postgres:postgres@127.0.0.1:{owner_port}/postgres");
+    let owner_admin = connect_with_retry(&owner_admin_url).await;
+    owner_admin
+        .batch_execute(
+            "CREATE ROLE dump_owner LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
+             CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; \
+             GRANT backup_operator TO dump_owner WITH INHERIT FALSE, SET TRUE; \
+             GRANT CREATE ON DATABASE postgres TO dump_owner; \
+             GRANT CREATE ON SCHEMA public TO dump_owner; \
+             CREATE ROLE app_restricted NOLOGIN; \
+             GRANT app_restricted TO dump_owner WITH ADMIN TRUE, SET TRUE;",
+        )
+        .await
+        .unwrap();
+    let owner_url = format!("postgres://dump_owner:test@127.0.0.1:{owner_port}/postgres");
+    let owner_pool = connect_with_retry(&owner_url).await;
+    run_migrations(&owner_pool)
+        .await
+        .expect("dump 用 DB の migration");
+    db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(Uuid::new_v4()),
+            Bind::from("dump-force-probe"),
+            Bind::from("dump-force-probe@example.invalid"),
+        ],
+    )
+    .execute(&owner_pool)
+    .await
+    .unwrap();
+    owner_admin
+        .batch_execute(
+            "DO $$ DECLARE item record; BEGIN FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE format('ALTER TABLE public.%I OWNER TO backup_operator', item.tablename); END LOOP; END $$; \
+             DO $$ DECLARE item record; BEGIN FOR item IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE format('ALTER SEQUENCE public.%I OWNER TO backup_operator', item.sequence_name); END LOOP; END $$; \
+             DO $$ DECLARE item record; BEGIN FOR item IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP EXECUTE format('ALTER VIEW public.%I OWNER TO backup_operator', item.viewname); END LOOP; END $$;",
+        )
+        .await
+        .unwrap();
+    owner_admin
+        .batch_execute(
+            "ALTER TABLE users FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE sessions FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE dividends FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE domestic_stocks FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE mutualfunds FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE asset_balances FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE fund_balances FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE csv_import_history FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE login_events FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE login_notify_tokens FORCE ROW LEVEL SECURITY; \
+             ALTER TABLE admin_login_views FORCE ROW LEVEL SECURITY;",
+        )
+        .await
+        .unwrap();
+    let workdir = Workdir::new();
+    let recipient = generate_recipient(&workdir);
+    let encrypted = workdir.file("restore.sql.gz.age");
+    let backup_url = format!("postgres://dump_owner:test@127.0.0.1:{owner_port}/postgres");
+    let backup = run_backup(&backup_url, &recipient, &encrypted);
+    assert!(
+        backup.status.success(),
+        "owner の FORCE 下 dump が失敗しました: {} / {}",
+        String::from_utf8_lossy(&backup.stdout),
+        String::from_utf8_lossy(&backup.stderr)
+    );
+    let target = Postgres::default().with_tag("17").start().await.unwrap();
+    let target_port = target.get_host_port_ipv4(5432).await.unwrap();
+    let target_admin_url = format!("postgres://postgres:postgres@127.0.0.1:{target_port}/postgres");
+    let target_url = target_admin_url.clone();
+    let target_pool = connect_with_retry(&target_admin_url).await;
+    target_pool
+        .batch_execute("CREATE ROLE app_restricted NOLOGIN")
+        .await
+        .unwrap();
+    for stmt in [
+        "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public",
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public",
+        "CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public",
+    ] {
+        db::query(stmt, vec![]).execute(&target_pool).await.unwrap();
+    }
+    restore_to(&target_url, &encrypted, &workdir.file("test-backup.key"));
+    let restored: i64 = db::query_scalar("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&target_pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        restored, 1,
+        "全表 backup の restore 後に FORCE 下の行が復元される"
+    );
 }
 
 #[tokio::test]

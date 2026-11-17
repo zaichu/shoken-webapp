@@ -2,7 +2,7 @@ name: DB Backup
 
 # Supabase の DB を pg_dump で書き出し、age で暗号化して artifact に残す。
 # 平文の dump を artifact・ログに出さないため、暗号化はパイプで直接行い、
-# 接続文字列はこのステップの env (PGURL) だけに渡す。
+# 接続文字列はこのステップの env だけに渡す。
 # 公開リポジトリでは Actions のログが誰でも見えるため、pg_dump のエラー本文は
 # 接続文字列が混ざり得るので出さず、固定の文言に置き換える (scripts/db-backup.sh)。
 on:
@@ -43,11 +43,12 @@ jobs:
 
       - name: Dump and encrypt
         env:
-          PGURL: ${{ secrets.DATABASE_URL }}
+          DB_ADMIN_URL: ${{ secrets.BACKUP_DATABASE_URL != '' && secrets.BACKUP_DATABASE_URL || secrets.DATABASE_URL }}
+          DB_BACKUP_ROLE: ${{ secrets.BACKUP_DATABASE_URL != '' && 'backup_operator' || '' }}
         run: |
           set -euo pipefail
           set +x
-          [[ -n "${PGURL:-}" ]] || { echo "::error::secrets.DATABASE_URL が未設定です"; exit 1; }
+          [[ -n "${DB_ADMIN_URL:-}" ]] || { echo "::error::secrets.BACKUP_DATABASE_URL または secrets.DATABASE_URL が未設定です"; exit 1; }
           OUT="db-backup-$(date -u +%Y%m%dT%H%M%SZ).sql.gz.age"
           echo "OUT=${OUT}" >> "$GITHUB_ENV"
           bash scripts/db-backup.sh "$OUT"

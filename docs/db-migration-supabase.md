@@ -129,9 +129,11 @@ WRANGLER_LOG=none WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false WRANGLER
 
 付け替えの確認は、同じく `npx wrangler hyperdrive list` で行う。`shoken-backend-db` の行の host・user・database が移行先(Supabase Session pooler)になっていること。
 
-### 4b. ユーザーだけが実行: CI の `DATABASE_URL` secret の切り替え
+### 4b. ユーザーだけが実行: CI の migration 接続 secret の切り替え
 
-CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml:189` の `cargo run --bin migrate` が `backend/src/bin/migrate.rs:6` の `DATABASE_URL` を使う）は GitHub secret の `DATABASE_URL` を接続先にする。Hyperdrive だけを付け替えても次のバックエンドデプロイは Neon に接続し、新しいマイグレーションは Supabase に適用されない。照合成功(空の Supabase で始める場合は `prepare` 成功)・Hyperdrive 付け替え後に、ユーザーが GitHub のリポジトリ設定で `DATABASE_URL` secret を Supabase Session pooler の値へ更新する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。安定動作の確認が終わるまで Neon の値はパスワード管理ツールに残し、切り戻し時は同じ secret を実際の接続先に合わせて戻す。
+CI のマイグレーション（`.github/workflows/deploy-cloudflare-worker.yml` の `cargo run --bin migrate`）は、GitHub secret `MIGRATION_DATABASE_URL` があればそちらを使い、未登録なら従来どおり `DATABASE_URL` を使う。`DATABASE_URL` は Workers の Hyperdrive 作成用として維持する。移行先 DB を照合した後、ユーザーが `MIGRATION_DATABASE_URL` を GitHub secrets に追加すれば、Workers の資格情報を変えずに次の migration 実行から接続先を切り替えられる。切り替え前の `DATABASE_URL` だけでも deploy は継続する。値は画面に表示せず、パスワード管理ツールからの貼り付けか非表示入力で扱い、チャット・PR・Issue・ログに残さない。
+
+`MIGRATION_DATABASE_URL` は RLS bypass を持たない migration 専用ログインロールを使用する。baseline migration は extension の所有権・public schema 内の DDL・後続 migration の所有権を必要とするため、このログインロールを `NOSUPERUSER NOBYPASSRLS` とした上で、対象スキーマの object owner として接続する。アプリ用 Hyperdrive の資格情報とは共有しない。data migration が FORCE 対象表の全行を処理する場合は、当該 migration の接続ロールに一時的な明示経路を設計し、一般 migration role に恒常的な RLS bypass を与えない。
 
 migrate バイナリは `DATABASE_URL` の `sslmode` を libpq と同じ意味で扱う。Supabase の Session pooler は独自 CA の証明書を提示するため、OS の信頼ストアだけでは検証できない。CI の secret には次のいずれかを付ける。`sslmode` を付けない既定(検証あり)のままでは接続できない。`sslrootcert` は tokio-postgres が解釈できないため migrate バイナリ側で読み替える。検証したい場合は Dashboard の Database settings からサーバ CA を取得し `sslmode=verify-full` と `sslrootcert` の CA ファイルを組み合わせる。
 
