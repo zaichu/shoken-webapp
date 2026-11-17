@@ -114,7 +114,10 @@ server_owns_port() {
         printf '%s\n' "$listeners" | grep -q "pid=$pid," && return 0
       fi
     done < <(pgrep -P "$SERVER_PID" || true)
-    return
+    # ここまで一致なし=待ち受けの持ち主が別人(または不在)のため失敗にする。
+    # 素の return は直前の while の終了状態(空読みで 0)を返し、
+    # 待ち受け未確認のまま成功扱いになるため使わない
+    return 1
   fi
   kill -0 "$SERVER_PID" 2>/dev/null
 }

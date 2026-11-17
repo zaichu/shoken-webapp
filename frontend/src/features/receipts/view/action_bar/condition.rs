@@ -1,7 +1,8 @@
-use crate::features::receipts::filter::{ReceiptSearch, SearchKey, search_categories};
+use crate::features::receipts::filter;
+use crate::features::receipts::filter::{ReceiptSearch, SearchKey};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
 use crate::support::list_search::SearchOption;
-use crate::ui::labels::{self, ACCOUNT, PERIOD, PRODUCT};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 // 銘柄名・コードは別の入力欄で検索するため、条件数に含めない
@@ -25,9 +26,9 @@ pub(crate) enum ConditionKind {
 impl ConditionKind {
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Period => PERIOD,
-            Self::Account => ACCOUNT,
-            Self::Product => PRODUCT,
+            Self::Period => labels::PERIOD,
+            Self::Account => labels::ACCOUNT,
+            Self::Product => labels::PRODUCT,
         }
     }
 
@@ -88,7 +89,7 @@ pub(crate) fn search_category_memos(
         TabState::Ready(data) => data.rows.clone(),
         _ => Vec::new(),
     });
-    let categories = Memo::new(move |_| search_categories(tab.get(), &display_rows.get()));
+    let categories = Memo::new(move |_| filter::search_categories(tab.get(), &display_rows.get()));
     SearchCategories {
         years: Memo::new(move |_| categories.with(|c| c.years.clone())),
         products: Memo::new(move |_| categories.with(|c| c.products.clone())),

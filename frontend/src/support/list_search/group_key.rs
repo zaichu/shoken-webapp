@@ -1,4 +1,4 @@
-use crate::support::list_search::{is_js_whitespace, parse_search_tokens};
+use crate::support::list_search;
 
 pub struct GroupKeyRule<'a, T> {
     pub test: fn(&T, &str) -> bool,
@@ -14,7 +14,7 @@ pub fn create_group_key_fn<'a, T>(
         return Box::new(move |item: &T| date_key_fn(item));
     }
 
-    let tokens = parse_search_tokens(search_query);
+    let tokens = list_search::parse_search_tokens(search_query);
 
     Box::new(move |item: &T| {
         for rule in rules {
@@ -36,7 +36,7 @@ pub fn derive_security_code_from_query<T>(
         return String::new();
     }
 
-    let trimmed_start = query.trim_start_matches(is_js_whitespace);
+    let trimmed_start = query.trim_start_matches(list_search::is_js_whitespace);
     let code_end = trimmed_start
         .char_indices()
         .take_while(|(_, c)| c.is_ascii_alphanumeric())
@@ -45,7 +45,8 @@ pub fn derive_security_code_from_query<T>(
         .unwrap_or(0);
     let label_match = (code_end > 0)
         .then(|| {
-            let suffix = trimmed_start[code_end..].trim_start_matches(is_js_whitespace);
+            let suffix =
+                trimmed_start[code_end..].trim_start_matches(list_search::is_js_whitespace);
             suffix
                 .starts_with([':', '：'])
                 .then(|| trimmed_start[..code_end].to_ascii_lowercase())
@@ -60,7 +61,7 @@ pub fn derive_security_code_from_query<T>(
         return code_getter(item).to_string();
     }
 
-    let tokens = parse_search_tokens(query);
+    let tokens = list_search::parse_search_tokens(query);
     if let Some(item) = data.iter().find(|item| {
         tokens.iter().any(|t| {
             code_getter(item).to_lowercase() == *t

@@ -9,21 +9,16 @@ use crate::features::asset_balance::format::*;
 use crate::features::asset_balance::fund::{AssetSearch, FundBalanceRow};
 use crate::features::asset_balance::holdings::*;
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
-use crate::features::asset_balance::model::{
-    KpiHolding, ValuationInput, calculate_portfolio_kpi, normalize_display_name,
-    normalize_security_code, portfolio_valuation, total_purchase_amount,
-};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::{KpiHolding, ValuationInput};
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{ResolvedAssetBalance, ResolvedFundBalance};
 use crate::features::asset_balance::store::*;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::{Generation, SessionStore};
 use crate::testing::asset_balance::*;
-use crate::ui::format::{
-    format_currency, format_fixed_percent, format_percentage_value, format_price_date,
-    format_unit_price, unit_price_decimals,
-};
-use crate::ui::labels::{SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH};
+use crate::ui::format;
+use crate::ui::labels;
 use leptos::prelude::*;
 use std::collections::HashMap;
 
@@ -58,12 +53,12 @@ fn unauthorized_asset_balance_error_uses_expected_message() {
 
 #[test]
 fn percentage_formatter_formats_values() {
-    assert_eq!(format_percentage_value(2.0), "2.00%");
-    assert_eq!(format_percentage_value(1.3770010052107338), "1.38%");
-    assert_eq!(format_fixed_percent(5.300076869056115, 1), "5.3%");
-    assert_eq!(format_fixed_percent(10.0, 1), "10.0%");
-    assert_eq!(format_fixed_percent(8.256880733944955, 1), "8.3%");
-    assert_eq!(format_fixed_percent(60.0, 1), "60.0%");
+    assert_eq!(format::format_percentage_value(2.0), "2.00%");
+    assert_eq!(format::format_percentage_value(1.3770010052107338), "1.38%");
+    assert_eq!(format::format_fixed_percent(5.300076869056115, 1), "5.3%");
+    assert_eq!(format::format_fixed_percent(10.0, 1), "10.0%");
+    assert_eq!(format::format_fixed_percent(8.256880733944955, 1), "8.3%");
+    assert_eq!(format::format_fixed_percent(60.0, 1), "60.0%");
     assert_eq!(format_valuation_amount(Some(60000.0)), "¥60,000");
     assert_eq!(format_valuation_amount(Some(-10000.0)), "-¥10,000");
     assert_eq!(format_valuation_amount(Some(0.0)), "¥0");
@@ -138,9 +133,9 @@ fn holding_dividend_matches_component_cases() {
 
 #[test]
 fn security_name_normalization_cases() {
-    assert_eq!(normalize_display_name("ＸＹＺ"), "XYZ");
-    assert_eq!(normalize_display_name("架空自動車"), "架空自動車");
-    assert_eq!(normalize_security_code(" 9904: 架空自動車 "), "9904");
+    assert_eq!(model::normalize_display_name("ＸＹＺ"), "XYZ");
+    assert_eq!(model::normalize_display_name("架空自動車"), "架空自動車");
+    assert_eq!(model::normalize_security_code(" 9904: 架空自動車 "), "9904");
 }
 
 #[test]
@@ -192,23 +187,24 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let total_purchase = total_purchase_amount(&kpi_holdings);
+        let total_purchase = model::total_purchase_amount(&kpi_holdings);
         let dividends = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
         });
-        let kpi =
-            Memo::new(move |_| calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share));
+        let kpi = Memo::new(move |_| {
+            model::calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share)
+        });
 
         // 検索中も合計取得総額・含み損益は全保有分のまま
-        assert_eq!(format_currency(total_purchase), "¥300,000");
+        assert_eq!(format::format_currency(total_purchase), "¥300,000");
         kpi.with(|kpi| {
             assert_eq!(kpi.total_purchase_amount, 300000.0);
             assert_eq!(kpi.total_annual_dividends, Some(5000.0));
             assert_eq!(kpi.dividend_yield, Some(5000.0 / 300000.0 * 100.0));
             assert_eq!(kpi.holdings_count, 2);
         });
-        let valuation = portfolio_valuation(
+        let valuation = model::portfolio_valuation(
             &all_views
                 .iter()
                 .map(ValuationInput::from)
@@ -241,8 +237,8 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
                 total_purchase_amount: view.purchase,
             })
             .collect();
-        let decimal_total = total_purchase_amount(&decimal_holdings);
-        assert_eq!(format_currency(decimal_total), "¥3,000.2");
+        let decimal_total = model::total_purchase_amount(&decimal_holdings);
+        assert_eq!(format::format_currency(decimal_total), "¥3,000.2");
     });
 }
 
@@ -266,13 +262,13 @@ fn summary_band_renders_without_values() {
 #[test]
 fn unit_price_formatter_keeps_the_same_decimal_places() {
     // 列の中の小数桁をそろえる(整数円の値しかない列には .00 を付けない)
-    assert_eq!(unit_price_decimals([5997.6, 187.36].into_iter()), 2);
-    assert_eq!(unit_price_decimals([2500.0, 3000.0].into_iter()), 0);
-    assert_eq!(unit_price_decimals([5997.6, 2500.0].into_iter()), 1);
-    assert_eq!(format_unit_price(5997.6, 2), "¥5,997.60");
-    assert_eq!(format_unit_price(187.36, 2), "¥187.36");
-    assert_eq!(format_unit_price(162.0, 0), "¥162");
-    assert_eq!(format_unit_price(0.0, 0), "¥0");
+    assert_eq!(format::unit_price_decimals([5997.6, 187.36].into_iter()), 2);
+    assert_eq!(format::unit_price_decimals([2500.0, 3000.0].into_iter()), 0);
+    assert_eq!(format::unit_price_decimals([5997.6, 2500.0].into_iter()), 1);
+    assert_eq!(format::format_unit_price(5997.6, 2), "¥5,997.60");
+    assert_eq!(format::format_unit_price(187.36, 2), "¥187.36");
+    assert_eq!(format::format_unit_price(162.0, 0), "¥162");
+    assert_eq!(format::format_unit_price(0.0, 0), "¥0");
 }
 
 #[test]
@@ -352,8 +348,9 @@ fn valuation_formatters_treat_nan_as_missing() {
 // 表示単位は集計(サマリー)だけに使い、明細の行は1円単位のまま出す
 #[test]
 fn row_valuation_stays_in_yen_while_summary_follows_the_amount_unit() {
-    use crate::settings::{AmountUnit, amount_unit_signal};
-    let unit = amount_unit_signal();
+    use crate::settings;
+    use crate::settings::AmountUnit;
+    let unit = settings::amount_unit_signal();
     unit.set(AmountUnit::Man);
     assert_eq!(format_row_valuation_amount(Some(60000.0)), "¥60,000");
     assert_eq!(format_row_valuation_amount(Some(400.0)), "¥400");
@@ -419,12 +416,12 @@ fn price_date_representative_picks_the_most_common_date() {
         Some("2025-10-10")
     );
     assert_eq!(price_date_representative(std::iter::empty()), None);
-    assert_eq!(format_price_date("2025-10-10"), "10/10");
+    assert_eq!(format::format_price_date("2025-10-10"), "10/10");
     // 想定外の形式はそのまま返す
-    assert_eq!(format_price_date("不明"), "不明");
-    assert_eq!(format_price_date("24-10-10"), "24-10-10");
-    assert_eq!(format_price_date("-10-10"), "-10-10");
-    assert_eq!(format_price_date("2025-"), "2025-");
+    assert_eq!(format::format_price_date("不明"), "不明");
+    assert_eq!(format::format_price_date("24-10-10"), "24-10-10");
+    assert_eq!(format::format_price_date("-10-10"), "-10-10");
+    assert_eq!(format::format_price_date("2025-"), "2025-");
 }
 
 #[test]
@@ -443,9 +440,9 @@ fn sort_labels_distinguish_each_option() {
     for (index, label) in labels.iter().enumerate() {
         assert!(!labels[..index].contains(label), "{label}");
     }
-    assert_ne!(SORT_HIGH_TO_LOW, SORT_LOW_TO_HIGH);
-    assert_ne!(SORT_HIGH_TO_LOW, "");
-    assert_ne!(SORT_LOW_TO_HIGH, "");
+    assert_ne!(labels::SORT_HIGH_TO_LOW, labels::SORT_LOW_TO_HIGH);
+    assert_ne!(labels::SORT_HIGH_TO_LOW, "");
+    assert_ne!(labels::SORT_LOW_TO_HIGH, "");
 }
 
 #[test]
@@ -984,7 +981,7 @@ fn oldest_combined_as_of_picks_oldest_across_stock_and_fund() {
 
 #[test]
 fn combined_band_pending_unifies_stock_and_fund_flags() {
-    use crate::features::asset_balance::model::valuation_has_pending;
+    use crate::features::asset_balance::model;
     let owner = Owner::new();
     owner.with(|| {
         let priced = balance_row(9904);
@@ -1021,15 +1018,15 @@ fn combined_band_pending_unifies_stock_and_fund_flags() {
         assert!(stock_missing);
         assert!(!super::summary::fund_has_pending(&latest_fund));
         assert!(super::summary::fund_has_pending(&stale_fund));
-        assert!(!valuation_has_pending(
+        assert!(!model::valuation_has_pending(
             stock_ok,
             super::summary::fund_has_pending(&latest_fund)
         ));
-        assert!(valuation_has_pending(
+        assert!(model::valuation_has_pending(
             stock_missing,
             super::summary::fund_has_pending(&latest_fund)
         ));
-        assert!(valuation_has_pending(
+        assert!(model::valuation_has_pending(
             stock_ok,
             super::summary::fund_has_pending(&stale_fund)
         ));

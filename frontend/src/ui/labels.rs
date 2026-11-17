@@ -2,7 +2,7 @@
 //! ここにある定数と関数を使う。画面側に同じ意味の文言を直接書かない。
 //! 新しい文言はここに足してから使う( docs/ui-design.md の「用語と書式」)
 
-use crate::ui::format::format_price_date;
+use crate::ui::format;
 
 /// 評価額(保有資産の時価評価額)
 pub const MARKET_VALUE: &str = "評価額";
@@ -332,7 +332,7 @@ pub fn group_count(label: &str, total: usize) -> String {
 
 /// 基準日の書き方(「価格基準日 10/21」)
 pub fn price_as_of(date: &str) -> String {
-    format!("{PRICE_AS_OF} {}", format_price_date(date))
+    format!("{PRICE_AS_OF} {}", format::format_price_date(date))
 }
 
 /// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)

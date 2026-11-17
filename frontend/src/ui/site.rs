@@ -1,6 +1,8 @@
 use crate::api::dto::SessionUser;
-use crate::app::{CurrentPath, current_location, pathname_of};
-use crate::session::{SessionStore, use_session};
+use crate::app;
+use crate::app::CurrentPath;
+use crate::session;
+use crate::session::SessionStore;
 use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
@@ -33,7 +35,7 @@ const FOOTER_LINKS: &[(&str, &str)] = &[
 ];
 
 fn is_nav_active(path: &str, to: &str) -> bool {
-    let path = pathname_of(path);
+    let path = app::pathname_of(path);
     if to == "/" {
         return path == "/";
     }
@@ -41,8 +43,10 @@ fn is_nav_active(path: &str, to: &str) -> bool {
 }
 
 fn current_path() -> RwSignal<String> {
-    use_context::<CurrentPath>()
-        .map_or_else(|| RwSignal::new(current_location()), |current| current.0)
+    use_context::<CurrentPath>().map_or_else(
+        || RwSignal::new(app::current_location()),
+        |current| current.0,
+    )
 }
 
 /// ナビのリンク。現在ページを指すものだけ aria-current を付ける
@@ -141,9 +145,9 @@ pub fn AccountMenu(
     #[prop(optional)]
     hide_name: bool,
 ) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let path = current_path();
-    let on_login_page = move || pathname_of(&path.get()) == "/login";
+    let on_login_page = move || app::pathname_of(&path.get()) == "/login";
     view! {
         <div class="flex shrink-0 items-center gap-3">
             {move || {
@@ -187,7 +191,7 @@ pub fn AccountDeleteDialog() -> impl IntoView {
     else {
         return ().into_any();
     };
-    let session = use_session();
+    let session = session::use_session();
     let delete_error = RwSignal::new(Option::<String>::None);
     let deleting = RwSignal::new(false);
     let deleting_memo = Memo::new(move |_| deleting.get());

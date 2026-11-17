@@ -1,5 +1,5 @@
 use super::*;
-use crate::support::list_search::get_unique_values;
+use crate::support::list_search;
 use rust_decimal_macros::dec;
 
 #[derive(Clone)]
@@ -152,7 +152,7 @@ fn invalid_initial_date_is_replaced() {
 #[test]
 fn unique_values_preserve_whitespace_and_distinct_raw_values() {
     assert_eq!(
-        get_unique_values(&[" 特定 ", "特定", " 特定 ", "\u{feff}", "　", ""], |r| r),
+        list_search::get_unique_values(&[" 特定 ", "特定", " 特定 ", "\u{feff}", "　", ""], |r| r),
         vec![" 特定 ", "特定"]
     );
 }

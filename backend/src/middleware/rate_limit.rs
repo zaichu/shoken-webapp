@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use crate::errors::simple_error_response;
+use crate::errors;
 #[cfg(target_arch = "wasm32")]
 use axum::{
     body::Body,
@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]
 fn rate_limit_error() -> Response {
-    simple_error_response(
+    errors::simple_error_response(
         StatusCode::TOO_MANY_REQUESTS,
         "RATE_LIMIT_EXCEEDED",
         "リクエストが多すぎます。しばらくしてから再試行してください。".to_string(),
@@ -21,7 +21,7 @@ fn rate_limit_error() -> Response {
 
 #[cfg(target_arch = "wasm32")]
 fn binding_unavailable_error() -> Response {
-    simple_error_response(
+    errors::simple_error_response(
         StatusCode::SERVICE_UNAVAILABLE,
         "SERVICE_UNAVAILABLE",
         "一時的に利用できません。しばらくしてから再試行してください。".to_string(),

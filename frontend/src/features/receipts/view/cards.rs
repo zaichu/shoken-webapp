@@ -6,15 +6,11 @@ use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
-use crate::ui::format::{format_iso_date, format_short_date};
-use crate::ui::labels::{
-    self, ACQUISITION_PRICE, AFTER_TAX, BEFORE_TAX, DIVIDEND_AMOUNT, PAYMENT_DATE,
-    PER_SHARE_DIVIDEND, PROFIT_SHORT, QUANTITY, REALIZED_PROFIT_LOSS, RECEIPT_SHORT,
-    REDEMPTION_AMOUNT, SELLING_AMOUNT, TAX, TEN_THOUSAND_YEN, THOUSAND_YEN, TRADE_DATE, YEN,
-    copy_aria_label,
-};
+use crate::ui::format;
+use crate::ui::labels;
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
-use crate::ui::security_link::{SecurityCodeLink, copy_to_clipboard};
+use crate::ui::security_link;
+use crate::ui::security_link::SecurityCodeLink;
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -23,12 +19,15 @@ use std::collections::HashSet;
 pub(crate) fn is_profit_label(_tab: ReceiptsTab, label: &str) -> bool {
     matches!(
         label,
-        REALIZED_PROFIT_LOSS | AFTER_TAX | DIVIDEND_AMOUNT | BEFORE_TAX
+        labels::REALIZED_PROFIT_LOSS
+            | labels::AFTER_TAX
+            | labels::DIVIDEND_AMOUNT
+            | labels::BEFORE_TAX
     )
 }
 
 pub(crate) fn is_tax_label(label: &str) -> bool {
-    label == TAX
+    label == labels::TAX
 }
 
 pub(crate) fn tax_signed_text(raw: &str) -> String {
@@ -48,7 +47,7 @@ fn stripped_amount_text(value: &str) -> String {
         .filter(|c| !matches!(c, '¥' | '￥' | '$' | '€' | '£' | ',') && !c.is_whitespace())
         .collect();
     // 表示単位(円/千円/万円)を除く。長い接尾辞から剥がす
-    for suffix in [THOUSAND_YEN, TEN_THOUSAND_YEN, YEN] {
+    for suffix in [labels::THOUSAND_YEN, labels::TEN_THOUSAND_YEN, labels::YEN] {
         if let Some(stripped) = without_symbols.strip_suffix(suffix) {
             return stripped.to_string();
         }
@@ -251,7 +250,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
         ),
         CardDetailValue::CopyName { display, copy } => {
             let copy_text = copy.clone();
-            let aria_label = copy_aria_label(copy);
+            let aria_label = labels::copy_aria_label(copy);
             let display = display.clone();
             (
                 view! {
@@ -259,7 +258,7 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                         variant=ButtonVariant::CopyName
                         class="group min-h-11 min-w-11 items-center"
                         aria_label=aria_label
-                        on_click=move |_| copy_to_clipboard(copy_text.clone())
+                        on_click=move |_| security_link::copy_to_clipboard(copy_text.clone())
                     >
                         <span class="min-w-0 break-words">{move || display.clone()}</span>
                         <svg
@@ -306,7 +305,7 @@ pub(crate) fn before_tax_subtext(tab: ReceiptsTab, details: &[CardDetail]) -> Op
     if tab == ReceiptsTab::Dividend {
         return None;
     }
-    let (value, _, _) = compact_value(details, REALIZED_PROFIT_LOSS);
+    let (value, _, _) = compact_value(details, labels::REALIZED_PROFIT_LOSS);
     (!value.is_empty()).then_some(value)
 }
 
@@ -329,25 +328,25 @@ pub(crate) fn receipt_detail_cells(
     tab: ReceiptsTab,
     card: &CardRowData,
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let date_text = format_iso_date(&card.date.replace('/', "-"));
+    let date_text = format::format_iso_date(&card.date.replace('/', "-"));
     let date_label = match tab {
-        ReceiptsTab::Dividend => PAYMENT_DATE,
-        _ => TRADE_DATE,
+        ReceiptsTab::Dividend => labels::PAYMENT_DATE,
+        _ => labels::TRADE_DATE,
     };
     if tab == ReceiptsTab::Dividend {
-        let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
-        let (per_share, _, _, _) = detail_text(&card.details, PER_SHARE_DIVIDEND);
-        let (gross, gross_neg, gross_pos, _) = detail_text(&card.details, DIVIDEND_AMOUNT);
-        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
-        let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
+        let (qty, _, _, _) = detail_text(&card.details, labels::QUANTITY);
+        let (per_share, _, _, _) = detail_text(&card.details, labels::PER_SHARE_DIVIDEND);
+        let (gross, gross_neg, gross_pos, _) = detail_text(&card.details, labels::DIVIDEND_AMOUNT);
+        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, labels::TAX);
+        let (net, net_neg, net_pos, _) = detail_text(&card.details, labels::AFTER_TAX);
         let left = vec![
             DetailCell::plain(date_label.to_string(), date_text),
-            DetailCell::plain(QUANTITY.to_string(), qty),
-            DetailCell::plain(PER_SHARE_DIVIDEND.to_string(), per_share),
+            DetailCell::plain(labels::QUANTITY.to_string(), qty),
+            DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
         ];
         let right = vec![
             DetailCell {
-                label: BEFORE_TAX.to_string(),
+                label: labels::BEFORE_TAX.to_string(),
                 value: gross,
                 sub: None,
                 sub_rate: None,
@@ -359,7 +358,7 @@ pub(crate) fn receipt_detail_cells(
                 kind: AmountKind::Delta,
             },
             DetailCell {
-                label: TAX.to_string(),
+                label: labels::TAX.to_string(),
                 value: tax,
                 sub: None,
                 sub_rate: None,
@@ -375,7 +374,7 @@ pub(crate) fn receipt_detail_cells(
                 },
             },
             DetailCell::strong(
-                AFTER_TAX.to_string(),
+                labels::AFTER_TAX.to_string(),
                 net,
                 net_neg,
                 net_pos,
@@ -385,24 +384,24 @@ pub(crate) fn receipt_detail_cells(
         (left, right)
     } else {
         let amount_label = match tab {
-            ReceiptsTab::DomesticStock => SELLING_AMOUNT,
-            _ => REDEMPTION_AMOUNT,
+            ReceiptsTab::DomesticStock => labels::SELLING_AMOUNT,
+            _ => labels::REDEMPTION_AMOUNT,
         };
-        let (qty, _, _, _) = detail_text(&card.details, QUANTITY);
+        let (qty, _, _, _) = detail_text(&card.details, labels::QUANTITY);
         let (amount, _, _, _) = detail_text(&card.details, amount_label);
-        let (cost, _, _, _) = detail_text(&card.details, ACQUISITION_PRICE);
-        let (pnl, pnl_neg, pnl_pos, _) = detail_text(&card.details, REALIZED_PROFIT_LOSS);
-        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, TAX);
-        let (net, net_neg, net_pos, _) = detail_text(&card.details, AFTER_TAX);
+        let (cost, _, _, _) = detail_text(&card.details, labels::ACQUISITION_PRICE);
+        let (pnl, pnl_neg, pnl_pos, _) = detail_text(&card.details, labels::REALIZED_PROFIT_LOSS);
+        let (tax, tax_neg, tax_pos, _) = detail_text(&card.details, labels::TAX);
+        let (net, net_neg, net_pos, _) = detail_text(&card.details, labels::AFTER_TAX);
         let left = vec![
             DetailCell::plain(date_label.to_string(), date_text),
-            DetailCell::plain(QUANTITY.to_string(), qty),
+            DetailCell::plain(labels::QUANTITY.to_string(), qty),
             DetailCell::plain(amount_label.to_string(), amount),
-            DetailCell::plain(ACQUISITION_PRICE.to_string(), cost),
+            DetailCell::plain(labels::ACQUISITION_PRICE.to_string(), cost),
         ];
         let right = vec![
             DetailCell {
-                label: BEFORE_TAX.to_string(),
+                label: labels::BEFORE_TAX.to_string(),
                 value: pnl,
                 sub: None,
                 sub_rate: None,
@@ -414,7 +413,7 @@ pub(crate) fn receipt_detail_cells(
                 kind: AmountKind::Delta,
             },
             DetailCell {
-                label: TAX.to_string(),
+                label: labels::TAX.to_string(),
                 value: tax,
                 sub: None,
                 sub_rate: None,
@@ -430,7 +429,7 @@ pub(crate) fn receipt_detail_cells(
                 },
             },
             DetailCell::strong(
-                AFTER_TAX.to_string(),
+                labels::AFTER_TAX.to_string(),
                 net,
                 net_neg,
                 net_pos,
@@ -451,9 +450,9 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         details,
         ..
     } = card;
-    let (hero_value, hero_negative, hero_positive) = compact_value(&details, AFTER_TAX);
+    let (hero_value, hero_negative, hero_positive) = compact_value(&details, labels::AFTER_TAX);
     let before_tax_sub = before_tax_subtext(tab, &details);
-    let hero_is_profit = is_profit_label(tab, AFTER_TAX);
+    let hero_is_profit = is_profit_label(tab, labels::AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
     } else {
@@ -465,7 +464,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     };
     let row_name = name_text.clone();
     let sheet_title = name_text.clone();
-    let short_date = format_short_date(&date.replace('/', "-"));
+    let short_date = format::format_short_date(&date.replace('/', "-"));
     let sheet_open = RwSignal::new(false);
     let hero_value_for_row = hero_value.clone();
     let account_for_meta = account.clone();
@@ -502,7 +501,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                         />
                         {before_tax_sub.clone().map(|text| view! {
                             <span class="receipt-before-tax-sub">
-                                {BEFORE_TAX}" "
+                                {labels::BEFORE_TAX}" "
                                 <Amount text=text />
                             </span>
                         })}
@@ -542,7 +541,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
 pub(crate) fn group_headline_value<'a>(summary: &'a [(&'static str, String)]) -> &'a str {
     summary
         .iter()
-        .find(|(label, _)| *label == AFTER_TAX)
+        .find(|(label, _)| *label == labels::AFTER_TAX)
         .map(|(_, value)| value.as_str())
         .or_else(|| summary.last().map(|(_, value)| value.as_str()))
         .unwrap_or("")
@@ -553,11 +552,11 @@ pub(crate) fn single_row_headline(cards: &[CardRowData]) -> Vec<(&'static str, S
     let [card] = cards else {
         return Vec::new();
     };
-    let (text, _, _) = compact_value(&card.details, AFTER_TAX);
+    let (text, _, _) = compact_value(&card.details, labels::AFTER_TAX);
     if text.is_empty() {
         Vec::new()
     } else {
-        vec![(AFTER_TAX, text)]
+        vec![(labels::AFTER_TAX, text)]
     }
 }
 
@@ -577,19 +576,19 @@ pub(crate) fn group_headline_summary(
         raw.to_string()
     };
     let label = match tab {
-        ReceiptsTab::Dividend => RECEIPT_SHORT,
-        _ => PROFIT_SHORT,
+        ReceiptsTab::Dividend => labels::RECEIPT_SHORT,
+        _ => labels::PROFIT_SHORT,
     };
     Some(GroupSummary {
         label: label.to_string(),
         value: text,
-        kind: if is_profit_label(tab, AFTER_TAX) {
+        kind: if is_profit_label(tab, labels::AFTER_TAX) {
             AmountKind::Delta
         } else {
             AmountKind::Plain
         },
-        negative: is_negative_labeled_value(tab, AFTER_TAX, raw),
-        positive: is_positive_labeled_value(tab, AFTER_TAX, raw),
+        negative: is_negative_labeled_value(tab, labels::AFTER_TAX, raw),
+        positive: is_positive_labeled_value(tab, labels::AFTER_TAX, raw),
     })
 }
 

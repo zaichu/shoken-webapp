@@ -1,26 +1,19 @@
 use super::ReceiptRow;
 use crate::api::ApiClient;
 use crate::api::dto::AssetBalance;
-use crate::features::asset_balance::{fetch_single_asset_balance, find_by_code};
-use crate::features::dividend_per_share::{
-    DIVIDEND_NETWORK_MAX_RETRIES, DIVIDEND_RETRY_DELAY_MS, dividend_maps_from_batch,
-    dividend_pending_max_retries, fetch_dividend_batch, post_dividend_batch,
-};
+use crate::features::asset_balance;
+use crate::features::dividend_per_share;
 use crate::features::receipts::model::DividendTotals;
 use crate::session::{Generation, SessionStore};
-use crate::settings::format_amount;
-use crate::support::list_search::group_key::derive_security_code_from_query;
-use crate::support::list_search::is_searchable_code;
+use crate::settings;
+use crate::support::list_search;
+use crate::support::list_search::group_key;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
-use crate::ui::format::format_percentage_value;
-use crate::ui::labels::{
-    AFTER_TAX_AND_YIELD, AVERAGE_PURCHASE_PRICE, CSV_MANAGE_FETCH_RUNNING,
-    DIVIDEND_AMOUNT_AND_YIELD, DIVIDEND_AUTO_HINT, DIVIDEND_BALANCE_HINT, DIVIDEND_HELD_BADGE,
-    DIVIDEND_SUMMARY_TITLE, HOLDING_QUANTITY_CARD, MISSING, PER_SHARE_DIVIDEND_CARD, TAX,
-};
+use crate::ui::format;
+use crate::ui::labels;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
@@ -28,8 +21,9 @@ use shared::format::{format_currency, format_number};
 use shared::normalize::normalize_security_code;
 
 pub(crate) fn search_security_code(rows: &[ReceiptRow], query: &str) -> String {
-    let code = derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
-    if is_searchable_code(&code) {
+    let code =
+        group_key::derive_security_code_from_query(query, rows, |row| row.code(), |row| row.name());
+    if list_search::is_searchable_code(&code) {
         code
     } else {
         String::new()
@@ -50,11 +44,11 @@ fn dividend_rate(amount: f64, investment: f64) -> f64 {
 
 fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     if loading {
-        CSV_MANAGE_FETCH_RUNNING.to_string()
+        labels::CSV_MANAGE_FETCH_RUNNING.to_string()
     } else {
         per_share
             .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| MISSING.to_string(), format_currency)
+            .map_or_else(|| labels::MISSING.to_string(), format_currency)
     }
 }
 
@@ -85,7 +79,8 @@ impl DividendInfoStore {
 
     pub fn set_code(&self, generation: Generation, authenticated: bool, raw_code: &str) {
         let code = normalize_security_code(raw_code);
-        let next = (authenticated && is_searchable_code(&code)).then_some((generation, code));
+        let next =
+            (authenticated && list_search::is_searchable_code(&code)).then_some((generation, code));
         if self.current.get_untracked() == next {
             return;
         }
@@ -119,10 +114,12 @@ impl DividendInfoStore {
         let store = *self;
         leptos::task::spawn_local(async move {
             let client = ApiClient::read_client();
-            if let Ok(rows) = fetch_single_asset_balance(&client, &code).await
+            if let Ok(rows) = asset_balance::fetch_single_asset_balance(&client, &code).await
                 && store.is_balance_active(generation, revision, &code)
             {
-                store.asset_balance.set(find_by_code(&rows, &code).cloned());
+                store
+                    .asset_balance
+                    .set(asset_balance::find_by_code(&rows, &code).cloned());
             }
         });
     }
@@ -146,7 +143,7 @@ impl DividendInfoStore {
     /// pending（バックエンド処理待ち）と通信失敗は別カウンタで打ち切る
     async fn poll_dividend(&self, generation: Generation, revision: u64, code: String) {
         let codes = vec![code.clone()];
-        let max_pending = dividend_pending_max_retries(1);
+        let max_pending = dividend_per_share::dividend_pending_max_retries(1);
         let mut pending_used = 0u32;
         let mut network_used = 0u32;
         loop {
@@ -154,8 +151,13 @@ impl DividendInfoStore {
                 return;
             }
             self.per_share_loading.set(true);
-            if let Ok(batch) = fetch_dividend_batch(&codes, post_dividend_batch).await {
-                let (maps, has_pending) = dividend_maps_from_batch(&batch);
+            if let Ok(batch) = dividend_per_share::fetch_dividend_batch(
+                &codes,
+                dividend_per_share::post_dividend_batch,
+            )
+            .await
+            {
+                let (maps, has_pending) = dividend_per_share::dividend_maps_from_batch(&batch);
                 if !self.is_poll_active(generation, revision, &code) {
                     return;
                 }
@@ -170,19 +172,20 @@ impl DividendInfoStore {
                     return;
                 }
                 self.per_share_loading.set(false);
-                if network_used >= DIVIDEND_NETWORK_MAX_RETRIES {
+                if network_used >= dividend_per_share::DIVIDEND_NETWORK_MAX_RETRIES {
                     return;
                 }
                 network_used += 1;
             }
-            gloo_timers::future::TimeoutFuture::new(DIVIDEND_RETRY_DELAY_MS).await;
+            gloo_timers::future::TimeoutFuture::new(dividend_per_share::DIVIDEND_RETRY_DELAY_MS)
+                .await;
         }
     }
 }
 
 #[component]
 fn AssetBadge() -> impl IntoView {
-    view! { <Badge variant=BadgeVariant::Positive>{DIVIDEND_HELD_BADGE}</Badge> }
+    view! { <Badge variant=BadgeVariant::Positive>{labels::DIVIDEND_HELD_BADGE}</Badge> }
 }
 
 #[component]
@@ -238,35 +241,39 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     let average_price_text = move || {
         asset().map_or_else(
-            || MISSING.to_string(),
+            || labels::MISSING.to_string(),
             |a| format_currency(a.average_purchase_price),
         )
     };
-    let shares_text =
-        move || asset().map_or_else(|| MISSING.to_string(), |a| format_number(a.shares, 2));
+    let shares_text = move || {
+        asset().map_or_else(
+            || labels::MISSING.to_string(),
+            |a| format_number(a.shares, 2),
+        )
+    };
     let per_share_text = move || per_share_display(per_share(), loading());
 
     view! {
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <StatCard
-                    label=AVERAGE_PURCHASE_PRICE
+                    label=labels::AVERAGE_PURCHASE_PRICE
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     <Amount text=Signal::derive(average_price_text) />
                 </StatCard>
                 <StatCard
-                    label=HOLDING_QUANTITY_CARD
+                    label=labels::HOLDING_QUANTITY_CARD
                     title_hint=true
-                    hint=Some(Signal::derive(move || asset().is_none().then_some(DIVIDEND_BALANCE_HINT)))
+                    hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     {shares_text}
                 </StatCard>
                 <StatCard
-                    label=PER_SHARE_DIVIDEND_CARD
+                    label=labels::PER_SHARE_DIVIDEND_CARD
                     hint=Some(Signal::derive(move || {
-                        (!loading() && per_share().is_none()).then_some(DIVIDEND_AUTO_HINT)
+                        (!loading() && per_share().is_none()).then_some(labels::DIVIDEND_AUTO_HINT)
                     }))
                 >
                     <Amount text=Signal::derive(per_share_text) />
@@ -274,11 +281,11 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
             </div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{DIVIDEND_AMOUNT_AND_YIELD}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::DIVIDEND_AMOUNT_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         <Amount
                             kind=AmountKind::Delta
-                            text=format_amount(totals.total_dividends_before_tax)
+                            text=settings::format_amount(totals.total_dividends_before_tax)
                             negative=gross_negative
                             positive=gross_positive
                         />
@@ -290,7 +297,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                                     <Amount
                                         kind=AmountKind::Delta
                                         class="text-cell font-normal ml-1"
-                                        text=format_percentage_value(rate)
+                                        text=format::format_percentage_value(rate)
                                         negative=rate.is_sign_negative()
                                         positive=rate.is_sign_positive()
                                     />
@@ -301,22 +308,22 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{TAX}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::TAX}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         <Amount
                             kind=AmountKind::Delta
-                            text=format_amount(totals.total_taxes)
+                            text=settings::format_amount(totals.total_taxes)
                             negative=tax_negative
                             positive=tax_positive
                         />
                     </p>
                 </Card>
                 <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{AFTER_TAX_AND_YIELD}</p>
+                    <p class="text-cell font-medium text-text-muted mb-1">{labels::AFTER_TAX_AND_YIELD}</p>
                     <p class="text-summary-secondary font-bold tabular-nums text-ink">
                         <Amount
                             kind=AmountKind::Delta
-                            text=format_amount(totals.total_net_amount_received)
+                            text=settings::format_amount(totals.total_net_amount_received)
                             negative=net_negative
                             positive=net_positive
                         />
@@ -328,7 +335,7 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
                                     <Amount
                                         kind=AmountKind::Delta
                                         class="text-cell font-normal ml-1"
-                                        text=format_percentage_value(rate)
+                                        text=format::format_percentage_value(rate)
                                         negative=rate.is_sign_negative()
                                         positive=rate.is_sign_positive()
                                     />
@@ -351,7 +358,7 @@ pub(crate) fn DividendSummarySection(
     expanded: RwSignal<bool>,
     mobile_expanded: RwSignal<bool>,
 ) -> impl IntoView {
-    let title = DIVIDEND_SUMMARY_TITLE;
+    let title = labels::DIVIDEND_SUMMARY_TITLE;
     let totals_mobile = totals.clone();
     view! {
         <Card variant=CardVariant::Collapsible testid="receipt-summary-strip" class=Signal::derive(move || {

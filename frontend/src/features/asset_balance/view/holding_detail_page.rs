@@ -1,8 +1,8 @@
 use super::use_asset_balance_state;
 use crate::app::CurrentPath;
-use crate::features::asset_balance::holdings::holding_stock_href;
-use crate::features::asset_balance::store::load_asset_balances;
-use crate::session::use_session;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::store;
+use crate::session;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
@@ -13,14 +13,14 @@ use leptos::prelude::*;
 /// 保存済み行の ID から銘柄コードを引いて同じ銘柄の画面を開く
 #[component]
 pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let state = use_asset_balance_state(session);
     let balances = state.balances;
     let dividends = state.dividends;
     let lookup = state.lookup;
     let data_ops = state.data_ops;
     if session.user.get_untracked().is_some() {
-        load_asset_balances(
+        store::load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -40,7 +40,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             return;
         }
         balances.set(None);
-        load_asset_balances(
+        store::load_asset_balances(
             session,
             session.generation.get_untracked(),
             balances,
@@ -56,7 +56,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
             return;
         }
         redirected.set(true);
-        let path = holding_stock_href(code);
+        let path = holdings::holding_stock_href(code);
         if let Some(window) = web_sys::window()
             && let Ok(history) = window.history()
         {

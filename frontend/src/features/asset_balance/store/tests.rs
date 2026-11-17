@@ -7,9 +7,9 @@ use crate::features::asset_balance::store::csv::AssetBalanceCsvStore;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::SessionStore;
 use crate::support::csv_flow::CsvTabState;
-use crate::support::pagination::collect_list_pages;
+use crate::support::pagination;
+use crate::testing;
 use crate::testing::asset_balance::*;
-use crate::testing::block_on;
 use std::collections::HashMap;
 use std::future::{Ready, ready};
 
@@ -25,7 +25,12 @@ fn list_pages_join_all_pages_in_order() {
         }))
     };
 
-    let page = block_on(collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, fetch)).expect("fetch");
+    let page = testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
+        fetch,
+    ))
+    .expect("fetch");
 
     assert_eq!(page.rows.len(), 2300);
     assert_eq!(page.total, Some(2300));
@@ -47,7 +52,12 @@ fn list_pages_stop_when_first_page_is_short() {
             Some(rust_decimal_macros::dec!(10)),
         )))
     };
-    let page = block_on(collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, fetch)).expect("fetch");
+    let page = testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
+        fetch,
+    ))
+    .expect("fetch");
     assert_eq!(page.rows.len(), 3);
     assert_eq!(page.total, Some(3));
     assert!(page.summary.is_some());

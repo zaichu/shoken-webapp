@@ -1,14 +1,14 @@
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use crate::api::dto::Dividend;
-use crate::features::asset_balance::dec_to_f64;
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::{format_currency, format_iso_date, format_number_value, format_short_date};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButtonWithoutSecondary;
 use leptos::prelude::*;
@@ -22,7 +22,10 @@ pub(super) fn home_dividend_dialog_cells(
     net: (String, bool, bool),
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let left = vec![
-        DetailCell::plain(labels::PAYMENT_DATE.to_string(), format_iso_date(full_date)),
+        DetailCell::plain(
+            labels::PAYMENT_DATE.to_string(),
+            format::format_iso_date(full_date),
+        ),
         DetailCell::plain(labels::QUANTITY.to_string(), shares),
         DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
     ];
@@ -110,20 +113,20 @@ pub(super) fn home_dividend_row_texts(row: &Dividend) -> HomeDividendRowTexts {
     } else {
         row.security_code.clone()
     };
-    let net_value = dec_to_f64(&row.net_amount_received);
-    let net = format_currency(net_value);
+    let net_value = asset_balance::dec_to_f64(&row.net_amount_received);
+    let net = format::format_currency(net_value);
     let net_signed = if net_value > 0.0 {
         format!("+{net}")
     } else {
         net.clone()
     };
-    let gross_value = dec_to_f64(&row.dividends_before_tax);
-    let gross_signed = signed_gross_text(gross_value, &format_currency(gross_value));
-    let tax_value = dec_to_f64(&row.taxes);
-    let tax_signed = signed_tax_text(tax_value, &format_currency(tax_value));
+    let gross_value = asset_balance::dec_to_f64(&row.dividends_before_tax);
+    let gross_signed = signed_gross_text(gross_value, &format::format_currency(gross_value));
+    let tax_value = asset_balance::dec_to_f64(&row.taxes);
+    let tax_signed = signed_tax_text(tax_value, &format::format_currency(tax_value));
     HomeDividendRowTexts {
         code,
-        date: format_short_date(&row.settlement_date),
+        date: format::format_short_date(&row.settlement_date),
         full_date: row.settlement_date.clone(),
         name: row.security_name.clone(),
         account: String::from(row.account.clone()),
@@ -136,8 +139,8 @@ pub(super) fn home_dividend_row_texts(row: &Dividend) -> HomeDividendRowTexts {
         tax_signed,
         tax_negative: tax_value > 0.0,
         tax_positive: tax_value < 0.0,
-        per_share: format_currency(dec_to_f64(&row.unit_price)),
-        shares: format_number_value(dec_to_f64(&row.shares)),
+        per_share: format::format_currency(asset_balance::dec_to_f64(&row.unit_price)),
+        shares: format::format_number_value(asset_balance::dec_to_f64(&row.shares)),
     }
 }
 
@@ -220,7 +223,7 @@ fn HomeDividendRow(row: Dividend) -> impl IntoView {
 
 #[component]
 pub(super) fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         store::current_summary(data.recent, generation)

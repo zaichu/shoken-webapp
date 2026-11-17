@@ -2,16 +2,13 @@ use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
-use crate::features::asset_balance::{
-    format_valuation_amount, is_negative_rate, is_negative_valuation, is_positive_rate,
-    is_positive_valuation,
-};
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::badge::account_display_name;
+use crate::ui::badge;
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::empty_state::EmptyState;
-use crate::ui::format::format_integer_percent;
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use leptos::prelude::*;
@@ -38,7 +35,7 @@ pub(super) fn product_chart_index(label: &str) -> Option<usize> {
 
 /// 口座別の系列番号。口座名はバッジと同じ表示名に正規化してから対応表に当てる
 pub(super) fn account_chart_index(label: &str) -> Option<usize> {
-    match account_display_name(label) {
+    match badge::account_display_name(label) {
         labels::ACCOUNT_SPECIFIC => Some(0),
         labels::ACCOUNT_NISA_GROWTH => Some(1),
         labels::ACCOUNT_OLD_NISA => Some(2),
@@ -65,7 +62,7 @@ pub(super) fn chart_color(
 
 #[component]
 pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         let assets = store::current_summary(data.assets, generation);
@@ -170,7 +167,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         <div class="px-4 pt-3.5">
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
-                <Amount class="font-bold" text=format_valuation_amount(Some(product_total)) />
+                <Amount class="font-bold" text=asset_balance::format_valuation_amount(Some(product_total)) />
             </div>
             <div class="home-stacked-bar mt-3">{bar}</div>
             <ul class="home-composition-rows mt-1.5">{rows}</ul>
@@ -233,20 +230,20 @@ fn CompositionRow(
                 <span class="block text-cell tabular-nums text-text-muted">
                     <Amount
                         kind=AmountKind::Delta
-                        text=format_integer_percent(detail_rate)
-                        negative=is_negative_rate(Some(detail_rate))
-                        positive=is_positive_rate(Some(detail_rate))
+                        text=format::format_integer_percent(detail_rate)
+                        negative=asset_balance::is_negative_rate(Some(detail_rate))
+                        positive=asset_balance::is_positive_rate(Some(detail_rate))
                     />
                     {(!detail_suffix.is_empty()).then(|| view! {
                         {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
                     })}
                 </span>
             </div>
-            <span class="shrink-0 text-right text-body font-bold tabular-nums">
+            <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
                 <Amount
-                    text=format_valuation_amount(Some(amount))
-                    negative=is_negative_valuation(Some(amount))
-                    positive=is_positive_valuation(Some(amount))
+                    text=asset_balance::format_valuation_amount(Some(amount))
+                    negative=asset_balance::is_negative_valuation(Some(amount))
+                    positive=asset_balance::is_positive_valuation(Some(amount))
                 />
             </span>
         </li>

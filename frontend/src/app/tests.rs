@@ -1,5 +1,5 @@
 use super::*;
-use crate::urls::fund_holding_href;
+use crate::urls;
 
 #[test]
 fn route_for_known_and_unknown_paths() {
@@ -68,7 +68,7 @@ fn detail_wrappers_extract_single_segment_only() {
 #[test]
 fn fund_holding_link_resolves_to_fund_route() {
     assert_eq!(
-        route_for_path(&fund_holding_href("fund-1")),
+        route_for_path(&urls::fund_holding_href("fund-1")),
         Route::AssetFundHolding
     );
 }

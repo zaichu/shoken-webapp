@@ -111,7 +111,7 @@ impl Config {
 mod tests {
     use {
         super::*,
-        crate::middleware::{add_security_headers, validate_origin},
+        crate::middleware as app_middleware,
         axum::{
             Router,
             body::Body,
@@ -164,14 +164,16 @@ mod tests {
             .route("/health", get(|| async { "OK" }))
             .layer(middleware::from_fn(move |req, next| {
                 let origins = allowed_origins.clone();
-                async move { validate_origin(origins, strict_origin_check, req, next).await }
+                async move {
+                    app_middleware::validate_origin(origins, strict_origin_check, req, next).await
+                }
             }))
             .layer(build_cors_layer(
                 &config.cors_origins,
                 !config.is_production(),
             ))
             .layer(middleware::from_fn(move |req, next| {
-                add_security_headers(secure_cookie, req, next)
+                app_middleware::add_security_headers(secure_cookie, req, next)
             }))
     }
     async fn preflight(app: Router, origin: &str) -> axum::response::Response {

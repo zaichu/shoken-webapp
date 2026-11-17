@@ -294,7 +294,7 @@ pub fn SummaryBand(
                             </span>
                             {has_aux
                                 .then(|| view! {
-                                    <span class="summary-value summary-value-secondary">
+                                    <span class="summary-value summary-value-secondary summary-value-roomy">
                                         <span class="summary-label">
                                             {aux_label.clone()}
                                         </span>

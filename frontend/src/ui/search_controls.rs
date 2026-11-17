@@ -4,10 +4,8 @@
 
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::dialog::{
-    focus_without_scroll, is_pc_width, move_root_to_body, use_page_scroll_lock,
-};
-use crate::ui::focus::trap_focus;
+use crate::ui::dialog;
+use crate::ui::focus;
 use crate::ui::labels;
 use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::ev;
@@ -276,10 +274,10 @@ pub fn ConditionPanel(
 ) -> impl IntoView {
     let panel_ref = NodeRef::<leptos::html::Div>::new();
     let root_ref = NodeRef::<leptos::html::Div>::new();
-    let pc = is_pc_width();
+    let pc = dialog::is_pc_width();
     if !pc {
-        use_page_scroll_lock();
-        move_root_to_body(root_ref);
+        dialog::use_page_scroll_lock();
+        dialog::move_root_to_body(root_ref);
     }
     // PC: 行の座標をビューポート座標のまま top/left に写す。右端からはみ
     // 出さないよう寄せる。スマホは中央の配置に任せるので座標を消す
@@ -289,7 +287,7 @@ pub fn ConditionPanel(
         };
         let panel: &web_sys::HtmlElement = panel.unchecked_ref();
         let style = panel.style();
-        if !is_pc_width() {
+        if !dialog::is_pc_width() {
             let _ = style.remove_property("top");
             let _ = style.remove_property("left");
             return;
@@ -315,7 +313,7 @@ pub fn ConditionPanel(
     };
     Effect::new(move |_| {
         if let Some(panel) = panel_ref.get() {
-            focus_without_scroll(&panel);
+            dialog::focus_without_scroll(&panel);
         }
         sync_position();
     });
@@ -366,7 +364,7 @@ pub fn ConditionPanel(
                         return;
                     }
                     if event.key() == "Tab" {
-                        trap_focus(&event);
+                        focus::trap_focus(&event);
                     }
                 }
             >

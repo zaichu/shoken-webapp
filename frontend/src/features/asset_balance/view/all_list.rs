@@ -2,27 +2,22 @@
 
 use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
-};
+use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
-use crate::features::asset_balance::holdings::{
-    HoldingDividend, HoldingView, format_dividend_per_share, holding_dividend, holding_stock_href,
-};
-use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, unit_price_decimals,
-};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
-use crate::urls::fund_holding_href;
+use crate::urls;
 use leptos::prelude::*;
 
 /// 株とファンドをまとめる一覧行。sub はスマホの行メタ(コード・コース)、残りは表の列
@@ -57,7 +52,7 @@ pub(crate) struct UnifiedRow {
 }
 
 pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -> UnifiedRow {
-    let valuation = holding_valuation(&ValuationInput::from(view));
+    let valuation = model::holding_valuation(&ValuationInput::from(view));
     UnifiedRow {
         name: view.name.clone(),
         kind: labels::DOMESTIC_STOCK,
@@ -65,7 +60,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         code: Some(view.code.clone()),
         account: view.account.clone(),
         course: None,
-        quantity: labels::stock_shares_label(&format_number_value(view.shares)),
+        quantity: labels::stock_shares_label(&format::format_number_value(view.shares)),
         day_change: view.day_change,
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -74,8 +69,8 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
         rate: valuation.profit_loss.rate,
-        href: Some(holding_stock_href(&view.code)),
-        dividend: Some(holding_dividend(
+        href: Some(holdings::holding_stock_href(&view.code)),
+        dividend: Some(holdings::holding_dividend(
             &view.code,
             view.shares,
             view.average_price,
@@ -95,7 +90,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         code: None,
         account: Some(view.account.clone()),
         course: view.course.clone(),
-        quantity: labels::fund_units_label(&format_number_value(view.shares)),
+        quantity: labels::fund_units_label(&format::format_number_value(view.shares)),
         day_change: view.view_day_change(),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
@@ -104,7 +99,7 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         market: Some(view.market_value),
         profit: Some(view.profit_loss),
         rate: view.profit_loss_rate,
-        href: view.id.as_ref().map(fund_holding_href),
+        href: view.id.as_ref().map(urls::fund_holding_href),
         dividend: None,
         current_price: Some(view.base_price),
         average_price: Some(view.average_purchase_price),
@@ -148,7 +143,7 @@ pub fn AssetMergedTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let dividend_decimals = unit_price_decimals(
+    let dividend_decimals = format::unit_price_decimals(
         rows.iter()
             .filter_map(|row| row.dividend.as_ref()?.per_share),
     );
@@ -187,13 +182,13 @@ pub fn AssetMergedTable(
                             .map(|row| {
                                 let row = &row;
                                 let pnl_text =
-                                    format_signed_row_valuation_amount(row.profit);
+                                    balance_format::format_signed_row_valuation_amount(row.profit);
                                 let rate_text =
-                                    format_signed_valuation_rate(row.rate, 1);
-                                let pnl_negative = is_negative_valuation(row.profit);
-                                let pnl_positive = is_positive_valuation(row.profit);
-                                let rate_negative = is_negative_rate(row.rate);
-                                let rate_positive = is_positive_rate(row.rate);
+                                    balance_format::format_signed_valuation_rate(row.rate, 1);
+                                let pnl_negative = balance_format::is_negative_valuation(row.profit);
+                                let pnl_positive = balance_format::is_positive_valuation(row.profit);
+                                let rate_negative = balance_format::is_negative_rate(row.rate);
+                                let rate_positive = balance_format::is_positive_rate(row.rate);
                                 let outlier_date = if row.date_outlier {
                                     row.price_as_of.clone()
                                 } else {
@@ -227,7 +222,7 @@ pub fn AssetMergedTable(
                                             <Amount text=row
                                                 .dividend
                                                 .as_ref().map_or_else(|| "—".to_string(), |dividend| {
-                                                    format_dividend_per_share(
+                                                    holdings::format_dividend_per_share(
                                                         dividend,
                                                         dividend_decimals,
                                                     )
@@ -247,7 +242,7 @@ pub fn AssetMergedTable(
                                         <td class="col-num font-bold text-text-deep">
                                             <Amount
                                                 kind=AmountKind::Plain
-                                                text=format_row_valuation_amount(row.market)
+                                                text=balance_format::format_row_valuation_amount(row.market)
                                             />
                                         </td>
                                         <td class="col-num">
@@ -297,29 +292,29 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     };
     let price_text = row
         .current_price
-        .map_or_else(|| "—".to_string(), format_currency);
+        .map_or_else(|| "—".to_string(), format::format_currency);
     let day_text = if row.nav_pending {
         labels::PENDING_UPDATE.to_string()
     } else {
-        format_signed_row_valuation_amount(row.day_change)
+        balance_format::format_signed_row_valuation_amount(row.day_change)
     };
-    let day_negative = is_negative_valuation(row.day_change);
-    let day_positive = is_positive_valuation(row.day_change);
+    let day_negative = balance_format::is_negative_valuation(row.day_change);
+    let day_positive = balance_format::is_positive_valuation(row.day_change);
     let average_text = row
         .average_price
-        .map_or_else(|| "—".to_string(), format_currency);
+        .map_or_else(|| "—".to_string(), format::format_currency);
     let purchase_text = row
         .purchase
-        .map_or_else(|| "—".to_string(), format_currency);
-    let market_text = format_row_valuation_amount(row.market);
-    let pnl_text = format_signed_row_valuation_amount(row.profit);
-    let pnl_rate = format_signed_valuation_rate(row.rate, 1);
-    let pnl_negative = is_negative_valuation(row.profit);
-    let pnl_positive = is_positive_valuation(row.profit);
+        .map_or_else(|| "—".to_string(), format::format_currency);
+    let market_text = balance_format::format_row_valuation_amount(row.market);
+    let pnl_text = balance_format::format_signed_row_valuation_amount(row.profit);
+    let pnl_rate = balance_format::format_signed_valuation_rate(row.rate, 1);
+    let pnl_negative = balance_format::is_negative_valuation(row.profit);
+    let pnl_positive = balance_format::is_positive_valuation(row.profit);
     let as_of = row
         .price_as_of
         .clone()
-        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
     let mut left = vec![
         DetailCell::with_sub(
             price_label.to_string(),
@@ -361,8 +356,8 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             sub_rate: None,
             sub_rate_negative: false,
             sub_rate_positive: false,
-            negative: is_negative_rate(yield_value),
-            positive: is_positive_rate(yield_value),
+            negative: balance_format::is_negative_rate(yield_value),
+            positive: balance_format::is_positive_rate(yield_value),
             bold: false,
             kind: AmountKind::Delta,
         });
@@ -373,8 +368,8 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             sub_rate: None,
             sub_rate_negative: false,
             sub_rate_positive: false,
-            negative: is_negative_rate(per_share_value),
-            positive: is_positive_rate(per_share_value),
+            negative: balance_format::is_negative_rate(per_share_value),
+            positive: balance_format::is_positive_rate(per_share_value),
             bold: false,
             kind: AmountKind::Delta,
         });
@@ -390,8 +385,8 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
     market_cell.sub_rate = row.rate.map(|_| pnl_rate);
-    market_cell.sub_rate_negative = is_negative_rate(row.rate);
-    market_cell.sub_rate_positive = is_positive_rate(row.rate);
+    market_cell.sub_rate_negative = balance_format::is_negative_rate(row.rate);
+    market_cell.sub_rate_positive = balance_format::is_positive_rate(row.rate);
     let mut right = vec![
         DetailCell::plain(
             if is_fund {
@@ -425,13 +420,13 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
             {rows
                 .into_iter()
                 .map(|row| {
-                    let pnl_text = format_signed_row_valuation_amount(row.profit);
-                    let rate_text = format_signed_valuation_rate(row.rate, 1);
-                    let pnl_negative = is_negative_valuation(row.profit);
-                    let pnl_positive = is_positive_valuation(row.profit);
-                    let rate_negative = is_negative_rate(row.rate);
-                    let rate_positive = is_positive_rate(row.rate);
-                    let market_text = format_row_valuation_amount(row.market);
+                    let pnl_text = balance_format::format_signed_row_valuation_amount(row.profit);
+                    let rate_text = balance_format::format_signed_valuation_rate(row.rate, 1);
+                    let pnl_negative = balance_format::is_negative_valuation(row.profit);
+                    let pnl_positive = balance_format::is_positive_valuation(row.profit);
+                    let rate_negative = balance_format::is_negative_rate(row.rate);
+                    let rate_positive = balance_format::is_positive_rate(row.rate);
+                    let market_text = balance_format::format_row_valuation_amount(row.market);
                     let name = row.name.clone();
                     let code = row.code.clone();
                     let account = row.account.clone();

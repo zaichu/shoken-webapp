@@ -1,4 +1,4 @@
-use crate::session::use_session;
+use crate::session;
 use crate::ui::more_link::MoreLink;
 use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
@@ -24,7 +24,7 @@ pub(super) fn CardSkeleton() -> impl IntoView {
 
 #[component]
 pub(super) fn CardError(#[prop(into)] message: String) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     view! {
         <div class="px-4 py-3">
             <ListLoadError

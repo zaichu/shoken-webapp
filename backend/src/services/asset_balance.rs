@@ -7,15 +7,16 @@ use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
 use crate::services::csv::import::CsvImport;
 #[cfg(test)]
-use crate::services::csv::pipeline::parse_csv_with_config;
+use crate::services::csv::pipeline;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-use crate::services::csv::util::{
-    CsvRowView, RowNumber, check_max_chars, parse_number, parse_optional_string,
-};
-use crate::services::domain::bulk::{RowLimit, bulk_replace, user_ids_for_bulk_insert};
+use crate::services::csv::util;
+use crate::services::csv::util::{CsvRowView, RowNumber};
+use crate::services::domain::bulk;
+use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::facets::{FacetSlot, FacetSpec};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
+use crate::services::domain::search_filters;
+use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -120,7 +121,7 @@ impl Search for AssetBalanceDomain {
             FilterField::SecurityCode => &params.security_code,
             FilterField::SecurityName => &params.security_name,
             FilterField::Account => &params.account,
-            _ => &NO_FIELD,
+            _ => &search_filters::NO_FIELD,
         }
     }
 
@@ -144,7 +145,7 @@ pub async fn bulk_create(
     items: &[CreateAssetBalanceRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
     let security_codes: Vec<String> = items
         .iter()
         .map(|i| i.security_code.as_str().to_owned())
@@ -164,7 +165,7 @@ pub async fn bulk_create(
         .map(|i| i.account.as_ref().map(|a| a.as_str().to_owned()))
         .collect();
 
-    bulk_replace::<AssetBalanceDomain>(
+    bulk::bulk_replace::<AssetBalanceDomain>(
         pool,
         user_id,
         items.len(),
@@ -348,7 +349,7 @@ fn required_amount(
     col: &str,
     row_num: RowNumber,
 ) -> Result<Decimal, CsvRowError> {
-    let raw = parse_optional_string(row, col);
+    let raw = util::parse_optional_string(row, col);
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed == "-" {
         return Err(CsvRowError {
@@ -356,21 +357,21 @@ fn required_amount(
             message: format!("必須列 '{col}' が空または値なし"),
         });
     }
-    parse_number(trimmed).map_err(|e| CsvRowError {
+    util::parse_number(trimmed).map_err(|e| CsvRowError {
         row: row_num.get(),
         message: format!("{col}: {e}"),
     })
 }
 
 fn fallback_amount(row: &CsvRowView<'_>, col: &str) -> Decimal {
-    parse_number(&parse_optional_string(row, col)).unwrap_or(Decimal::ZERO)
+    util::parse_number(&util::parse_optional_string(row, col)).unwrap_or(Decimal::ZERO)
 }
 
 fn holding_security_code(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<Option<SecurityCode>, CsvRowError> {
-    let code_raw = parse_optional_string(row, "銘柄コード").replace('"', "");
+    let code_raw = util::parse_optional_string(row, "銘柄コード").replace('"', "");
     if code_raw.trim().is_empty() {
         return Ok(None);
     }
@@ -407,8 +408,8 @@ fn transform_asset_balance_row(
         security_code,
         // 口座は行単位では持たず、区切り行からの付与で transform_rows が上書きする
         account: None,
-        security_name: check_max_chars(
-            normalize_security_name(&parse_optional_string(row, "銘柄名")),
+        security_name: util::check_max_chars(
+            normalize_security_name(&util::parse_optional_string(row, "銘柄名")),
             "銘柄名",
             200,
             row_num,
@@ -446,7 +447,7 @@ mod tests {
     const SYN_RESOURCE_BAD_PRICE_ROW: &str = "\"9901\",\"架空資源開発\",\"200\",\"0\",\"200\",\"0\",\"2,000.00\",\"400,000\",\"不明\",\"50.0\",\"600,000\",\"50.00\"";
 
     fn parse_row_csv(row: &str) -> (Vec<CreateAssetBalanceRequest>, Vec<CsvRowError>) {
-        let table = parse_csv_with_config(
+        let table = pipeline::parse_csv_with_config(
             format!("{HEADER}\n{row}\n").as_bytes(),
             &CsvParserConfig {
                 skip_header_rows: 0,
@@ -585,7 +586,7 @@ mod tests {
                 &["9901", "9905"][..],
             ),
         ] {
-            let table = parse_csv_with_config(
+            let table = pipeline::parse_csv_with_config(
                 make_asset_balance_csv(rows).as_bytes(),
                 &AssetBalanceDomain::CSV_CONFIG,
             )
@@ -654,7 +655,7 @@ mod tests {
 
         let acc = |s: Option<&str>| s.map(str::to_string);
         let accounts_of = |lines: &[&str]| {
-            let table = parse_csv_with_config(
+            let table = pipeline::parse_csv_with_config(
                 format!("{HEADER}\n{}", lines.join("\n")).as_bytes(),
                 &AssetBalanceDomain::CSV_CONFIG,
             )
@@ -720,7 +721,7 @@ mod tests {
             [acc(Some("NISA成長投資枠"))]
         );
         // 区切り行自体は取り込み行にならない
-        let table = parse_csv_with_config(
+        let table = pipeline::parse_csv_with_config(
             format!("{HEADER}\n{SEP_TOKUTEI}\n{TEST_ROW_1}\n").as_bytes(),
             &AssetBalanceDomain::CSV_CONFIG,
         )
@@ -773,7 +774,7 @@ mod tests {
             "9905,架空ゲーム,N/A,0,1000,5000,5000000,7000,100,7000000,40.00";
 
         let accounts_and_errors = |lines: &[&str]| {
-            let table = parse_csv_with_config(
+            let table = pipeline::parse_csv_with_config(
                 format!("{HEADER}\n{}", lines.join("\n")).as_bytes(),
                 &AssetBalanceDomain::CSV_CONFIG,
             )

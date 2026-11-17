@@ -1,21 +1,16 @@
 use super::day_change::{day_change_cell, pending_day_change_cell};
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
-};
+use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::format::{
-    format_currency, format_iso_date, format_number_value, format_unit_price, unit_price_decimals,
-};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use crate::ui::security_link::TableNameLink;
-use crate::urls::fund_holding_href;
+use crate::urls;
 use leptos::prelude::*;
 
 #[component]
@@ -25,7 +20,7 @@ pub fn FundHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let base_price_decimals = unit_price_decimals(views.iter().map(|view| view.base_price));
+    let base_price_decimals = format::unit_price_decimals(views.iter().map(|view| view.base_price));
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
@@ -57,24 +52,24 @@ pub fn FundHoldingsTable(
                     {views
                         .into_iter()
                         .map(|view| {
-                            let pnl_text = format_signed_row_valuation_amount(Some(
+                            let pnl_text = balance_format::format_signed_row_valuation_amount(Some(
                                 view.profit_loss,
                             ));
                             let pnl_rate_text =
-                                format_signed_valuation_rate(view.profit_loss_rate, 1);
+                                balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
                             let pnl_negative =
-                                is_negative_valuation(Some(view.profit_loss));
+                                balance_format::is_negative_valuation(Some(view.profit_loss));
                             let pnl_positive =
-                                is_positive_valuation(Some(view.profit_loss));
+                                balance_format::is_positive_valuation(Some(view.profit_loss));
                             let rate_negative =
-                                is_negative_rate(view.profit_loss_rate);
+                                balance_format::is_negative_rate(view.profit_loss_rate);
                             let rate_positive =
-                                is_positive_rate(view.profit_loss_rate);
-                            let href = view.id.as_ref().map(fund_holding_href);
+                                balance_format::is_positive_rate(view.profit_loss_rate);
+                            let href = view.id.as_ref().map(urls::fund_holding_href);
                             let shares_text = labels::fund_units_label(
-                                &format_number_value(view.shares),
+                                &format::format_number_value(view.shares),
                             );
-                            let base_price_text = format_unit_price(
+                            let base_price_text = format::format_unit_price(
                                 view.base_price,
                                 base_price_decimals,
                             );
@@ -109,7 +104,7 @@ pub fn FundHoldingsTable(
                                     <td class="col-num font-bold text-text-deep">
                                         <Amount
                                             kind=AmountKind::Plain
-                                            text=format_row_valuation_amount(
+                                            text=balance_format::format_row_valuation_amount(
                                                 Some(view.market_value),
                                             )
                                         />
@@ -141,36 +136,36 @@ pub fn FundHoldingsTable(
 }
 
 pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let base_text = format_currency(view.base_price);
+    let base_text = format::format_currency(view.base_price);
     let day_text = if view.nav_pending() {
         labels::PENDING_UPDATE.to_string()
     } else {
-        format_signed_row_valuation_amount(view.view_day_change())
+        balance_format::format_signed_row_valuation_amount(view.view_day_change())
     };
-    let day_negative = is_negative_valuation(view.view_day_change());
-    let day_positive = is_positive_valuation(view.view_day_change());
+    let day_negative = balance_format::is_negative_valuation(view.view_day_change());
+    let day_positive = balance_format::is_positive_valuation(view.view_day_change());
     let month_text = if view.nav_pending() {
         labels::PENDING_UPDATE.to_string()
     } else {
-        format_signed_row_valuation_amount(view.base_price_month_change)
+        balance_format::format_signed_row_valuation_amount(view.base_price_month_change)
     };
-    let month_negative = is_negative_valuation(view.base_price_month_change);
-    let month_positive = is_positive_valuation(view.base_price_month_change);
-    let average_text = format_currency(view.average_purchase_price);
+    let month_negative = balance_format::is_negative_valuation(view.base_price_month_change);
+    let month_positive = balance_format::is_positive_valuation(view.base_price_month_change);
+    let average_text = format::format_currency(view.average_purchase_price);
     let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
-    let shares_text = labels::fund_units_label(&format_number_value(view.shares));
-    let purchase_text = format_currency(view.purchase);
-    let market_text = format_row_valuation_amount(Some(view.market_value));
-    let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
-    let pnl_rate = format_signed_valuation_rate(view.profit_loss_rate, 1);
-    let pnl_rate_negative = is_negative_rate(view.profit_loss_rate);
-    let pnl_rate_positive = is_positive_rate(view.profit_loss_rate);
-    let pnl_negative = is_negative_valuation(Some(view.profit_loss));
-    let pnl_positive = is_positive_valuation(Some(view.profit_loss));
+    let shares_text = labels::fund_units_label(&format::format_number_value(view.shares));
+    let purchase_text = format::format_currency(view.purchase);
+    let market_text = balance_format::format_row_valuation_amount(Some(view.market_value));
+    let pnl_text = balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
+    let pnl_rate = balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
+    let pnl_rate_negative = balance_format::is_negative_rate(view.profit_loss_rate);
+    let pnl_rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
+    let pnl_negative = balance_format::is_negative_valuation(Some(view.profit_loss));
+    let pnl_positive = balance_format::is_positive_valuation(Some(view.profit_loss));
     let as_of = view
         .price_as_of
         .clone()
-        .map_or_else(|| "—".to_string(), |date| format_iso_date(&date));
+        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
     let left = vec![
         DetailCell::with_sub(
             labels::BASE_PRICE.to_string(),
@@ -221,16 +216,16 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
             {views
                 .into_iter()
                 .map(|view| {
-                    let pnl_text = format_signed_row_valuation_amount(Some(view.profit_loss));
+                    let pnl_text = balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
                     let pnl_rate_text =
-                        format_signed_valuation_rate(view.profit_loss_rate, 1);
-                    let pnl_negative = is_negative_valuation(Some(view.profit_loss));
-                    let pnl_positive = is_positive_valuation(Some(view.profit_loss));
-                    let rate_negative = is_negative_rate(view.profit_loss_rate);
-                    let rate_positive = is_positive_rate(view.profit_loss_rate);
+                        balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
+                    let pnl_negative = balance_format::is_negative_valuation(Some(view.profit_loss));
+                    let pnl_positive = balance_format::is_positive_valuation(Some(view.profit_loss));
+                    let rate_negative = balance_format::is_negative_rate(view.profit_loss_rate);
+                    let rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
                     let shares_text =
-                        labels::fund_units_label(&format_number_value(view.shares));
-                    let market_text = format_row_valuation_amount(Some(view.market_value));
+                        labels::fund_units_label(&format::format_number_value(view.shares));
+                    let market_text = balance_format::format_row_valuation_amount(Some(view.market_value));
                     let name = view.name.clone();
                     let account = view.account.clone();
                     let dialog_name = view.name.clone();

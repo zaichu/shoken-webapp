@@ -1,12 +1,14 @@
 //! CSV管理ページ(テーブル形式)
 //! 5種類のCSVを1画面の表で管理する。取得・取り込み・削除は既存の共通ロジックを使用。
 
+use crate::api;
 use crate::api::dto::CsvKindStatsResponse;
-use crate::api::fetch_csv_kind_stats;
-use crate::features::asset_balance::use_asset_balance_state;
-use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus, use_csv_sync};
-use crate::features::receipts::{ReceiptsTab, use_receipts_data};
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::features::csv_sync;
+use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus};
+use crate::features::receipts;
+use crate::features::receipts::ReceiptsTab;
+use crate::session;
 use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
@@ -117,21 +119,21 @@ fn row_data(
 
 #[component]
 pub(crate) fn CsvPage() -> impl IntoView {
-    let session = use_session();
-    let asset_state = use_asset_balance_state(session);
-    let receipts = use_receipts_data(
+    let session = session::use_session();
+    let asset_state = asset_balance::use_asset_balance_state(session);
+    let receipts = receipts::use_receipts_data(
         session,
         crate::settings::try_use_settings().receipts_initial_tab,
     );
     receipts.revisit();
 
-    let csv_sync = use_csv_sync();
+    let csv_sync = csv_sync::use_csv_sync();
 
     let stats = RwSignal::new(None::<CsvKindStatsResponse>);
     // 取得完了・取り込み・削除のあとに件数と状態を取り直す。失敗しても前回の表示は残す
     let refresh_stats = move |settle_sync: bool| {
         leptos::task::spawn_local(async move {
-            if let Ok(response) = fetch_csv_kind_stats().await {
+            if let Ok(response) = api::fetch_csv_kind_stats().await {
                 stats.set(Some(response));
                 if settle_sync {
                     csv_sync.settle_imported_with_stats();

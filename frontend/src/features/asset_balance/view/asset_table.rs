@@ -1,20 +1,15 @@
 use super::day_change::day_change_cell;
 use super::sort_header::sort_header;
-use crate::features::asset_balance::format::{
-    format_row_valuation_amount, format_signed_row_valuation_amount, format_signed_valuation_rate,
-    is_negative_rate, is_negative_valuation, is_positive_rate, is_positive_valuation,
-    price_date_outliers,
-};
-use crate::features::asset_balance::holdings::{
-    HoldingView, format_dividend_annual, format_dividend_per_share, format_dividend_yield,
-    holding_dividend, holding_stock_href,
-};
-use crate::features::asset_balance::model::{ValuationInput, holding_valuation};
+use crate::features::asset_balance::format as balance_format;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::format::{format_number_value, format_unit_price, unit_price_decimals};
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
 use leptos::prelude::*;
@@ -33,7 +28,7 @@ pub fn AssetHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     let price_date_rep = price_date_rep.clone();
-    let date_outliers = price_date_outliers(
+    let date_outliers = balance_format::price_date_outliers(
         &views
             .iter()
             .map(|view| view.price_as_of.clone())
@@ -41,12 +36,14 @@ pub fn AssetHoldingsTable(
         price_date_rep.as_deref(),
     );
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let average_price_decimals = unit_price_decimals(views.iter().map(|view| view.average_price));
-    let current_price_decimals = unit_price_decimals(views.iter().map(|view| view.current_price));
+    let average_price_decimals =
+        format::unit_price_decimals(views.iter().map(|view| view.average_price));
+    let current_price_decimals =
+        format::unit_price_decimals(views.iter().map(|view| view.current_price));
     let row_dividends: Vec<_> = views
         .iter()
         .map(|view| {
-            holding_dividend(
+            holdings::holding_dividend(
                 &view.code,
                 view.shares,
                 view.average_price,
@@ -54,7 +51,7 @@ pub fn AssetHoldingsTable(
             )
         })
         .collect();
-    let dividend_decimals = unit_price_decimals(
+    let dividend_decimals = format::unit_price_decimals(
         row_dividends
             .iter()
             .filter_map(|dividend| dividend.per_share),
@@ -94,28 +91,28 @@ pub fn AssetHoldingsTable(
                         .zip(date_outliers)
                         .zip(row_dividends)
                         .map(|((view, is_outlier), dividend)| {
-                            let valuation = holding_valuation(&ValuationInput::from(&view));
-                            let market_text = format_row_valuation_amount(valuation.market_value);
-                            let pnl_text = format_signed_row_valuation_amount(
+                            let valuation = model::holding_valuation(&ValuationInput::from(&view));
+                            let market_text = balance_format::format_row_valuation_amount(valuation.market_value);
+                            let pnl_text = balance_format::format_signed_row_valuation_amount(
                                 valuation.profit_loss.amount,
                             );
-                            let pnl_rate_text = format_signed_valuation_rate(
+                            let pnl_rate_text = balance_format::format_signed_valuation_rate(
                                 valuation.profit_loss.rate,
                                 1,
                             );
                             let pnl_negative =
-                                is_negative_valuation(valuation.profit_loss.amount);
+                                balance_format::is_negative_valuation(valuation.profit_loss.amount);
                             let pnl_positive =
-                                is_positive_valuation(valuation.profit_loss.amount);
-                            let rate_negative = is_negative_rate(valuation.profit_loss.rate);
-                            let rate_positive = is_positive_rate(valuation.profit_loss.rate);
-                            let dividend_annual = format_dividend_annual(&dividend);
+                                balance_format::is_positive_valuation(valuation.profit_loss.amount);
+                            let rate_negative = balance_format::is_negative_rate(valuation.profit_loss.rate);
+                            let rate_positive = balance_format::is_positive_rate(valuation.profit_loss.rate);
+                            let dividend_annual = holdings::format_dividend_annual(&dividend);
                             let dividend_per_share =
-                                format_dividend_per_share(&dividend, dividend_decimals);
-                            let dividend_yield = format_dividend_yield(&dividend);
-                            let dividend_yield_negative = is_negative_rate(dividend.yield_value);
-                            let dividend_yield_positive = is_positive_rate(dividend.yield_value);
-                            let href = Some(holding_stock_href(&view.code));
+                                holdings::format_dividend_per_share(&dividend, dividend_decimals);
+                            let dividend_yield = holdings::format_dividend_yield(&dividend);
+                            let dividend_yield_negative = balance_format::is_negative_rate(dividend.yield_value);
+                            let dividend_yield_positive = balance_format::is_positive_rate(dividend.yield_value);
+                            let href = Some(holdings::holding_stock_href(&view.code));
                             let outlier_date = if is_outlier {
                                 view.price_as_of.clone()
                             } else {
@@ -139,14 +136,14 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="col-num text-text-soft">
                                         {labels::stock_shares_label(
-                                            &format_number_value(view.shares),
+                                            &format::format_number_value(view.shares),
                                         )}
                                     </td>
                                     <td class="col-num text-text-soft hidden xl:table-cell print:table-cell">
-                                        <Amount text=format_unit_price(view.average_price, average_price_decimals) />
+                                        <Amount text=format::format_unit_price(view.average_price, average_price_decimals) />
                                     </td>
                                     <td class="col-num text-text-soft">
-                                        <Amount text=format_unit_price(view.current_price, current_price_decimals) />
+                                        <Amount text=format::format_unit_price(view.current_price, current_price_decimals) />
                                     </td>
                                     <td class="col-num">
                                         {day_change_cell(view.day_change, outlier_date)}
@@ -184,16 +181,16 @@ pub fn AssetHoldingsTable(
                                         <Amount
                                             kind=AmountKind::Delta
                                             text=dividend_per_share
-                                            negative=is_negative_rate(dividend.per_share)
-                                            positive=is_positive_rate(dividend.per_share)
+                                            negative=balance_format::is_negative_rate(dividend.per_share)
+                                            positive=balance_format::is_positive_rate(dividend.per_share)
                                         />
                                     </td>
                                     <td class="col-num">
                                         <Amount
                                             kind=AmountKind::Delta
                                             text=dividend_annual
-                                            negative=is_negative_valuation(dividend.annual)
-                                            positive=is_positive_valuation(dividend.annual)
+                                            negative=balance_format::is_negative_valuation(dividend.annual)
+                                            positive=balance_format::is_positive_valuation(dividend.annual)
                                         />
                                     </td>
                                     <td class="col-num">

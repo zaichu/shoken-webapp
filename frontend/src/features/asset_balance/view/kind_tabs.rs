@@ -1,10 +1,8 @@
 use crate::features::asset_balance::fund::AssetKind;
 use crate::ui::button::TabButton;
 use crate::ui::labels;
-use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index, prefers_reduced_motion,
-    swipe_should_ignore_input, tab_ink_offset,
-};
+use crate::ui::underline_tabs;
+use crate::ui::underline_tabs::SwipeMotion;
 use leptos::prelude::*;
 
 const fn tab_id(kind: AssetKind) -> &'static str {
@@ -48,9 +46,9 @@ pub(crate) fn AssetKindTabs(
                             testid=format!("asset-kind-tab-{}{}", item.value(), suffix)
                             on_click=move |event| {
                                 if event.detail() != 0
-                                    && swipe_should_ignore_input(
+                                    && underline_tabs::swipe_should_ignore_input(
                                         guard.settling.get_untracked(),
-                                        prefers_reduced_motion(),
+                                        underline_tabs::prefers_reduced_motion(),
                                     )
                                 {
                                     return;
@@ -62,10 +60,10 @@ pub(crate) fn AssetKindTabs(
                                     .iter()
                                     .position(|candidate| *candidate == keyed.get_untracked())
                                     .unwrap_or(0);
-                                if let Some(next) = next_tab_index(3, current, &event.key()) {
+                                if let Some(next) = underline_tabs::next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
                                     keyed.set(AssetKind::ALL[next]);
-                                    focus_tab_by_id_after_paint(format!(
+                                    underline_tabs::focus_tab_by_id_after_paint(format!(
                                         "{}{}",
                                         tab_id(AssetKind::ALL[next]),
                                         suffix
@@ -89,7 +87,7 @@ pub(crate) fn AssetKindTabs(
                         .unwrap_or(0);
                     format!(
                         "translateX({}%)",
-                        tab_ink_offset(position, motion.progress.get()) * 100.0
+                        underline_tabs::tab_ink_offset(position, motion.progress.get()) * 100.0
                     )
                 }
             ></span>

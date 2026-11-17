@@ -1,4 +1,5 @@
-use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
+use crate::models::common;
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::value::{Account, SecurityCode};
@@ -86,7 +87,7 @@ pub struct CreateAssetBalanceRequest {
 impl Validate for CreateAssetBalanceRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "security_name",
             &self.security_name,
@@ -116,7 +117,7 @@ const MAX_BULK_CREATE_ITEMS: u64 = 1000;
 impl Validate for BulkCreateAssetBalanceRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "items",
             &self.items,

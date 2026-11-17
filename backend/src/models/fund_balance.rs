@@ -1,4 +1,5 @@
-use crate::models::common::{SearchParamsAccessor, SearchQueryParams, validate_length_field};
+use crate::models::common;
+use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::value::Account;
@@ -91,7 +92,7 @@ pub struct CreateFundBalanceRequest {
 impl Validate for CreateFundBalanceRequest {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "fund_name",
             &self.fund_name,

@@ -1,4 +1,4 @@
-use crate::models::common::validate_length_field;
+use crate::models::common;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use shared::value::SecurityCode;
@@ -34,29 +34,29 @@ impl crate::db::FromRow for Stock {
 impl Validate for Stock {
     fn validate(&self) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        validate_length_field(&mut errors, "name", &self.name, Some(1), Some(100));
-        validate_length_field(
+        common::validate_length_field(&mut errors, "name", &self.name, Some(1), Some(100));
+        common::validate_length_field(
             &mut errors,
             "market_category",
             &self.market_category,
             Some(1),
             Some(50),
         );
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "industry_category_33",
             &self.industry_category_33,
             None,
             Some(100),
         );
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "industry_category_17",
             &self.industry_category_17,
             None,
             Some(100),
         );
-        validate_length_field(
+        common::validate_length_field(
             &mut errors,
             "size_category",
             &self.size_category,

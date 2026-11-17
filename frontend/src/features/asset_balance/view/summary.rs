@@ -1,21 +1,16 @@
 use crate::api::dto::AssetBalanceSummary;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::features::asset_balance::format::{
-    dec_to_f64, format_amount, format_signed_row_valuation_amount, format_signed_valuation_amount,
-    format_signed_valuation_rate, format_valuation_amount, is_negative_rate, is_negative_valuation,
-    is_positive_rate, is_positive_valuation,
-};
-use crate::features::asset_balance::holdings::{HoldingView, stock_daily_change_total};
-use crate::features::asset_balance::model::{
-    KpiHolding, ValuationInput, calculate_portfolio_kpi, portfolio_valuation, summary_valuation,
-};
+use crate::features::asset_balance::format as balance_format;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::HoldingView;
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::{KpiHolding, ValuationInput};
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
-use crate::ui::format::format_percentage_value;
+use crate::ui::format;
 use crate::ui::labels;
-use crate::ui::summary::{
-    SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone, daily_rate,
-};
+use crate::ui::summary;
+use crate::ui::summary::{SummaryBand, SummaryBreakdownEntry, SummarySubItem, SummaryTone};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
@@ -75,7 +70,7 @@ pub(crate) fn stock_pending_from_parts(
     }
     fallback_totals.map_or_else(
         || rows.iter().any(|row| row.current_price <= Decimal::ZERO),
-        |summary| summary_valuation(summary).has_unpriced,
+        |summary| model::summary_valuation(summary).has_unpriced,
     )
 }
 
@@ -111,14 +106,14 @@ pub(crate) fn stock_summary_values(
         .collect();
     let valuation_inputs: Vec<ValuationInput> =
         all_views.iter().map(ValuationInput::from).collect();
-    let row_valuation = portfolio_valuation(&valuation_inputs);
-    let valuation = fallback_totals.map_or(row_valuation, summary_valuation);
+    let row_valuation = model::portfolio_valuation(&valuation_inputs);
+    let valuation = fallback_totals.map_or(row_valuation, model::summary_valuation);
     // 前日比の合計は API 集計(全件)を優先し、無ければ全行から計算する。
     // 前日終値なしの行は除く(全部なしなら「—」)
     let daily_change = fallback_totals
-        .map(|summary| dec_to_f64(&summary.total_daily_change))
-        .or_else(|| stock_daily_change_total(all_views));
-    let kpi = calculate_portfolio_kpi(&kpi_holdings, &dividends.per_share);
+        .map(|summary| balance_format::dec_to_f64(&summary.total_daily_change))
+        .or_else(|| holdings::stock_daily_change_total(all_views));
+    let kpi = model::calculate_portfolio_kpi(&kpi_holdings, &dividends.per_share);
     let values = PortfolioSummaryValues {
         market: valuation.market_value,
         profit: valuation.profit_loss.amount,
@@ -130,13 +125,13 @@ pub(crate) fn stock_summary_values(
             label: labels::ANNUAL_DIVIDEND_FORECAST,
             value: kpi
                 .total_annual_dividends
-                .map_or_else(|| "—".to_string(), format_amount),
+                .map_or_else(|| "—".to_string(), balance_format::format_amount),
         },
         SummaryTag {
             label: labels::ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
-                .map_or_else(|| "—".to_string(), format_percentage_value),
+                .map_or_else(|| "—".to_string(), format::format_percentage_value),
         },
     ];
     (values, tags)
@@ -146,7 +141,7 @@ pub(crate) fn stock_summary_values(
 pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
     SummaryTag {
         label: labels::TOTAL_ACQUISITION,
-        value: format_valuation_amount(Some(purchase)),
+        value: balance_format::format_valuation_amount(Some(purchase)),
     }
 }
 
@@ -168,19 +163,20 @@ pub(crate) fn AssetSummaryBand(
     #[prop(optional)]
     show_pending: bool,
 ) -> impl IntoView {
-    let market_text = format_valuation_amount(market);
-    let profit_text = format_signed_valuation_amount(profit);
-    let rate_text = profit_rate.map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
+    let market_text = balance_format::format_valuation_amount(market);
+    let profit_text = balance_format::format_signed_valuation_amount(profit);
+    let rate_text = profit_rate
+        .map_or_default(|rate| balance_format::format_signed_valuation_rate(Some(rate), 1));
     // 前日比は表・カードと同じく表示単位を適用せず必ず円マーク付きで出す
-    let daily_text = format_signed_row_valuation_amount(daily_change);
-    let daily_rate_value = daily_rate(market, daily_change);
-    let daily_rate_text =
-        daily_rate_value.map_or_default(|rate| format_signed_valuation_rate(Some(rate), 1));
-    let profit_negative = is_negative_valuation(profit);
-    let profit_positive = is_positive_valuation(profit);
-    let daily_negative = is_negative_valuation(daily_change);
-    let daily_positive = is_positive_valuation(daily_change);
-    let purchase_text = format_valuation_amount(purchase);
+    let daily_text = balance_format::format_signed_row_valuation_amount(daily_change);
+    let daily_rate_value = summary::daily_rate(market, daily_change);
+    let daily_rate_text = daily_rate_value
+        .map_or_default(|rate| balance_format::format_signed_valuation_rate(Some(rate), 1));
+    let profit_negative = balance_format::is_negative_valuation(profit);
+    let profit_positive = balance_format::is_positive_valuation(profit);
+    let daily_negative = balance_format::is_negative_valuation(daily_change);
+    let daily_positive = balance_format::is_positive_valuation(daily_change);
+    let purchase_text = balance_format::format_valuation_amount(purchase);
     let pc_items: Vec<SummarySubItem> = {
         let mut items = vec![SummarySubItem {
             label: labels::DAY_CHANGE.to_string(),
@@ -226,8 +222,8 @@ pub(crate) fn AssetSummaryBand(
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
-                aux_rate_negative=profit_rate.is_some_and(|rate| is_negative_rate(Some(rate)))
-                aux_rate_positive=profit_rate.is_some_and(|rate| is_positive_rate(Some(rate)))
+                aux_rate_negative=profit_rate.is_some_and(|rate| balance_format::is_negative_rate(Some(rate)))
+                aux_rate_positive=profit_rate.is_some_and(|rate| balance_format::is_positive_rate(Some(rate)))
                 aux_negative=profit_negative
                 aux_positive=profit_positive
                 pc_items=pc_items
@@ -238,8 +234,8 @@ pub(crate) fn AssetSummaryBand(
                         negative: daily_negative,
                         positive: daily_positive,
                         rate: daily_rate_text,
-                        rate_negative: daily_rate_value.is_some_and(|rate| is_negative_rate(Some(rate))),
-                        rate_positive: daily_rate_value.is_some_and(|rate| is_positive_rate(Some(rate))),
+                        rate_negative: daily_rate_value.is_some_and(|rate| balance_format::is_negative_rate(Some(rate))),
+                        rate_positive: daily_rate_value.is_some_and(|rate| balance_format::is_positive_rate(Some(rate))),
                     },
                     SummaryBreakdownEntry {
                         label: labels::TOTAL_ACQUISITION.to_string(),

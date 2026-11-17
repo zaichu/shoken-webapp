@@ -1,18 +1,10 @@
-use crate::{
-    errors::{ApiError, ErrorResponse},
-    extractors::auth::AuthenticatedUser,
-    handlers::v1::auth::oauth::get_device_token_from_jar,
-    models::common::MessageResponse,
-    services::{
-        auth as auth_service,
-        login_event::{
-            self, DeviceListResponse, LoginHistoryListResponse, clamp_history_limit,
-            clamp_history_offset,
-        },
-        login_notify,
-    },
-    state::AppState,
-};
+use crate::errors::{ApiError, ErrorResponse};
+use crate::extractors::auth::AuthenticatedUser;
+use crate::handlers::v1::auth::oauth;
+use crate::models::common::MessageResponse;
+use crate::services::login_event::{self, DeviceListResponse, LoginHistoryListResponse};
+use crate::services::{auth as auth_service, login_notify};
+use crate::state::AppState;
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -51,8 +43,8 @@ pub async fn list_history(
     let entries = login_event::list_login_history(
         &state.pool,
         auth_user.id(),
-        clamp_history_limit(query.limit),
-        clamp_history_offset(query.offset),
+        login_event::clamp_history_limit(query.limit),
+        login_event::clamp_history_offset(query.offset),
     )
     .await?;
     Ok(Json(LoginHistoryListResponse { data: entries }))
@@ -74,7 +66,7 @@ pub async fn list_devices(
     auth_user: AuthenticatedUser,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
-    let current = get_device_token_from_jar(&jar);
+    let current = oauth::get_device_token_from_jar(&jar);
     let devices = login_event::list_devices(&state.pool, auth_user.id(), &current.hash()).await?;
     Ok(Json(DeviceListResponse { data: devices }))
 }
@@ -104,7 +96,7 @@ pub async fn delete_device(
         .await?
         .ok_or(ApiError::NotFound)?;
     auth_service::delete_device_sessions(&state.pool, auth_user.id(), &device_hash).await?;
-    let current = get_device_token_from_jar(&jar);
+    let current = oauth::get_device_token_from_jar(&jar);
     if current.hash() == device_hash {
         let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
             state.config.secure_cookie,

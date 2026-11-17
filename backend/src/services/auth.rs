@@ -14,7 +14,7 @@ use std::future::Future;
 use crate::db::{Bind, Db, DbError, Tx};
 use crate::errors::ApiError;
 use crate::models::user::{GoogleUserInfo, User};
-use crate::services::login_event::{self, ClientInfo, PriorLocation, insert_login_event_in_tx};
+use crate::services::login_event::{self, ClientInfo, PriorLocation};
 
 pub use google_common::{GoogleOAuthClient, create_oauth_client};
 
@@ -155,7 +155,7 @@ pub async fn upsert_user_rotate_session_with_login_event(
     let outcome = login_event::classify_login(prior, client);
     let session_token =
         rotate_session_for_device_via_function(&mut tx, user.id, &device_hash).await?;
-    insert_login_event_in_tx(&mut tx, user.id, outcome, device_hash, client).await?;
+    login_event::insert_login_event_in_tx(&mut tx, user.id, outcome, device_hash, client).await?;
     tx.commit().await?;
 
     Ok((session_token, user, outcome))

@@ -1,18 +1,16 @@
-use crate::features::receipts::dividend_info::{
-    DividendInfoStore, DividendSummarySection, search_security_code,
-};
-use crate::features::receipts::filter::filter_receipts;
-use crate::features::receipts::kind::dividend_totals;
+use crate::features::receipts;
+use crate::features::receipts::dividend_info;
+use crate::features::receipts::dividend_info::{DividendInfoStore, DividendSummarySection};
+use crate::features::receipts::filter;
+use crate::features::receipts::kind;
 use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
 use crate::features::receipts::view::{ReceiptsMobileSearchEntry, ReceiptsTabNav};
-use crate::features::receipts::{
-    ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState, truncated_list_warning,
-};
-use crate::session::use_session;
+use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState};
+use crate::session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
-use crate::ui::labels::{CSV_IMPORT, ERROR_PREFIX, NO_DATA, RECEIPT_SEARCH_REGION};
+use crate::ui::labels;
 use crate::ui::page_skeleton::{
     FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
 };
@@ -27,7 +25,7 @@ pub(crate) fn show_dividend_section(
     filtered: &[ReceiptRow],
     query: &str,
 ) -> bool {
-    tab == ReceiptsTab::Dividend && !search_security_code(filtered, query).is_empty()
+    tab == ReceiptsTab::Dividend && !dividend_info::search_security_code(filtered, query).is_empty()
 }
 
 // 絞り込み中の件数。取得上限で行が欠けても API の total を優先する
@@ -53,7 +51,7 @@ pub fn ReceiptsMainContent(
     let summary_expanded = RwSignal::new(true);
 
     let dividend_info = (tab == ReceiptsTab::Dividend).then(|| {
-        let session = use_session();
+        let session = session::use_session();
         DividendInfoStore::new(session)
     });
 
@@ -63,17 +61,17 @@ pub fn ReceiptsMainContent(
     let filtered_rows = Memo::new(move |_| {
         let query = search.with(|state| state.query.clone());
         tab_state.with(|state| match state {
-            TabState::Ready(data) => filter_receipts(tab, &data.rows, &query),
+            TabState::Ready(data) => filter::filter_receipts(tab, &data.rows, &query),
             _ => Vec::new(),
         })
     });
 
     if let Some(info) = dividend_info {
         Effect::new(move |_| {
-            let authenticated = use_session().user.get().is_some();
-            let generation = use_session().generation.get();
+            let authenticated = session::use_session().user.get().is_some();
+            let generation = session::use_session().generation.get();
             let query = search.with(|state| state.query.clone());
-            let code = filtered_rows.with(|rows| search_security_code(rows, &query));
+            let code = filtered_rows.with(|rows| dividend_info::search_security_code(rows, &query));
             info.set_code(generation, authenticated, &code);
         });
 
@@ -112,7 +110,7 @@ pub fn ReceiptsMainContent(
         if !show_dividend_info.with(|show| *show) {
             return None;
         }
-        filtered_rows.with(|rows| Some(dividend_totals(rows)))
+        filtered_rows.with(|rows| Some(kind::dividend_totals(rows)))
     });
     let header = Memo::new(move |_| {
         if show_dividend_info.with(|show| *show) {
@@ -172,7 +170,7 @@ pub fn ReceiptsMainContent(
             };
             view! {
                 <Alert variant=AlertVariant::Danger>
-                    <strong>{ERROR_PREFIX}</strong>
+                    <strong>{labels::ERROR_PREFIX}</strong>
                     " "
                     {message}
                 </Alert>
@@ -184,7 +182,7 @@ pub fn ReceiptsMainContent(
             let truncated = tab_state
                 .with(|state| matches!(state, TabState::Ready(data) if data.truncated));
             if truncated {
-                view! { <Alert variant=AlertVariant::Warning>{truncated_list_warning()}</Alert> }
+                view! { <Alert variant=AlertVariant::Warning>{receipts::truncated_list_warning()}</Alert> }
                     .into_any()
             } else {
                 ().into_any()
@@ -255,7 +253,7 @@ pub fn ReceiptsMainContent(
         }}
         // 検索欄は帯と表の間に固定で置く(読み込み中や空でも操作できるようにする)
         <SkeletonSearch>
-            <div class="hidden lg:block" role="search" aria-label=RECEIPT_SEARCH_REGION>
+            <div class="hidden lg:block" role="search" aria-label=labels::RECEIPT_SEARCH_REGION>
                 <ReceiptsSearchBar store=store tab=Signal::stored(tab) />
             </div>
             <div class="receipts-mobile-search">
@@ -275,7 +273,7 @@ pub fn ReceiptsMainContent(
                 TabState::Ready(_) if is_empty.get() => {
                 view! {
                     <EmptyState
-                        title=NO_DATA
+                        title=labels::NO_DATA
                         description=tab.empty_hint()
                         icon=EmptyStateIcon::Tray
                     >
@@ -283,7 +281,7 @@ pub fn ReceiptsMainContent(
                             variant=ButtonVariant::Primary(ButtonSize::Md)
                             href=csv_href
                         >
-                            {CSV_IMPORT}
+                            {labels::CSV_IMPORT}
                         </LinkButton>
                     </EmptyState>
                 }

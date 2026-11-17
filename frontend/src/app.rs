@@ -10,11 +10,11 @@ use crate::features::not_found::NotFoundPage;
 use crate::features::receipts::{ReceiptsPage, ReceiptsStore};
 use crate::features::settings::SettingsPage;
 use crate::features::stock_search::StockSearchPage;
-use crate::session::provide_session;
+use crate::session;
 use crate::ui::labels;
 use crate::ui::site::{AccountDeleteConfirm, AccountDeleteDialog, BottomNav, SiteFooter};
 use crate::ui::state::{ListLoadError, Loading};
-use crate::urls::{FUND_HOLDINGS_PREFIX, HOLDINGS_PREFIX, detail_id};
+use crate::urls;
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -74,11 +74,11 @@ impl Route {
 }
 
 fn holding_id(path: &str) -> Option<&str> {
-    detail_id(path, HOLDINGS_PREFIX)
+    urls::detail_id(path, urls::HOLDINGS_PREFIX)
 }
 
 fn fund_holding_id(path: &str) -> Option<&str> {
-    detail_id(path, FUND_HOLDINGS_PREFIX)
+    urls::detail_id(path, urls::FUND_HOLDINGS_PREFIX)
 }
 
 fn route_for_path(path: &str) -> Route {
@@ -317,7 +317,7 @@ pub fn App() -> impl IntoView {
     on_cleanup(move || drop(on_popstate));
 
     let settings = crate::settings::provide_settings();
-    let session = provide_session(settings.idle_logout_minutes);
+    let session = session::provide_session(settings.idle_logout_minutes);
     let csv_sync = crate::features::csv_sync::CsvSyncStore::new();
     provide_context(csv_sync);
     // 受け取った CSV は本人のデータのため、ログアウト・ユーザー切替で必ず捨てる

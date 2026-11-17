@@ -1,11 +1,12 @@
 use crate::features::asset_balance::AssetBalanceCsvStore;
 use crate::features::csv_page::CsvKind;
-use crate::features::csv_sync::{CsvSyncStore, KindStatus, with_csv_extension};
+use crate::features::csv_sync;
+use crate::features::csv_sync::{CsvSyncStore, KindStatus};
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab, TabState};
-use crate::session::use_session;
+use crate::session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
-use crate::ui::format::{days_since_jst_date, format_iso_date, format_jst_time, format_short_date};
+use crate::ui::format;
 use crate::ui::labels;
 use leptos::ev;
 use leptos::html;
@@ -34,7 +35,7 @@ pub(crate) fn CsvManageFetchCard(
     running: ReadSignal<bool>,
     on_fetch: Callback<web_sys::MouseEvent>,
 ) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     view! {
         <section class="rounded-lg border border-border bg-surface-sunken p-4">
             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
@@ -170,7 +171,7 @@ fn CsvKindRow(
                 }
                 let min = dates.iter().min()?;
                 let max = dates.iter().max()?;
-                Some((format_iso_date(min), format_iso_date(max)))
+                Some((format::format_iso_date(min), format::format_iso_date(max)))
             } else {
                 None
             }
@@ -396,7 +397,7 @@ fn CsvKindRow(
             .and_then(|files| files.get(0));
         input.set_value("");
         if let Some(file) = file {
-            csv_sync.import_file(kind.sync_kind(), with_csv_extension(&file));
+            csv_sync.import_file(kind.sync_kind(), csv_sync::with_csv_extension(&file));
         }
     };
 
@@ -622,10 +623,14 @@ fn compute_status(
 
     // 最終取込日時から状態を判定する。時刻は日本時間で出す
     if let Some(ts) = latest_imported_at
-        && let Some(days_ago) = days_since_jst_date(ts)
+        && let Some(days_ago) = format::days_since_jst_date(ts)
     {
-        let (text, class, key) =
-            dated_status(kind, days_ago, &format_short_date(ts), &format_jst_time(ts));
+        let (text, class, key) = dated_status(
+            kind,
+            days_ago,
+            &format::format_short_date(ts),
+            &format::format_jst_time(ts),
+        );
         return (text, class.to_string(), false, String::new(), key);
     }
 

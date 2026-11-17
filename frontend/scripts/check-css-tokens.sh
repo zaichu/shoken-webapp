@@ -69,7 +69,9 @@ check_arbitrary() {
   local hits deny
   hits=$(grep -noE -e "$ARBITRARY" "$@" 2>/dev/null || true)
   [ -z "$hits" ] && { echo "  OK: 任意値($label)"; return 0; }
-  deny=$(printf '%s\n' "$hits" | grep -vE "$allowed" || true)
+  # Rust のパス区切り(::)を含む [...] は配列リテラルなので対象外にする
+  # (Tailwind の任意プロパティ・任意値に :: は使わない)
+  deny=$(printf '%s\n' "$hits" | grep -vE "$allowed" | grep -vF '::' || true)
   [ -z "$deny" ] && { echo "  OK: 任意値(すべて許可リスト内: $label)"; return 0; }
   echo "ERROR: 許可リスト外の任意値($label)" >&2
   printf '%s\n' "$deny" >&2
@@ -174,3 +176,5 @@ echo "OK: 違反はありません"
 bash "$SCRIPT_DIR/check-ui-primitives.sh"
 # 続けて色の直書き・style属性の色/寸法検査を実行する
 bash "$SCRIPT_DIR/check-css-colors.sh"
+# 続けて use の取り込み方検査を実行する
+bash "$SCRIPT_DIR/check-use-paths.sh"

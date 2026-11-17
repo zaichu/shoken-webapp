@@ -5,16 +5,17 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
-use crate::services::csv::import::{CsvImport, validate_csv_rows};
+use crate::services::csv::import;
+use crate::services::csv::import::CsvImport;
 use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
-use crate::services::csv::util::{
-    CsvRowView, RowNumber, check_max_chars, parse_required_account, parse_required_date,
-    parse_required_number, parse_required_security_code, parse_required_string,
-};
-use crate::services::domain::bulk::{RowLimit, bulk_insert, user_ids_for_bulk_insert};
+use crate::services::csv::util;
+use crate::services::csv::util::{CsvRowView, RowNumber};
+use crate::services::domain::bulk;
+use crate::services::domain::bulk::RowLimit;
 use crate::services::domain::facets::{FacetOrder, FacetSlot, FacetSpec, GroupField};
 use crate::services::domain::search::Search;
-use crate::services::domain::search_filters::{FilterField, NO_FIELD, SearchFilter};
+use crate::services::domain::search_filters;
+use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
 use rust_decimal::Decimal;
 use shared::normalize::normalize_security_name;
@@ -39,7 +40,7 @@ impl CsvImport for DomesticStockDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        validate_csv_rows(table, transform_domestic_stock_row)
+        import::validate_csv_rows(table, transform_domestic_stock_row)
     }
 
     async fn bulk_create(
@@ -91,7 +92,7 @@ impl Search for DomesticStockDomain {
             FilterField::Account => &params.account,
             FilterField::SecurityCode => &params.security_code,
             FilterField::SecurityName => &params.security_name,
-            _ => &NO_FIELD,
+            _ => &search_filters::NO_FIELD,
         }
     }
 
@@ -151,7 +152,7 @@ pub async fn bulk_create(
     items: &[CreateDomesticStockRequest],
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
-    let user_ids = user_ids_for_bulk_insert(user_id, items.len());
+    let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
     let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
     let settlement_dates: Vec<chrono::NaiveDate> =
         items.iter().map(|i| i.settlement_date).collect();
@@ -179,7 +180,7 @@ pub async fn bulk_create(
     // batch_occurrence_index はバッチ内での content_hash 別の連番（WITH ORDINALITY で入力順保持）
     // db_counts は既存 DB の (user_id, content_hash) 単位の件数（他ユーザーに引っ張られない）
     // batch_occurrence_index > existing_count の行のみ挿入し、ON CONFLICT で冪等性を保証
-    bulk_insert::<DomesticStockDomain, _>(
+    bulk::bulk_insert::<DomesticStockDomain, _>(
         pool,
         user_id,
         items,
@@ -264,26 +265,26 @@ fn transform_domestic_stock_row(
     row: &CsvRowView<'_>,
     row_num: RowNumber,
 ) -> Result<CreateDomesticStockRequest, CsvRowError> {
-    let trade_date = parse_required_date(row, "約定日", row_num)?;
-    let settlement_date = parse_required_date(row, "受渡日", row_num)?;
-    let account = parse_required_account(row, "口座", row_num)?;
-    let realized_pnl = parse_required_number(row, "実現損益[円]", row_num)?;
+    let trade_date = util::parse_required_date(row, "約定日", row_num)?;
+    let settlement_date = util::parse_required_date(row, "受渡日", row_num)?;
+    let account = util::parse_required_account(row, "口座", row_num)?;
+    let realized_pnl = util::parse_required_number(row, "実現損益[円]", row_num)?;
     let tax = compute_taxes(&account, realized_pnl);
     Ok(CreateDomesticStockRequest {
         trade_date,
         settlement_date,
-        security_code: parse_required_security_code(row, "銘柄コード", row_num)?,
-        security_name: check_max_chars(
-            normalize_security_name(&parse_required_string(row, "銘柄名", row_num)?),
+        security_code: util::parse_required_security_code(row, "銘柄コード", row_num)?,
+        security_name: util::check_max_chars(
+            normalize_security_name(&util::parse_required_string(row, "銘柄名", row_num)?),
             "銘柄名",
             200,
             row_num,
         )?,
         account,
-        shares: parse_required_number(row, "数量[株]", row_num)?,
-        asked_price: parse_required_number(row, "売却/決済単価[円]", row_num)?,
-        proceeds: parse_required_number(row, "売却/決済額[円]", row_num)?,
-        purchase_price: parse_required_number(row, "平均取得価額[円]", row_num)?,
+        shares: util::parse_required_number(row, "数量[株]", row_num)?,
+        asked_price: util::parse_required_number(row, "売却/決済単価[円]", row_num)?,
+        proceeds: util::parse_required_number(row, "売却/決済額[円]", row_num)?,
+        purchase_price: util::parse_required_number(row, "平均取得価額[円]", row_num)?,
         realized_profit_and_loss: realized_pnl,
         taxes: tax.taxes,
         realized_profit_and_loss_after_tax: tax.realized_profit_and_loss_after_tax,
@@ -296,7 +297,7 @@ mod tests {
     use super::*;
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvImport;
-    use crate::services::domain::search::search;
+    use crate::services::domain::search;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
     use uuid::Uuid;
@@ -500,7 +501,7 @@ mod tests {
         let mut params = DomesticStockSearchQueryParams::default();
         params.search.include_summary = Some(true);
 
-        let result = search::<DomesticStockDomain>(&pool, user_id, params)
+        let result = search::search::<DomesticStockDomain>(&pool, user_id, params)
             .await
             .unwrap();
         let summary = result

@@ -5,12 +5,11 @@
 use super::{CsvKind, CsvSyncStore, KindStatus, ReceivedCsv, SkipReason, guard};
 use crate::api::ApiClient;
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse, PaginatedSearchResponse};
-use crate::features::asset_balance::{
-    CSV_CHUNKING, FUND_CSV_CHUNKING, FUND_IMPORT_PATH, FUND_LIST_PATH, FUND_PREVIEW_PATH,
-    IMPORT_PATH, LIST_PATH, PREVIEW_PATH,
-};
-use crate::features::receipts::{ReceiptsTab, chunking_for};
-use crate::support::csv_flow::{CsvChunking, ensure_csv_filename, preview_csv, upload_csv_while};
+use crate::features::asset_balance;
+use crate::features::receipts;
+use crate::features::receipts::ReceiptsTab;
+use crate::support::csv_flow;
+use crate::support::csv_flow::CsvChunking;
 use crate::ui::labels;
 use leptos::prelude::*;
 
@@ -33,18 +32,18 @@ struct ImportPlan {
 const fn plan_of(kind: CsvKind) -> ImportPlan {
     match kind {
         CsvKind::AssetBalance => ImportPlan {
-            preview_path: PREVIEW_PATH,
-            import_path: IMPORT_PATH,
-            count_path: Some(LIST_PATH),
-            chunking: CSV_CHUNKING,
+            preview_path: asset_balance::PREVIEW_PATH,
+            import_path: asset_balance::IMPORT_PATH,
+            count_path: Some(asset_balance::LIST_PATH),
+            chunking: asset_balance::CSV_CHUNKING,
             replace: true,
             receipts_tab: None,
         },
         CsvKind::FundBalance => ImportPlan {
-            preview_path: FUND_PREVIEW_PATH,
-            import_path: FUND_IMPORT_PATH,
-            count_path: Some(FUND_LIST_PATH),
-            chunking: FUND_CSV_CHUNKING,
+            preview_path: asset_balance::FUND_PREVIEW_PATH,
+            import_path: asset_balance::FUND_IMPORT_PATH,
+            count_path: Some(asset_balance::FUND_LIST_PATH),
+            chunking: asset_balance::FUND_CSV_CHUNKING,
             replace: true,
             receipts_tab: None,
         },
@@ -64,7 +63,7 @@ const fn receipt_plan(tab: ReceiptsTab) -> ImportPlan {
         preview_path: tab.preview_path(),
         import_path: tab.import_path(),
         count_path: None,
-        chunking: chunking_for(tab),
+        chunking: receipts::chunking_for(tab),
         replace: false,
         receipts_tab: Some(tab),
     }
@@ -200,7 +199,7 @@ async fn import_with_file(
     }
     let plan = plan_of(kind);
     let preview: CsvPreviewResponse =
-        match preview_csv(plan.preview_path, file, plan.chunking).await {
+        match csv_flow::preview_csv(plan.preview_path, file, plan.chunking).await {
             Ok(preview) => preview,
             Err(error) => return Outcome::Failed(error.message()),
         };
@@ -232,7 +231,7 @@ async fn import_with_file(
             return Outcome::Stale;
         }
     }
-    match upload_csv_while(plan.import_path, file, plan.chunking, move || {
+    match csv_flow::upload_csv_while(plan.import_path, file, plan.chunking, move || {
         store.alive(epoch, generation)
     })
     .await
@@ -259,7 +258,7 @@ fn file_name(kind: CsvKind) -> String {
 
 /// 中身はそのままに名前だけ .csv 付きの File にする。失敗時は元の File を返す
 pub(crate) fn with_csv_extension(file: &web_sys::File) -> web_sys::File {
-    let name = ensure_csv_filename(&file.name());
+    let name = csv_flow::ensure_csv_filename(&file.name());
     if name == file.name() {
         return file.clone();
     }

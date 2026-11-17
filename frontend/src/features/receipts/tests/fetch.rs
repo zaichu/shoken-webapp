@@ -1,8 +1,8 @@
 use crate::api::ApiError;
 use crate::api::dto::PaginatedSearchResponse;
-use crate::features::receipts::truncated_list_warning;
-use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, collect_list_pages};
-use crate::testing::block_on;
+use crate::features::receipts;
+use crate::support::pagination;
+use crate::testing;
 use std::cell::Cell;
 use std::future::{Ready, ready};
 
@@ -13,15 +13,19 @@ fn page(data: Vec<usize>, total: i64, summary: Option<()>) -> Page {
         data,
         total,
         page: 0,
-        per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
+        per_page: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX),
         summary,
         facets: None,
     }
 }
 
 fn full_page(page_no: usize, total: i64) -> Page {
-    let start = (page_no - 1) * LIST_PER_PAGE;
-    page((start..start + LIST_PER_PAGE).collect(), total, None)
+    let start = (page_no - 1) * pagination::LIST_PER_PAGE;
+    page(
+        (start..start + pagination::LIST_PER_PAGE).collect(),
+        total,
+        None,
+    )
 }
 
 #[test]
@@ -35,7 +39,11 @@ fn mid_page_failure_fails_the_whole_fetch_because_partial_rows_would_silently_co
         })
     };
 
-    let result = block_on(collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, fetch));
+    let result = testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
+        fetch,
+    ));
 
     assert!(matches!(result, Err(ApiError::Http { status: 500, .. })));
     assert_eq!(calls.get(), 2, "失敗したページ以降は要求しない");
@@ -43,22 +51,25 @@ fn mid_page_failure_fails_the_whole_fetch_because_partial_rows_would_silently_co
 
 #[test]
 fn reaching_the_page_cap_returns_rows_marked_truncated() {
-    let result = block_on(collect_list_pages(
-        LIST_PER_PAGE,
-        LIST_MAX_PAGES,
+    let result = testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
         |page_no| ready(Ok::<Page, ApiError>(full_page(page_no, i64::MAX))),
     ));
 
     let page = result.expect("上限到達は失敗ではない");
     assert!(page.truncated);
-    assert_eq!(page.rows.len(), LIST_PER_PAGE * LIST_MAX_PAGES);
+    assert_eq!(
+        page.rows.len(),
+        pagination::LIST_PER_PAGE * pagination::LIST_MAX_PAGES
+    );
 }
 
 #[test]
 fn short_last_page_is_not_truncated_and_keeps_first_page_summary() {
-    let result = block_on(collect_list_pages(
-        LIST_PER_PAGE,
-        LIST_MAX_PAGES,
+    let result = testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
         |page_no| -> Ready<Result<Page, ApiError>> {
             ready(Ok(match page_no {
                 1 => page((0..1000).collect(), 2300, Some(())),
@@ -76,7 +87,7 @@ fn short_last_page_is_not_truncated_and_keeps_first_page_summary() {
 #[test]
 fn truncated_warning_uses_fixed_message() {
     assert_eq!(
-        truncated_list_warning(),
+        receipts::truncated_list_warning(),
         "一覧は最大100,000件まで表示しています。検索条件を絞り込んでください。"
     );
 }

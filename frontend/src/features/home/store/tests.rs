@@ -1,7 +1,8 @@
 use super::*;
 use crate::api::dto::{AssetBalance, Dividend, PaginatedSearchResponse};
-use crate::support::pagination::{LIST_MAX_PAGES, LIST_PER_PAGE, ListEndpoint, collect_list_pages};
-use crate::testing::block_on;
+use crate::support::pagination;
+use crate::support::pagination::ListEndpoint;
+use crate::testing;
 use std::future::ready;
 
 #[test]
@@ -11,8 +12,14 @@ fn summary_endpoints_share_the_list_paths() {
         "/api/v1/asset-balances"
     );
     assert_eq!(<Dividend as ListEndpoint>::PATH, "/api/v1/dividends");
-    assert_eq!(<AssetBalance as ListEndpoint>::MAX_PAGES, LIST_MAX_PAGES);
-    assert_eq!(<AssetBalance as ListEndpoint>::PER_PAGE, LIST_PER_PAGE);
+    assert_eq!(
+        <AssetBalance as ListEndpoint>::MAX_PAGES,
+        pagination::LIST_MAX_PAGES
+    );
+    assert_eq!(
+        <AssetBalance as ListEndpoint>::PER_PAGE,
+        pagination::LIST_PER_PAGE
+    );
 }
 
 #[test]
@@ -145,16 +152,16 @@ fn refresh_failed_ignores_other_generations() {
 // 年次配当の集計が依存する全ページ取得の挙動。`fetch_dividend_year` は
 // 取得結果を `Some(rows)` に包むだけなので、ここでは行の結合だけを固定する
 fn year_rows(pages: &[(Vec<usize>, i64)]) -> Result<Option<Vec<usize>>, ApiError> {
-    block_on(collect_list_pages(
-        LIST_PER_PAGE,
-        LIST_MAX_PAGES,
+    testing::block_on(pagination::collect_list_pages(
+        pagination::LIST_PER_PAGE,
+        pagination::LIST_MAX_PAGES,
         |page_no| {
             let (rows, total) = &pages[page_no - 1];
             ready(Ok(PaginatedSearchResponse {
                 data: rows.clone(),
                 total: *total,
                 page: i64::try_from(page_no).unwrap_or(i64::MAX),
-                per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
+                per_page: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX),
                 summary: None::<()>,
                 facets: None,
             }))
@@ -165,11 +172,11 @@ fn year_rows(pages: &[(Vec<usize>, i64)]) -> Result<Option<Vec<usize>>, ApiError
 
 #[test]
 fn dividend_year_joins_multiple_pages_in_order() {
-    let full: Vec<usize> = (0..LIST_PER_PAGE).collect();
-    let rest: Vec<usize> = (LIST_PER_PAGE..LIST_PER_PAGE + 3).collect();
-    let total = i64::try_from(LIST_PER_PAGE + 3).unwrap_or(i64::MAX);
+    let full: Vec<usize> = (0..pagination::LIST_PER_PAGE).collect();
+    let rest: Vec<usize> = (pagination::LIST_PER_PAGE..pagination::LIST_PER_PAGE + 3).collect();
+    let total = i64::try_from(pagination::LIST_PER_PAGE + 3).unwrap_or(i64::MAX);
     let rows = year_rows(&[(full, total), (rest, total)]).expect("fetch");
-    assert_eq!(rows, Some((0..LIST_PER_PAGE + 3).collect()));
+    assert_eq!(rows, Some((0..pagination::LIST_PER_PAGE + 3).collect()));
 }
 
 #[test]
@@ -181,22 +188,26 @@ fn dividend_year_empty_returns_no_rows() {
 #[test]
 fn dividend_year_mid_page_error_fails_whole_fetch() {
     let calls = std::cell::Cell::new(0);
-    let result: Result<Option<Vec<usize>>, ApiError> = block_on(async {
-        collect_list_pages(LIST_PER_PAGE, LIST_MAX_PAGES, |page_no| {
-            calls.set(calls.get() + 1);
-            if page_no == 1 {
-                ready(Ok(PaginatedSearchResponse {
-                    data: (0..LIST_PER_PAGE).collect(),
-                    total: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX) + 1,
-                    page: 1,
-                    per_page: i64::try_from(LIST_PER_PAGE).unwrap_or(i64::MAX),
-                    summary: None::<()>,
-                    facets: None,
-                }))
-            } else {
-                ready(Err(ApiError::http(500)))
-            }
-        })
+    let result: Result<Option<Vec<usize>>, ApiError> = testing::block_on(async {
+        pagination::collect_list_pages(
+            pagination::LIST_PER_PAGE,
+            pagination::LIST_MAX_PAGES,
+            |page_no| {
+                calls.set(calls.get() + 1);
+                if page_no == 1 {
+                    ready(Ok(PaginatedSearchResponse {
+                        data: (0..pagination::LIST_PER_PAGE).collect(),
+                        total: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX) + 1,
+                        page: 1,
+                        per_page: i64::try_from(pagination::LIST_PER_PAGE).unwrap_or(i64::MAX),
+                        summary: None::<()>,
+                        facets: None,
+                    }))
+                } else {
+                    ready(Err(ApiError::http(500)))
+                }
+            },
+        )
         .await
         .map(|page| Some(page.rows))
     });

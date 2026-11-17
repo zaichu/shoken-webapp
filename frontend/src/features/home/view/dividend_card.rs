@@ -2,21 +2,18 @@ use super::super::model;
 use super::super::store::{self, HomeOverviewData};
 use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::stocks_of;
-use crate::features::asset_balance::{
-    dec_to_f64, format_signed_valuation_amount, format_valuation_amount, is_negative_valuation,
-    is_positive_valuation,
-};
-use crate::session::use_session;
+use crate::features::asset_balance;
+use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::card::{Card, CardVariant};
-use crate::ui::format::{format_currency, format_integer_percent};
+use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 
 #[component]
 pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let card = move || {
         let generation = session.generation.get();
         let current = store::current_summary(data.dividends_current, generation);
@@ -81,15 +78,15 @@ fn DividendCardBody(
     previous_year: u32,
     pending: bool,
 ) -> impl IntoView {
-    let received_value = Some(dec_to_f64(&model.received));
-    let received = format_signed_valuation_amount(received_value);
+    let received_value = Some(asset_balance::dec_to_f64(&model.received));
+    let received = asset_balance::format_signed_valuation_amount(received_value);
     let forecast = model.forecast_net.map_or_else(
         || labels::MISSING.to_string(),
-        |v| format_valuation_amount(Some(v)),
+        |v| asset_balance::format_valuation_amount(Some(v)),
     );
     let progress_pct = model.progress.map(|p| p * 100.0);
     let progress_text =
-        progress_pct.map_or_else(|| labels::MISSING.to_string(), format_integer_percent);
+        progress_pct.map_or_else(|| labels::MISSING.to_string(), format::format_integer_percent);
     let (remaining_prefix, remaining_amount, remaining_suffix) =
         model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
@@ -97,11 +94,11 @@ fn DividendCardBody(
     let previous_remaining = model
         .previous_remaining
         .filter(|_| !previous_span.is_empty())
-        .map(|remaining| format_valuation_amount(Some(dec_to_f64(&remaining))));
-    let yoy_value = model.yoy_diff.map(|diff| dec_to_f64(&diff));
+        .map(|remaining| asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&remaining))));
+    let yoy_value = model.yoy_diff.map(|diff| asset_balance::dec_to_f64(&diff));
     let yoy_text = yoy_value.map_or_else(
         || labels::MISSING.to_string(),
-        |value| format_signed_valuation_amount(Some(value)),
+        |value| asset_balance::format_signed_valuation_amount(Some(value)),
     );
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
@@ -111,8 +108,8 @@ fn DividendCardBody(
                     <Amount
                         kind=AmountKind::Delta
                         text=received
-                        negative=is_negative_valuation(received_value)
-                        positive=is_positive_valuation(received_value)
+                        negative=asset_balance::is_negative_valuation(received_value)
+                        positive=asset_balance::is_positive_valuation(received_value)
                     />
                 </strong>
             </span>
@@ -151,8 +148,8 @@ fn DividendCardBody(
             <Amount
                 kind=AmountKind::Delta
                 text=yoy_text
-                negative=is_negative_valuation(yoy_value)
-                positive=is_positive_valuation(yoy_value)
+                negative=asset_balance::is_negative_valuation(yoy_value)
+                positive=asset_balance::is_positive_valuation(yoy_value)
             />
         </p>
         <DividendMonthlyChart
@@ -197,7 +194,7 @@ fn DividendMonthlyChart(
             role="group"
             aria-label=labels::home_monthly_aria(year, previous_year)
         >
-            <p class="home-chart-max"><Amount text=format_valuation_amount(Some(dec_to_f64(&max))) /></p>
+            <p class="home-chart-max"><Amount text=asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&max))) /></p>
             <div class="home-chart-plot">
                 <div class="home-chart-grid" aria-hidden="true">
                     <span class="home-chart-grid-line" data-level="top"></span>
@@ -246,10 +243,10 @@ fn DividendMonthCell(
 ) -> impl IntoView {
     let cur = model::bar_height(pair.current, max);
     let prev = model::bar_height(pair.previous, max);
-    let cur_text = format_currency(dec_to_f64(&pair.current));
-    let prev_text = format_currency(dec_to_f64(&pair.previous));
-    let diff_value = dec_to_f64(&(pair.current - pair.previous));
-    let diff_text = format_signed_valuation_amount(Some(diff_value));
+    let cur_text = format::format_currency(asset_balance::dec_to_f64(&pair.current));
+    let prev_text = format::format_currency(asset_balance::dec_to_f64(&pair.previous));
+    let diff_value = asset_balance::dec_to_f64(&(pair.current - pair.previous));
+    let diff_text = asset_balance::format_signed_valuation_amount(Some(diff_value));
     let current_note = if pair.month == current_month {
         labels::HOME_CURRENT_MONTH
     } else {
@@ -299,8 +296,8 @@ fn DividendMonthCell(
                             <Amount
                                 kind=AmountKind::Delta
                                 text=diff_text.clone()
-                                negative=is_negative_valuation(Some(diff_value))
-                                positive=is_positive_valuation(Some(diff_value))
+                                negative=asset_balance::is_negative_valuation(Some(diff_value))
+                                positive=asset_balance::is_positive_valuation(Some(diff_value))
                             />
                         </dd>
                     </div>

@@ -2,19 +2,18 @@ use super::TAB_IDS;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
+use crate::ui::labels;
 use crate::ui::state::{ListSkeleton, ListSkeletonVariant};
-use crate::ui::underline_tabs::{
-    SwipeMotion, focus_tab_by_id_after_paint, next_tab_index as shared_next_tab_index,
-    prefers_reduced_motion, swipe_should_ignore_input, tab_ink_offset,
-};
+use crate::ui::underline_tabs;
+use crate::ui::underline_tabs::SwipeMotion;
 use leptos::prelude::*;
 
 pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
-    shared_next_tab_index(TAB_IDS.len(), current, key)
+    underline_tabs::next_tab_index(TAB_IDS.len(), current, key)
 }
 
 fn focus_tab(index: usize, suffix: &str) {
-    focus_tab_by_id_after_paint(format!("tab-{}{}", TAB_IDS[index], suffix));
+    underline_tabs::focus_tab_by_id_after_paint(format!("tab-{}{}", TAB_IDS[index], suffix));
 }
 
 #[component]
@@ -39,9 +38,9 @@ pub fn ReceiptsTabButton(
             selected=move || selected.active_tab.get() == tab
             on_click=move |event| {
                 if event.detail() != 0
-                    && swipe_should_ignore_input(
+                    && underline_tabs::swipe_should_ignore_input(
                         guard.settling.get_untracked(),
-                        prefers_reduced_motion(),
+                        underline_tabs::prefers_reduced_motion(),
                     )
                 {
                     return;
@@ -73,7 +72,7 @@ pub fn ReceiptsTabNav(
 ) -> impl IntoView {
     let active_tab = store.active_tab;
     view! {
-        <nav aria-label=crate::ui::labels::KIND>
+        <nav aria-label=labels::KIND>
             <div
                 class="page-tab-list relative"
                 role="tablist"
@@ -102,7 +101,7 @@ pub fn ReceiptsTabNav(
                             .iter()
                             .position(|tab| *tab == active_tab.get())
                             .unwrap_or(0);
-                        format!("translateX({}%)", tab_ink_offset(position, motion.progress.get()) * 100.0)
+                        format!("translateX({}%)", underline_tabs::tab_ink_offset(position, motion.progress.get()) * 100.0)
                     }
                 ></span>
             </div>

@@ -16,9 +16,10 @@ use self::summary_band::SummaryBand;
 use super::model;
 use super::store::{self, HomeOverviewData};
 use crate::api::dto::{AssetBalance, FundBalance};
-use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances, dec_to_f64};
-use crate::session::use_session;
-use crate::ui::format::format_latest_import_date;
+use crate::features::asset_balance;
+use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
+use crate::session;
+use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
@@ -36,8 +37,12 @@ pub(crate) fn stocks_of(assets: &Option<Option<LoadedAssetBalances>>) -> Option<
 pub(crate) fn stock_market(assets: &Option<Option<LoadedAssetBalances>>) -> f64 {
     match assets {
         Some(Some(loaded)) => loaded.summary.as_ref().map_or_else(
-            || dec_to_f64(&model::stock_summary_from_rows(&loaded.rows).total_market_value),
-            |summary| dec_to_f64(&summary.total_market_value),
+            || {
+                asset_balance::dec_to_f64(
+                    &model::stock_summary_from_rows(&loaded.rows).total_market_value,
+                )
+            },
+            |summary| asset_balance::dec_to_f64(&summary.total_market_value),
         ),
         _ => 0.0,
     }
@@ -53,8 +58,12 @@ pub(crate) fn funds_of(funds: &Option<Option<LoadedFundBalances>>) -> Option<&[F
 pub(crate) fn fund_market(funds: &Option<Option<LoadedFundBalances>>) -> f64 {
     match funds {
         Some(Some(loaded)) => loaded.summary.as_ref().map_or_else(
-            || dec_to_f64(&model::fund_summary_from_rows(&loaded.rows).total_market_value),
-            |summary| dec_to_f64(&summary.total_market_value),
+            || {
+                asset_balance::dec_to_f64(
+                    &model::fund_summary_from_rows(&loaded.rows).total_market_value,
+                )
+            },
+            |summary| asset_balance::dec_to_f64(&summary.total_market_value),
         ),
         _ => 0.0,
     }
@@ -62,7 +71,7 @@ pub(crate) fn fund_market(funds: &Option<Option<LoadedFundBalances>>) -> f64 {
 
 #[component]
 pub fn HomePage() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let data = store::use_home_overview(session);
     // 再訪では表示済みの値を消さず、取得済みの slot だけ裏で取り直す(未取得は Effect が担う)
     if session.user.get_untracked().is_some() {
@@ -77,7 +86,7 @@ pub fn HomePage() -> impl IntoView {
         if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
             stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
         }
-        format_latest_import_date(stamps.iter().map(String::as_str))
+        format::format_latest_import_date(stamps.iter().map(String::as_str))
     });
     let links: Children = Box::new(move || {
         view! {
@@ -102,7 +111,7 @@ pub fn HomePage() -> impl IntoView {
 
 #[component]
 fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let snapshot = move || {
         let generation = session.generation.get();
         (
@@ -171,6 +180,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                     <MoreLink
                         href="/csv".to_string()
                         label=labels::HOME_CSV_IMPORT_LINK.to_string()
+                        extra_class="more-link-centered"
                     />
                 </div>
             </div>

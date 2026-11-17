@@ -1,17 +1,13 @@
 //! 資産管理の構成比一覧と並べ替えの純粋ロジック。
 
 use crate::features::asset_balance::fund::FundView;
-use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView, holding_stock_href};
-use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
-use crate::ui::badge::account_display_name;
-use crate::ui::labels::{
-    ACCOUNT_GENERAL, ACCOUNT_NISA_GROWTH, ACCOUNT_NISA_TSUMITATE, ACCOUNT_OLD_NISA,
-    ACCOUNT_SPECIFIC, ACCOUNT_SPECIFIC_GENERAL, ACQUISITION_YIELD, ANNUAL_DIVIDEND,
-    COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT, COMPOSITION_GROUP_HOLDING,
-    COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING, MUTUAL_FUND,
-    VALUATION_PROFIT_LOSS,
-};
-use crate::urls::fund_holding_href;
+use crate::features::asset_balance::holdings;
+use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
+use crate::features::asset_balance::model;
+use crate::features::asset_balance::model::ValuationInput;
+use crate::ui::badge;
+use crate::ui::labels;
+use crate::urls;
 use std::cmp::Ordering;
 
 /// 並べ替えの指標。
@@ -34,10 +30,10 @@ impl SortKey {
 
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::MarketValue => MARKET_VALUE,
-            Self::ProfitLoss => VALUATION_PROFIT_LOSS,
-            Self::Dividend => ANNUAL_DIVIDEND,
-            Self::Yield => ACQUISITION_YIELD,
+            Self::MarketValue => labels::MARKET_VALUE,
+            Self::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
+            Self::Dividend => labels::ANNUAL_DIVIDEND,
+            Self::Yield => labels::ACQUISITION_YIELD,
         }
     }
 
@@ -97,8 +93,12 @@ pub struct SortInput<'a> {
 /// 並べ替えの比較値。算出不能は `None`。
 fn sort_value(input: &SortInput<'_>, key: SortKey) -> Option<f64> {
     match key {
-        SortKey::MarketValue => holding_valuation(&input.valuation).market_value,
-        SortKey::ProfitLoss => holding_valuation(&input.valuation).profit_loss.amount,
+        SortKey::MarketValue => model::holding_valuation(&input.valuation).market_value,
+        SortKey::ProfitLoss => {
+            model::holding_valuation(&input.valuation)
+                .profit_loss
+                .amount
+        }
         SortKey::Dividend => input.dividend.annual,
         SortKey::Yield => input.dividend.yield_value,
     }
@@ -161,9 +161,9 @@ impl CompositionGroup {
 
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Holding => COMPOSITION_GROUP_HOLDING,
-            Self::Product => COMPOSITION_GROUP_PRODUCT,
-            Self::Account => COMPOSITION_GROUP_ACCOUNT,
+            Self::Holding => labels::COMPOSITION_GROUP_HOLDING,
+            Self::Product => labels::COMPOSITION_GROUP_PRODUCT,
+            Self::Account => labels::COMPOSITION_GROUP_ACCOUNT,
         }
     }
 
@@ -186,8 +186,8 @@ pub enum CompositionBasis {
 impl CompositionBasis {
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::MarketValue => MARKET_VALUE,
-            Self::Dividend => COMPOSITION_DIVIDEND_BASIS,
+            Self::MarketValue => labels::MARKET_VALUE,
+            Self::Dividend => labels::COMPOSITION_DIVIDEND_BASIS,
         }
     }
 
@@ -209,8 +209,8 @@ pub enum CompositionProduct {
 impl CompositionProduct {
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Stock => DOMESTIC_STOCK,
-            Self::Fund => MUTUAL_FUND,
+            Self::Stock => labels::DOMESTIC_STOCK,
+            Self::Fund => labels::MUTUAL_FUND,
         }
     }
 }
@@ -235,14 +235,14 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
             sub: view.code.clone(),
             account: view.account.clone(),
             product: CompositionProduct::Stock,
-            href: Some(holding_stock_href(&view.code)),
+            href: Some(holdings::holding_stock_href(&view.code)),
         })
         .chain(funds.iter().map(|view| CompositionSource {
             name: view.name.clone(),
             sub: view.course.clone().unwrap_or_default(),
             account: Some(view.account.clone()),
             product: CompositionProduct::Fund,
-            href: view.id.as_ref().map(fund_holding_href),
+            href: view.id.as_ref().map(urls::fund_holding_href),
         }))
         .collect()
 }
@@ -298,7 +298,7 @@ pub fn composition_entries(
             CompositionGroup::Account => source
                 .account
                 .as_deref()
-                .map_or(MISSING, account_display_name)
+                .map_or(labels::MISSING, badge::account_display_name)
                 .to_string(),
         };
         let is_new_holding = matches!(group, CompositionGroup::Holding);
@@ -322,7 +322,7 @@ pub fn composition_entries(
                     CompositionGroup::Account => source
                         .account
                         .as_deref()
-                        .map_or(MISSING, account_display_name)
+                        .map_or(labels::MISSING, badge::account_display_name)
                         .to_string(),
                 },
                 sub: match group {
@@ -359,7 +359,7 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
     if total <= 0.0 {
         return (total, vec![None; values.len()]);
     }
-    let percentages = chart_percentages(&raw);
+    let percentages = model::chart_percentages(&raw);
     let percentages = percentages
         .into_iter()
         .enumerate()
@@ -381,12 +381,12 @@ pub const COMPOSITION_LEGEND_MAX: usize = 5;
 const FALLBACK_CHART_COLORS: [usize; 5] = [0, 1, 2, 4, 5];
 pub fn composition_color(key: &str) -> usize {
     match key {
-        DOMESTIC_STOCK | ACCOUNT_SPECIFIC => 0,
-        MUTUAL_FUND | ACCOUNT_NISA_GROWTH => 1,
-        ACCOUNT_OLD_NISA => 2,
-        ACCOUNT_SPECIFIC_GENERAL => 3,
-        ACCOUNT_NISA_TSUMITATE => 4,
-        ACCOUNT_GENERAL => 5,
+        labels::DOMESTIC_STOCK | labels::ACCOUNT_SPECIFIC => 0,
+        labels::MUTUAL_FUND | labels::ACCOUNT_NISA_GROWTH => 1,
+        labels::ACCOUNT_OLD_NISA => 2,
+        labels::ACCOUNT_SPECIFIC_GENERAL => 3,
+        labels::ACCOUNT_NISA_TSUMITATE => 4,
+        labels::ACCOUNT_GENERAL => 5,
         _ => {
             let index = key.bytes().fold(2_166_136_261_u32, |hash, byte| {
                 (hash ^ u32::from(byte)).wrapping_mul(16_777_619)

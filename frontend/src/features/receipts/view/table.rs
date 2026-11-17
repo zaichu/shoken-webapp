@@ -3,7 +3,7 @@ use super::cards::{
     CardRowData, CompactReceiptGroup, MobileCardGroup, amount_kind_for_label, card_row_data,
     is_negative_labeled_value, is_positive_labeled_value, signed_text_for_profit,
 };
-use crate::features::receipts::filter::{column_order, promoted_column};
+use crate::features::receipts::filter;
 use crate::features::receipts::kind::CardRole;
 use crate::features::receipts::kind::ColumnSpec;
 use crate::features::receipts::kind::ColumnTier;
@@ -11,11 +11,7 @@ use crate::features::receipts::kind::TableGroup;
 use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
-use crate::ui::labels::{
-    self, ACCOUNT, ACQUISITION_PRICE, AFTER_TAX, DIVIDEND_AMOUNT, FUND_NAME, PAYMENT_DATE,
-    QUANTITY, REALIZED_PROFIT_LOSS, REDEMPTION_AMOUNT, SECURITY_CODE, SECURITY_NAME,
-    SELLING_AMOUNT, TAX, TRADE_DATE,
-};
+use crate::ui::labels;
 use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -42,7 +38,10 @@ pub fn displayed_tiers(
 // 売買の内訳金額は xl まで隠し、lg でも銘柄列の幅を確保する
 fn compact_tier(header: &str) -> ColumnTier {
     match header {
-        s if s == SELLING_AMOUNT || s == REDEMPTION_AMOUNT || s == ACQUISITION_PRICE => {
+        s if s == labels::SELLING_AMOUNT
+            || s == labels::REDEMPTION_AMOUNT
+            || s == labels::ACQUISITION_PRICE =>
+        {
             ColumnTier::Wide
         }
         _ => ColumnTier::Core,
@@ -83,8 +82,8 @@ pub fn ReceiptTable(
     let columns = tab.columns();
     let order = sort_order.unwrap_or_default();
     let groups: Vec<TableGroup> = tab.table_groups(&rows, &all_rows, &query, order);
-    let order = column_order(tab, &rows, &query);
-    let promoted = promoted_column(tab, &rows, &query);
+    let order = filter::column_order(tab, &rows, &query);
+    let promoted = filter::promoted_column(tab, &rows, &query);
     let fields = tab.card_fields();
     let labels = tab.summary_labels();
     let slug = TAB_IDS[tab as usize];
@@ -119,39 +118,39 @@ pub fn ReceiptTable(
             .filter_map(|(index, column)| {
                 let visible = match tab {
                     ReceiptsTab::Dividend => [
-                        PAYMENT_DATE,
-                        SECURITY_CODE,
-                        SECURITY_NAME,
-                        ACCOUNT,
-                        QUANTITY,
-                        DIVIDEND_AMOUNT,
-                        TAX,
-                        AFTER_TAX,
+                        labels::PAYMENT_DATE,
+                        labels::SECURITY_CODE,
+                        labels::SECURITY_NAME,
+                        labels::ACCOUNT,
+                        labels::QUANTITY,
+                        labels::DIVIDEND_AMOUNT,
+                        labels::TAX,
+                        labels::AFTER_TAX,
                     ]
                     .contains(&column.header),
                     ReceiptsTab::DomesticStock => [
-                        TRADE_DATE,
-                        SECURITY_CODE,
-                        SECURITY_NAME,
-                        ACCOUNT,
-                        QUANTITY,
-                        SELLING_AMOUNT,
-                        ACQUISITION_PRICE,
-                        REALIZED_PROFIT_LOSS,
-                        TAX,
-                        AFTER_TAX,
+                        labels::TRADE_DATE,
+                        labels::SECURITY_CODE,
+                        labels::SECURITY_NAME,
+                        labels::ACCOUNT,
+                        labels::QUANTITY,
+                        labels::SELLING_AMOUNT,
+                        labels::ACQUISITION_PRICE,
+                        labels::REALIZED_PROFIT_LOSS,
+                        labels::TAX,
+                        labels::AFTER_TAX,
                     ]
                     .contains(&column.header),
                     ReceiptsTab::MutualFund => [
-                        TRADE_DATE,
-                        FUND_NAME,
-                        ACCOUNT,
-                        QUANTITY,
-                        REDEMPTION_AMOUNT,
-                        ACQUISITION_PRICE,
-                        REALIZED_PROFIT_LOSS,
-                        TAX,
-                        AFTER_TAX,
+                        labels::TRADE_DATE,
+                        labels::FUND_NAME,
+                        labels::ACCOUNT,
+                        labels::QUANTITY,
+                        labels::REDEMPTION_AMOUNT,
+                        labels::ACQUISITION_PRICE,
+                        labels::REALIZED_PROFIT_LOSS,
+                        labels::TAX,
+                        labels::AFTER_TAX,
                     ]
                     .contains(&column.header),
                 };
@@ -202,11 +201,7 @@ pub fn ReceiptTable(
     } else {
         "sm:hidden print:hidden"
     };
-    let table_frame_class = if compact_mobile {
-        ""
-    } else {
-        "table-frame overflow-clip"
-    };
+    let table_card_class = if compact_mobile { "" } else { "table-card" };
     let table_class = if compact_mobile {
         "receipts-table"
     } else {
@@ -216,7 +211,7 @@ pub fn ReceiptTable(
         <div class=surface_class data-testid="receipt-table-card">
             <div class="p-0" data-testid="receipt-table-body">
                 <div class=desktop_class>
-                    <div class=table_frame_class>
+                    <div class=table_card_class>
                         <table class=table_class>
                             <thead>
                                 <tr>
@@ -295,7 +290,7 @@ pub fn ReceiptTable(
                                                             tab, label, value,
                                                         );
                                                         let bold = compact_mobile
-                                                            && *label == AFTER_TAX;
+                                                            && *label == labels::AFTER_TAX;
                                                         view! {
                                                             <td
                                                                 class=format!(
@@ -303,6 +298,7 @@ pub fn ReceiptTable(
                                                                     if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=text.clone()
+                                                                data-negative=negative.then_some("true")
                                                             >
                                                                 <Amount
                                                                     kind=kind
@@ -369,14 +365,14 @@ pub fn ReceiptTable(
                                                                                 tab, header, &value,
                                                                             );
                                                                             let is_trio = [
-                                                                                DIVIDEND_AMOUNT,
-                                                                                REALIZED_PROFIT_LOSS,
-                                                                                TAX,
-                                                                                AFTER_TAX,
+                                                                                labels::DIVIDEND_AMOUNT,
+                                                                                labels::REALIZED_PROFIT_LOSS,
+                                                                                labels::TAX,
+                                                                                labels::AFTER_TAX,
                                                                             ]
                                                                             .contains(&header);
                                                                             let is_net = compact_mobile
-                                                                                && header == AFTER_TAX;
+                                                                                && header == labels::AFTER_TAX;
                                                                             let bold_class = if is_net {
                                                                                 " font-bold"
                                                                             } else {
@@ -386,9 +382,9 @@ pub fn ReceiptTable(
                                                                             let muted_class = if !is_trio
                                                                                 && compact_mobile
                                                                                 && [
-                                                                                    PAYMENT_DATE,
-                                                                                    TRADE_DATE,
-                                                                                    QUANTITY,
+                                                                                    labels::PAYMENT_DATE,
+                                                                                    labels::TRADE_DATE,
+                                                                                    labels::QUANTITY,
                                                                                 ]
                                                                                 .contains(&header) {
                                                                                 " text-text-soft"
@@ -396,7 +392,7 @@ pub fn ReceiptTable(
                                                                                 ""
                                                                             };
                                                                             let title = text.clone();
-                                                                            let content = if header == ACCOUNT {
+                                                                            let content = if header == labels::ACCOUNT {
                                                                                 view! { <AccountBadge label=value.clone() /> }
                                                                                     .into_any()
                                                                             } else {
@@ -410,7 +406,7 @@ pub fn ReceiptTable(
                                                                                 }
                                                                                     .into_any()
                                                                             };
-                                                                            let account_class = if header == ACCOUNT {
+                                                                            let account_class = if header == labels::ACCOUNT {
                                                                                 " receipt-account-col"
                                                                             } else {
                                                                                 ""
@@ -421,6 +417,7 @@ pub fn ReceiptTable(
                                                                                         "{align}{bold_class}{muted_class}{account_class}",
                                                                                     )
                                                                                     title=title
+                                                                                    data-negative=negative.then_some("true")
                                                                                 >
                                                                                     {content}
                                                                                 </td>

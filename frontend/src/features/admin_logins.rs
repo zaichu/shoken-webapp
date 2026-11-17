@@ -210,7 +210,7 @@ fn AdminDialogFields(
 
 #[component]
 pub fn AdminLoginsPage() -> impl IntoView {
-    let session = use_session();
+    let session = session::use_session();
     let query = RwSignal::new(ListQuery::default());
     let entries = RwSignal::new(Vec::<AdminLoginEntry>::new());
     let total = RwSignal::new(Option::<i64>::None);
@@ -465,7 +465,7 @@ fn LoginEntries(
 ) -> impl IntoView {
     let mobile = entries.clone();
     view! {
-        <div class="table-frame hidden lg:block">
+        <div class="table-card hidden lg:block">
             <table class="asset-table login-history-table table-fixed" data-testid="admin-login-table">
                 <thead><tr>
                     {SORT_COLUMNS.map(|(column, label)| view! {
@@ -477,11 +477,11 @@ fn LoginEntries(
                 </tr></thead>
                 <tbody>{entries.into_iter().map(|entry| view! {
                     <tr>
-                        <td class="tabular-nums">{format_datetime(&entry.occurred_at)}</td>
+                        <td class="tabular-nums">{settings::format_datetime(&entry.occurred_at)}</td>
                         <td class="break-all">{entry.email}</td>
                         <td><ResultBadge result=entry.result /></td>
-                        <td>{format_place(&entry.country, &entry.region)}</td>
-                        <td>{format_agent(&entry.browser, &entry.os)}</td>
+                        <td>{settings::format_place(&entry.country, &entry.region)}</td>
+                        <td>{settings::format_agent(&entry.browser, &entry.os)}</td>
                     </tr>
                 }).collect_view()}</tbody>
             </table>
@@ -492,8 +492,8 @@ fn LoginEntries(
                     <ListRowStatic
                         name=move || entry.email.clone()
                         primary=move || view! { <ResultBadge result=entry.result.clone() /> }
-                        meta=move || format!("{} · {}", format_datetime(&entry.occurred_at), format_place(&entry.country, &entry.region))
-                        secondary=move || format_agent(&entry.browser, &entry.os)
+                        meta=move || format!("{} · {}", settings::format_datetime(&entry.occurred_at), settings::format_place(&entry.country, &entry.region))
+                        secondary=move || settings::format_agent(&entry.browser, &entry.os)
                     />
                 </li>
             }).collect_view()}
@@ -505,8 +505,9 @@ fn LoginEntries(
 mod tests;
 use crate::api::dto::PaginatedSearchResponse;
 use crate::api::{ApiClient, ApiError};
-use crate::features::settings::{ResultBadge, format_agent, format_datetime, format_place};
-use crate::session::use_session;
+use crate::features::settings;
+use crate::features::settings::ResultBadge;
+use crate::session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;

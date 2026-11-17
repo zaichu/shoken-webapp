@@ -1,6 +1,7 @@
 use crate::features::asset_balance::csv::AssetBalanceRow;
 use crate::features::asset_balance::fund::AssetSearch;
-use crate::support::list_search::{FilterConfig, filter_by_config};
+use crate::support::list_search;
+use crate::support::list_search::FilterConfig;
 
 fn asset_balance_filter_config() -> FilterConfig<AssetBalanceRow> {
     FilterConfig {
@@ -28,7 +29,8 @@ pub fn filter_asset_balances<'a>(
     data: &'a [AssetBalanceRow],
     search: &AssetSearch,
 ) -> Vec<&'a AssetBalanceRow> {
-    let filtered = filter_by_config(data, &search.text, &asset_balance_filter_config());
+    let filtered =
+        list_search::filter_by_config(data, &search.text, &asset_balance_filter_config());
     if search.accounts.is_empty() {
         return filtered;
     }

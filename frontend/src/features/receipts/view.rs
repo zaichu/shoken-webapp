@@ -11,9 +11,10 @@ pub use summary::SummaryStrip;
 pub use table::ReceiptTable;
 pub use tabs::{ReceiptsTabNav, TabPanel};
 
-use crate::features::receipts::{ReceiptsTab, TabState, use_receipts_data};
-use crate::session::use_session;
-use crate::ui::labels::{CSV_MANAGE_TITLE, RECEIPTS_TITLE};
+use crate::features::receipts;
+use crate::features::receipts::{ReceiptsTab, TabState};
+use crate::session;
+use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::underline_tabs::{SwipeArea, SwipeMotion};
@@ -23,8 +24,8 @@ pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"
 
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
-    let store = use_receipts_data(
-        use_session(),
+    let store = receipts::use_receipts_data(
+        session::use_session(),
         crate::settings::try_use_settings().receipts_initial_tab,
     );
     // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する
@@ -44,13 +45,13 @@ pub fn ReceiptsPage() -> impl IntoView {
 
     let csv_link: Children = Box::new(move || {
         view! {
-            <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{CSV_MANAGE_TITLE}</a>
+            <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
         }
         .into_any()
     });
     // タブはページ名の下の行に置く(資産管理と同じ順序)
     view! {
-        <PageFrame title=RECEIPTS_TITLE links=csv_link full_bleed=true>
+        <PageFrame title=labels::RECEIPTS_TITLE links=csv_link full_bleed=true>
             <div
                 class="flex flex-1 flex-col min-h-0 lg:flex-none"
                 aria-busy=move || {

@@ -1,7 +1,7 @@
 use super::*;
 use crate::api::dto::AssetBalance;
 use crate::features::asset_balance::csv::AssetBalanceRow;
-use crate::testing::asset_balance::balance_row;
+use crate::testing::asset_balance;
 use rust_decimal_macros::dec;
 
 #[test]
@@ -79,7 +79,7 @@ fn day_change_is_none_without_prev_close() {
 #[test]
 fn day_change_uses_row_value_without_price_date() {
     // 基準日を持たない行は前日終値の有無を見ず取込値をそのまま使う
-    let mut balance = balance_row(9904);
+    let mut balance = asset_balance::balance_row(9904);
     balance.price_as_of = None;
     let view = holding_view(&balance);
     assert_eq!(view.day_change, Some(50.0));
@@ -88,11 +88,11 @@ fn day_change_uses_row_value_without_price_date() {
 #[test]
 fn day_change_keeps_present_value_and_none_without_it() {
     // 値がある行はそのまま使い、基準日があっても前日終値がなければ出さない
-    let mut with_value = balance_row(9904);
+    let mut with_value = asset_balance::balance_row(9904);
     with_value.daily_change = dec!(-20);
     assert_eq!(holding_view(&with_value).day_change, Some(-20.0));
 
-    let mut without_prev_close = balance_row(9904);
+    let mut without_prev_close = asset_balance::balance_row(9904);
     without_prev_close.prev_close = None;
     without_prev_close.daily_change = dec!(30);
     assert_eq!(holding_view(&without_prev_close).day_change, None);
