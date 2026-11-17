@@ -404,7 +404,7 @@ fn UserMenu(
     view! {
         <div class="flex items-center gap-3">
             <Show when=move || !hide_name>
-                <span class="hidden max-w-64 truncate text-label font-semibold text-brand-muted lg:inline">
+                <span class="header-user-name hidden max-w-64 truncate text-label font-semibold lg:inline">
                     {display_name.get()}
                 </span>
             </Show>
@@ -435,7 +435,7 @@ fn UserMenu(
                         />
                     </span>
                     {" "}
-                    <span class="hidden text-label font-semibold text-text-inverse max-sm:inline">
+                    <span class="header-user-name hidden text-label font-semibold max-sm:inline">
                         {labels::ACCOUNT_BUTTON}
                     </span>
                 </button>

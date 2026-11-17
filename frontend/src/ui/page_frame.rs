@@ -11,13 +11,13 @@ fn PcHeader() -> impl IntoView {
                 <a href="/" class="flex items-center gap-2.5 no-underline" aria-label=labels::page_frame_top_label()>
                     <div class="header-logo" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <rect width="28" height="28" rx="7" fill="#FFFFFF"/>
-                            <rect x="7" y="17" width="4" height="6" rx="1" fill="#F2B33D"/>
-                            <rect x="12" y="12" width="4" height="11" rx="1" fill="#F2B33D"/>
-                            <rect x="17" y="7" width="4" height="16" rx="1" fill="#F2B33D"/>
+                            <rect width="28" height="28" rx="7" fill="var(--color-design-header-logo)"/>
+                            <rect x="7" y="17" width="4" height="6" rx="1" fill="var(--color-design-header-logo-mark)"/>
+                            <rect x="12" y="12" width="4" height="11" rx="1" fill="var(--color-design-header-logo-mark)"/>
+                            <rect x="17" y="7" width="4" height="16" rx="1" fill="var(--color-design-header-logo-mark)"/>
                         </svg>
                     </div>
-                    <span class="text-body font-bold text-text-inverse">{labels::APP_NAME}</span>
+                    <span class="header-wordmark text-body font-bold">{labels::APP_NAME}</span>
                 </a>
                 <nav class="flex gap-1 h-14" aria-label=labels::PAGE_MAIN_NAV>
                     {NAV_ITEMS.iter().map(|(to, label)| {

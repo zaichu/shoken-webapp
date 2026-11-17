@@ -4,6 +4,16 @@
 @source "../src/**/*.rs";
 
 @theme {
+  --color-design-header: var(--color-white);
+  --color-design-header-text: #111827;
+  --color-design-header-muted: #4b5563;
+  --color-header-avatar-text: var(--color-white);
+  --color-design-header-border: #767f8a;
+  --color-design-page-title: #111827;
+  --color-design-header-mark: var(--color-accent);
+  --color-design-header-logo: var(--color-page);
+  --color-design-header-logo-mark: #767f8a;
+  --color-design-header-wordmark: #111827;
   --color-page: #f3f5f8;
   --color-surface: var(--color-white);
   --color-surface-sunken: #f9fafb;
@@ -18,7 +28,7 @@
   --color-brand-muted: #c9d3e1;
   /* 面の上に置くブランド色の文字。ダークでは brand(紺塗りに使う)を残せないため別トークンにする */
   --color-brand-text: var(--color-brand);
-  --color-gold: var(--color-accent);
+  --color-gold: #f2b33d;
   --color-border-link: #d5dce6;
   --color-band: #fff8e6;
   --color-band-border: #f5dfa6;
@@ -75,14 +85,14 @@
   --color-accent: #1d4ed8;
   --color-accent-bright: #1d4ed8;
   --color-accent-ring: #1d4ed8;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-vivid: #1d4ed8;
-  --color-accent-text: #1d4ed8;
-  --color-accent-text-soft: #1d4ed8;
+  --color-accent-strong: #1e40af;
+  --color-accent-vivid: #1e40af;
+  --color-accent-text: #1e40af;
+  --color-accent-text-soft: #1e40af;
   --color-accent-soft: #eff4ff;
-  --color-accent-softer: #e5edff;
-  --color-accent-border: #a9bff4;
-  --color-accent-border-strong: #7396ea;
+  --color-accent-softer: #e4ecff;
+  --color-accent-border: #8ba9ef;
+  --color-accent-border-strong: #1d4ed8;
   --color-avatar: #1d4ed8;
   --color-avatar-ink: #fff;
 
@@ -221,6 +231,16 @@
     :root[data-theme="dark"] {
       color-scheme: dark;
 
+      --color-design-header-text: #f2f5fa;
+      --color-design-header-muted: #c2cddf;
+      --color-design-header: var(--color-surface);
+      --color-header-avatar-text: #0b1220;
+      --color-design-header-border: #7185aa;
+      --color-design-page-title: #f2f5fa;
+      --color-design-header-logo: var(--color-surface);
+      --color-design-header-logo-mark: #c2cddf;
+      --color-design-header-wordmark: #f2f5fa;
+
       --color-page: #0e0e10;
       --color-surface: #17171a;
       --color-surface-sunken: #111113;
@@ -274,16 +294,17 @@
       --color-accent: #8fb3f7;
       --color-accent-bright: #8fb3f7;
       --color-accent-ring: #8fb3f7;
-      --color-accent-strong: #a9c4fa;
+      --color-gold: var(--color-accent);
+      --color-accent-strong: #b9d0fb;
       --color-avatar: #8fb3f7;
       --color-avatar-ink: #111827;
       --color-accent-vivid: #a9c4fa;
       --color-accent-text: #a9c4fa;
       --color-accent-text-soft: #a9c4fa;
       --color-accent-soft: #16233f;
-      --color-accent-softer: #131e37;
+      --color-accent-softer: #1b2c4c;
       --color-accent-border: #3c5586;
-      --color-accent-border-strong: #5d7ab5;
+      --color-accent-border-strong: #5674aa;
 
       --color-info: #8fb3f7;
       --color-info-strong: #a9c4fa;
@@ -500,17 +521,39 @@
     @apply h-7 w-7;
   }
 
+  .header-wordmark {
+    color: var(--color-design-header-wordmark);
+  }
+
+  .pc-header [class*="bg-gold"][class*="text-brand"],
+  .page-frame-head [class*="bg-gold"][class*="text-brand"] {
+    color: var(--color-header-avatar-text);
+  }
+
   .pc-header {
-    @apply sticky top-0 z-40 bg-brand text-text-inverse;
+    @apply sticky top-0 z-40 text-design-header-text;
+    background: var(--color-design-header);
+    border-bottom: var(--border-width-1) solid var(--color-border);
   }
 
   .pc-nav-link {
-    @apply flex h-14 items-center px-3.5 text-sm text-brand-muted no-underline transition-colors hover:text-text-inverse;
+    @apply flex h-14 items-center px-3.5 text-sm text-design-header-muted no-underline transition-colors hover:text-design-header-text;
+  }
+
+  .header-user-name {
+    color: var(--color-design-header-muted);
   }
 
   .pc-nav-link[aria-current] {
-    @apply font-bold text-text-inverse;
-    box-shadow: inset 0 -3px 0 var(--color-gold);
+    @apply relative font-bold text-design-header-text;
+  }
+
+  .pc-nav-link[aria-current]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.875rem;
+    inset-block-end: 0;
+    border-block-end: 3px solid var(--color-design-header-mark);
   }
 
   /* 設定の左目次。押した項目・読んでいる項目だけ aria-current を付ける */
@@ -543,7 +586,17 @@
   }
 
   .page-tab[aria-selected="true"] {
-    @apply border-brand bg-brand font-bold text-text-inverse;
+    @apply border-transparent bg-accent-soft font-bold text-accent-text;
+  }
+
+  .page-tab[aria-selected="true"] .badge-count {
+    @apply bg-accent-softer text-accent-strong;
+  }
+
+  @media screen {
+    :root[data-theme="dark"] .page-tab[aria-selected="true"] {
+      @apply text-accent-text;
+    }
   }
 
   @media (width >= 64rem) {
@@ -568,7 +621,7 @@
 
     .page-tab[aria-selected="true"] {
       @apply bg-transparent font-bold text-text-deep;
-      box-shadow: inset 0 -3px 0 var(--color-gold);
+      box-shadow: inset 0 -3px 0 var(--color-accent);
     }
   }
 
@@ -581,7 +634,7 @@
     }
 
     .page-tab[aria-selected="true"] .badge-count {
-      @apply bg-gold font-bold text-brand;
+      @apply bg-accent font-bold text-page;
     }
   }
 
@@ -658,7 +711,7 @@
   .search-field-input {
     /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする。
        下部操作帯は lg 未満で出続けるため、16px のまま lg まで保つ */
-    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none lg:h-9 lg:text-sm;
+    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-soft focus:outline-none lg:h-9 lg:text-sm;
   }
 
   .receipts-search-count {
@@ -666,7 +719,7 @@
   }
 
   .receipts-search-clear {
-    @apply inline-flex min-h-11 shrink-0 items-center px-1.5 text-[13px] font-medium text-info hover:text-info-deep disabled:text-text-faint lg:min-h-8;
+    @apply inline-flex min-h-11 shrink-0 items-center px-1.5 text-[13px] font-medium text-info hover:text-info-deep disabled:text-text-soft lg:min-h-8;
   }
 
   /* 検索欄のすぐ下に常設する「条件を足す」。押すと小窓(PC)/シート(スマホ)を出す */
@@ -746,7 +799,7 @@
   }
 
   .condition-option[aria-pressed="true"] {
-    @apply border-brand bg-brand text-text-inverse;
+    @apply border-accent bg-accent text-text-inverse;
   }
 
   /* 年・月の選択肢。枠線の色で選択中を示し、塗りは変えない */
@@ -1219,11 +1272,13 @@
 
   /* 上バーは中のボタンが 44px のため余白だけで詰める */
   .page-frame-head {
-    @apply bg-brand py-px lg:bg-transparent lg:py-3;
+    @apply py-px lg:py-3;
+    background: var(--color-design-header);
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-heading text-text-inverse lg:text-text-deep;
+    @apply font-bold leading-tight tracking-normal text-heading;
+    color: var(--color-design-page-title);
   }
 
   /* ページの骨格(資産管理・取引明細で同じ順序・同じ余白で並べる)。
@@ -1866,7 +1921,7 @@
   /* 並べ替えの矢印は幅を固定して常に確保する。矢印の有無で文字が動くと、
      並べ替えのたびに見出しの文字がずれて列の境目が読めなくなる */
   .asset-sort-arrow {
-    @apply font-bold text-gold;
+    @apply font-bold text-accent;
     display: inline-block;
     width: 1.5em;
     text-align: center;
