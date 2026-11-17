@@ -65,7 +65,8 @@ const fn color_slice_class(color: usize) -> &'static str {
         1 => "comp-slice-1",
         2 => "comp-slice-2",
         3 => "comp-slice-3",
-        _ => "comp-slice-4",
+        4 => "comp-slice-4",
+        _ => "comp-slice-5",
     }
 }
 

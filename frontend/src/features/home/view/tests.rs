@@ -1,12 +1,12 @@
 use super::composition_card::{
-    CHART_COLOR_OTHER, CHART_COLORS, account_chart_index, chart_color, product_chart_index,
-    slice_style,
+    CHART_COLORS, account_chart_index, product_chart_index, slice_style,
 };
 use super::recent_dividends::{
     home_dividend_dialog_cells, home_dividend_row_texts, signed_gross_text, signed_tax_text,
 };
 use crate::api::dto::Dividend;
 use crate::features::home::model::CompositionSlice;
+use crate::ui::labels::ACCOUNT_SPECIFIC_GENERAL;
 
 fn composition_slice(label: &str, amount: f64) -> CompositionSlice {
     CompositionSlice {
@@ -50,31 +50,15 @@ fn account_chart_index_normalizes_csv_names() {
         ("NISA成長", 1),
         ("NISA成長投資枠", 1),
         ("旧NISA", 2),
-        ("NISAつみたて", 3),
-        ("NISAつみたて投資枠", 3),
-        ("一般", 4),
-        ("一般口座", 4),
+        (ACCOUNT_SPECIFIC_GENERAL, 3),
+        ("NISAつみたて", 4),
+        ("NISAつみたて投資枠", 4),
+        ("一般", 5),
+        ("一般口座", 5),
     ] {
         assert_eq!(account_chart_index(input), Some(expected), "{input}");
     }
     assert_eq!(account_chart_index("NISA"), None);
-}
-
-#[test]
-fn chart_color_uses_table_slot_or_single_other_color() {
-    // 対応表の名前は自分の固定色、表外は名前によらず同じ中立色
-    assert_eq!(
-        chart_color("国内株式", product_chart_index),
-        CHART_COLORS[0]
-    );
-    assert_eq!(chart_color("一般", account_chart_index), CHART_COLORS[4]);
-    for label in ["NISA", "iDeCo", "外国株式"] {
-        assert_eq!(
-            chart_color(label, account_chart_index),
-            CHART_COLOR_OTHER,
-            "{label}"
-        );
-    }
 }
 
 #[test]
