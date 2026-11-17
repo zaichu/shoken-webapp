@@ -7,7 +7,7 @@ RECIPIENT_FILE="${RECIPIENT_FILE:-$ROOT_DIR/.github/backup-recipient.txt}"
 OUT="${OUT:-db-backup-$(date -u +%Y%m%dT%H%M%SZ).sql.gz.age}"
 
 if [[ $# -gt 1 ]]; then
-  echo "使いかた: PGURL=<接続文字列> [RECIPIENT_FILE=<公開鍵>] [OUT=<出力>] bash scripts/db-backup.sh [出力]" >&2
+  echo "使いかた: DB_ADMIN_URL=<接続文字列> [RECIPIENT_FILE=<公開鍵>] [OUT=<出力>] bash scripts/db-backup.sh [出力]" >&2
   exit 2
 fi
 if [[ $# -eq 1 ]]; then
@@ -22,7 +22,8 @@ case "$OUT" in
     ;;
 esac
 
-if [[ -z "${PGURL:-}" ]]; then
+PGURL="${DB_ADMIN_URL:-${PGURL:-}}"
+if [[ -z "${PGURL}" ]]; then
   echo "バックアップに必要な接続情報がありません" >&2
   exit 1
 fi
@@ -55,7 +56,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! pg_dump --schema=public "$PGURL" 2>"$err_file" | gzip -c | age --recipient "$recipient" --output "$tmp_out"; then
+dump_args=(--schema=public)
+if ! pg_dump "${dump_args[@]}" "$PGURL" 2>"$err_file" | gzip -c | age --recipient "$recipient" --output "$tmp_out"; then
   echo "バックアップの書き出しに失敗しました" >&2
   exit 1
 fi

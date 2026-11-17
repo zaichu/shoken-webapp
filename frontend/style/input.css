@@ -4,6 +4,16 @@
 @source "../src/**/*.rs";
 
 @theme {
+  --color-design-header: var(--color-white);
+  --color-design-header-text: #111827;
+  --color-design-header-muted: #4b5563;
+  --color-header-avatar-text: var(--color-white);
+  --color-design-header-border: #767f8a;
+  --color-design-page-title: #111827;
+  --color-design-header-mark: var(--color-accent);
+  --color-design-header-logo: var(--color-page);
+  --color-design-header-logo-mark: #767f8a;
+  --color-design-header-wordmark: #111827;
   --color-page: #f3f5f8;
   --color-surface: var(--color-white);
   --color-surface-sunken: #f9fafb;
@@ -11,7 +21,7 @@
   --color-segment: #e9ebef;
   --color-row-group: #eef2f8;
 
-  /* v3 配色: ヘッダー・集計の帯・選択状態は紺、現在位置・強調は金 */
+  /* ブランド色はヘッダーと主操作、アクセント色は選択状態とリンクに使う */
   --color-brand: #0f2a4a;
   --color-brand-deep: #0b1f38;
   --color-brand-border: #3b5675;
@@ -52,12 +62,12 @@
   --color-icon: var(--color-gray-400);
   --color-icon-hover: var(--color-gray-600);
 
-  --color-border: #e5e7eb;
-  --color-border-faint: #f0f1f3;
+  --color-border: #d1d5db;
+  --color-border-faint: #e5e7eb;
   --color-border-subtle: #e5e7eb;
-  --color-border-strong: #d1d5db;
-  --color-border-xstrong: #9ca3af;
-  --color-border-bold: #6b7280;
+  --color-border-strong: #767f8a;
+  --color-border-xstrong: #767f8a;
+  --color-border-bold: #767f8a;
 
   --color-negative: #c0362c;
   --color-negative-vivid: #c0362c;
@@ -75,14 +85,16 @@
   --color-accent: #1d4ed8;
   --color-accent-bright: #1d4ed8;
   --color-accent-ring: #1d4ed8;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-vivid: #1d4ed8;
-  --color-accent-text: #1d4ed8;
-  --color-accent-text-soft: #1d4ed8;
+  --color-accent-strong: #1e40af;
+  --color-accent-vivid: #1e40af;
+  --color-accent-text: #1e40af;
+  --color-accent-text-soft: #1e40af;
   --color-accent-soft: #eff4ff;
-  --color-accent-softer: #e5edff;
-  --color-accent-border: #a9bff4;
-  --color-accent-border-strong: #7396ea;
+  --color-accent-softer: #e4ecff;
+  --color-accent-border: #8ba9ef;
+  --color-accent-border-strong: #1d4ed8;
+  --color-avatar: #1d4ed8;
+  --color-avatar-ink: #fff;
 
   --color-info: #1d4ed8;
   --color-info-strong: #1e3a8a;
@@ -92,28 +104,28 @@
   --color-info-focus: #1d4ed8;
 
   /* 口座区分の札(特定・一般・NISA系・旧NISA)。bg/text/border の3つで1組 */
-  --color-badge-specific: #e8eef9;
-  --color-badge-specific-text: #33456b;
-  --color-badge-specific-border: #c0cee6;
-  --color-badge-general: #edeff3;
-  --color-badge-general-text: #4a5565;
-  --color-badge-general-border: #ccd3dc;
-  --color-badge-nisa: #fef3c7;
-  --color-badge-nisa-text: #92400e;
-  --color-badge-nisa-border: #ebdaa4;
-  --color-badge-old-nisa: #f0ede4;
-  --color-badge-old-nisa-text: #615642;
-  --color-badge-old-nisa-border: #d6ccb2;
+  --color-badge-specific: transparent;
+  --color-badge-specific-text: #5f6b7a;
+  --color-badge-specific-border: #9ca3af;
+  --color-badge-general: transparent;
+  --color-badge-general-text: #5f6b7a;
+  --color-badge-general-border: #9ca3af;
+  --color-badge-nisa: transparent;
+  --color-badge-nisa-text: #5f6b7a;
+  --color-badge-nisa-border: #9ca3af;
+  --color-badge-old-nisa: transparent;
+  --color-badge-old-nisa-text: #5f6b7a;
+  --color-badge-old-nisa-border: #9ca3af;
 
   /* グラフの系列色は面・部品の色と別に持ち、商品・口座ごとに固定で割り当てる。
      前年の棒は系列ではなく比較の基準として落ち着いた色にする */
-  --color-chart-1: var(--color-brand);
-  --color-chart-2: var(--color-accent);
-  --color-chart-3: var(--color-gold);
-  --color-chart-4: var(--color-fill-strong);
-  --color-chart-5: var(--color-brand-muted);
-  /* 前年は系列ではなく比較の基準。ライトの面でも 3:1 を満たす中間色にする */
-  --color-chart-previous: #64748b;
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #6250d6;
+  --color-chart-4: #1baf7a;
+  --color-chart-5: #eda100;
+  --color-chart-6: #e87ba4;
+  --color-chart-previous: var(--color-chart-1);
 
   --shadow-elevation-1: 0 12px 34px -30px rgba(15, 23, 42, 0.85);
   --shadow-elevation-2: 0 16px 44px -36px rgba(15, 23, 42, 0.9);
@@ -123,8 +135,8 @@
   /* 下から出るシートの上端の影(下地の明細との境目用) */
   --shadow-sheet-up: 0 -16px 40px -22px rgba(15, 23, 42, 0.55);
   --shadow-edge-lit: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --shadow-edge-accent: inset 0 3px 0 #f2b33d;
-  --shadow-edge-brand: inset 0 -3px 0 rgba(192, 132, 3, 0.35);
+  --shadow-edge-accent: inset 0 3px 0 var(--color-gold);
+  --shadow-edge-brand: inset 0 -3px 0 color-mix(in srgb, var(--color-gold) 38%, transparent);
 
   --radius-note: 1.35rem;
 
@@ -211,8 +223,7 @@
 }
 
 /* ダークテーマ。html の data-theme 属性で切り替える(settings.rs の apply_theme)。
-   brand・gold・night は紺地(ヘッダー・集計帯・選択状態)のまま残し、面・文字・罫線と
-   negative/positive/accent/info/warn 系を反転させる。
+   ブランドの青と損益色は保ち、中立の面・文字・罫線を反転させる。
    ink は文字・罫線・フォーカス枠にも使うため明転させ、ink 塗り面の上の文字は
    text-page(ページ色)に寄せて両テーマで成立させる。印刷はライトのまま使う */
 @media screen {
@@ -220,40 +231,49 @@
     :root[data-theme="dark"] {
       color-scheme: dark;
 
-      --color-page: #0b1220;
-      --color-surface: #121b2c;
-      --color-surface-sunken: #0e1626;
-      --color-surface-raised: #1a2537;
-      --color-segment: #24314a;
-      --color-row-group: #1c2942;
+      --color-design-header-text: #f2f5fa;
+      --color-design-header-muted: #c2cddf;
+      --color-design-header: var(--color-surface);
+      --color-header-avatar-text: #0b1220;
+      --color-design-header-border: #7185aa;
+      --color-design-page-title: #f2f5fa;
+      --color-design-header-logo: var(--color-surface);
+      --color-design-header-logo-mark: #c2cddf;
+      --color-design-header-wordmark: #f2f5fa;
 
-      --color-ink: #e4eaf4;
-      --color-ink-hover: #c9d4e6;
-      --color-text: #dfe6f2;
-      --color-text-deep: #f2f5fa;
-      --color-text-strong: #f2f5fa;
-      /* ダークの補助文字は地と同化しやすいので、段差は明るさではなく太さ・大きさで付ける */
-      --color-text-soft: #dfe6f2;
-      --color-text-muted: #c2cddf;
-      --color-text-subtle: #c2cddf;
-      --color-text-quiet: #c2cddf;
-      --color-text-faint: #6d7c99;
+      --color-page: #0e0e10;
+      --color-surface: #17171a;
+      --color-surface-sunken: #111113;
+      --color-surface-raised: #202023;
+      --color-segment: #252528;
+      --color-row-group: #252528;
 
-      --color-border: #26334d;
-      --color-border-faint: #1c2740;
-      --color-border-subtle: #26334d;
-      --color-border-strong: #3d4d70;
-      --color-border-xstrong: #5d6f96;
-      --color-border-bold: #8ba0c4;
-      --color-border-link: #33415f;
+      --color-ink: #e4e4e7;
+      --color-ink-hover: #d4d4d8;
+      --color-text: #e4e4e7;
+      --color-text-deep: #f4f4f5;
+      --color-text-strong: #f4f4f5;
+      --color-text-soft: #d4d4d8;
+      --color-text-muted: #b4b4ba;
+      --color-text-subtle: #b4b4ba;
+      --color-text-quiet: #b4b4ba;
+      --color-text-faint: #85858d;
 
-      --color-fill: #26334d;
-      --color-fill-strong: #3d4d70;
-      --color-scrollbar-track: #1a2537;
-      --color-scrollbar-thumb: #33415f;
-      --color-scrollbar-thumb-hover: #4d5f85;
+      --color-border: #3a3a3f;
+      --color-border-faint: #29292d;
+      --color-border-subtle: #3a3a3f;
+      --color-border-strong: #52525a;
+      --color-border-xstrong: #71717a;
+      --color-border-bold: #a1a1aa;
+      --color-border-link: #3a3a3f;
 
-      --color-night-soft: #cbd5e1;
+      --color-fill: #3a3a3f;
+      --color-fill-strong: #52525a;
+      --color-scrollbar-track: #202023;
+      --color-scrollbar-thumb: #52525a;
+      --color-scrollbar-thumb-hover: #71717a;
+
+      --color-night-soft: #d4d4d8;
       /* 紺の面の上に置くブランド色(選択中の枠線・チェックの印)。文字色としては使わない */
       --color-brand-text: #a3bde3;
       --color-brand-border: #56719a;
@@ -274,14 +294,17 @@
       --color-accent: #8fb3f7;
       --color-accent-bright: #8fb3f7;
       --color-accent-ring: #8fb3f7;
-      --color-accent-strong: #a9c4fa;
+      --color-gold: var(--color-accent);
+      --color-accent-strong: #b9d0fb;
+      --color-avatar: #8fb3f7;
+      --color-avatar-ink: #111827;
       --color-accent-vivid: #a9c4fa;
       --color-accent-text: #a9c4fa;
       --color-accent-text-soft: #a9c4fa;
       --color-accent-soft: #16233f;
-      --color-accent-softer: #131e37;
+      --color-accent-softer: #1b2c4c;
       --color-accent-border: #3c5586;
-      --color-accent-border-strong: #5d7ab5;
+      --color-accent-border-strong: #5674aa;
 
       --color-info: #8fb3f7;
       --color-info-strong: #a9c4fa;
@@ -290,31 +313,31 @@
       --color-info-border: #3c5586;
       --color-info-focus: #a9c4fa;
 
-      /* 暗い面の上で区別が付く検証済みの系列色。前年は比較の基準として落ち着いた色 */
       --color-chart-1: #3987e5;
       --color-chart-2: #d95926;
-      --color-chart-3: #199e70;
-      --color-chart-4: #c98500;
-      --color-chart-5: #d55181;
-      --color-chart-previous: #9fb0cf;
+      --color-chart-3: #9085e9;
+      --color-chart-4: #199e70;
+      --color-chart-5: #c98500;
+      --color-chart-6: #d55181;
+      --color-chart-previous: var(--color-chart-1);
 
       --color-band: #292112;
       --color-band-border: #6b5518;
       --color-warn-ink: #f2c066;
       --color-nisa-soft: #33260f;
 
-      --color-badge-specific: #25324d;
-      --color-badge-specific-text: #d7e3f5;
-      --color-badge-specific-border: #4e648e;
-      --color-badge-general: #272d39;
-      --color-badge-general-text: #cfd5de;
-      --color-badge-general-border: #4d5668;
-      --color-badge-nisa: #33260f;
-      --color-badge-nisa-text: #f2c066;
-      --color-badge-nisa-border: #6b5518;
-      --color-badge-old-nisa: #2d2920;
-      --color-badge-old-nisa-text: #cec3a4;
-      --color-badge-old-nisa-border: #584f3a;
+      --color-badge-specific: transparent;
+      --color-badge-specific-text: #b4b4ba;
+      --color-badge-specific-border: #71717a;
+      --color-badge-general: transparent;
+      --color-badge-general-text: #b4b4ba;
+      --color-badge-general-border: #71717a;
+      --color-badge-nisa: transparent;
+      --color-badge-nisa-text: #b4b4ba;
+      --color-badge-nisa-border: #71717a;
+      --color-badge-old-nisa: transparent;
+      --color-badge-old-nisa-text: #b4b4ba;
+      --color-badge-old-nisa-border: #71717a;
     }
   }
 }
@@ -498,17 +521,39 @@
     @apply h-7 w-7;
   }
 
+  .header-wordmark {
+    color: var(--color-design-header-wordmark);
+  }
+
+  .pc-header [class*="bg-gold"][class*="text-brand"],
+  .page-frame-head [class*="bg-gold"][class*="text-brand"] {
+    color: var(--color-header-avatar-text);
+  }
+
   .pc-header {
-    @apply sticky top-0 z-40 bg-brand text-text-inverse;
+    @apply sticky top-0 z-40 text-design-header-text;
+    background: var(--color-design-header);
+    border-bottom: var(--border-width-1) solid var(--color-border);
   }
 
   .pc-nav-link {
-    @apply flex h-14 items-center px-3.5 text-sm text-brand-muted no-underline transition-colors hover:text-text-inverse;
+    @apply flex h-14 items-center px-3.5 text-sm text-design-header-muted no-underline transition-colors hover:text-design-header-text;
+  }
+
+  .header-user-name {
+    color: var(--color-design-header-muted);
   }
 
   .pc-nav-link[aria-current] {
-    @apply font-bold text-text-inverse;
-    box-shadow: inset 0 -3px 0 var(--color-gold);
+    @apply relative font-bold text-design-header-text;
+  }
+
+  .pc-nav-link[aria-current]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.875rem;
+    inset-block-end: 0;
+    border-block-end: 3px solid var(--color-design-header-mark);
   }
 
   /* 設定の左目次。押した項目・読んでいる項目だけ aria-current を付ける */
@@ -541,7 +586,17 @@
   }
 
   .page-tab[aria-selected="true"] {
-    @apply border-brand bg-brand font-bold text-text-inverse;
+    @apply border-transparent bg-accent-soft font-bold text-accent-text;
+  }
+
+  .page-tab[aria-selected="true"] .badge-count {
+    @apply bg-accent-softer text-accent-strong;
+  }
+
+  @media screen {
+    :root[data-theme="dark"] .page-tab[aria-selected="true"] {
+      @apply text-accent-text;
+    }
   }
 
   @media (width >= 64rem) {
@@ -566,7 +621,7 @@
 
     .page-tab[aria-selected="true"] {
       @apply bg-transparent font-bold text-text-deep;
-      box-shadow: inset 0 -3px 0 var(--color-gold);
+      box-shadow: inset 0 -3px 0 var(--color-accent);
     }
   }
 
@@ -579,7 +634,7 @@
     }
 
     .page-tab[aria-selected="true"] .badge-count {
-      @apply bg-gold font-bold text-brand;
+      @apply bg-accent font-bold text-page;
     }
   }
 
@@ -656,7 +711,7 @@
   .search-field-input {
     /* iPhone Safari は 16px 未満の入力欄でフォーカス時に自動ズームする。
        下部操作帯は lg 未満で出続けるため、16px のまま lg まで保つ */
-    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-faint focus:outline-none lg:h-9 lg:text-sm;
+    @apply block h-11 min-w-0 flex-1 rounded-md border-0 bg-surface px-2 text-base font-medium text-ink shadow-none placeholder:text-text-soft focus:outline-none lg:h-9 lg:text-sm;
   }
 
   .receipts-search-count {
@@ -664,7 +719,7 @@
   }
 
   .receipts-search-clear {
-    @apply inline-flex min-h-11 shrink-0 items-center px-1.5 text-[13px] font-medium text-info hover:text-info-deep disabled:text-text-faint lg:min-h-8;
+    @apply inline-flex min-h-11 shrink-0 items-center px-1.5 text-[13px] font-medium text-info hover:text-info-deep disabled:text-text-soft lg:min-h-8;
   }
 
   /* 検索欄のすぐ下に常設する「条件を足す」。押すと小窓(PC)/シート(スマホ)を出す */
@@ -744,7 +799,7 @@
   }
 
   .condition-option[aria-pressed="true"] {
-    @apply border-brand bg-brand text-text-inverse;
+    @apply border-accent bg-accent text-text-inverse;
   }
 
   /* 年・月の選択肢。枠線の色で選択中を示し、塗りは変えない */
@@ -1217,11 +1272,13 @@
 
   /* 上バーは中のボタンが 44px のため余白だけで詰める */
   .page-frame-head {
-    @apply bg-brand py-px lg:bg-transparent lg:py-3;
+    @apply py-px lg:py-3;
+    background: var(--color-design-header);
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-heading text-text-inverse lg:text-text-deep;
+    @apply font-bold leading-tight tracking-normal text-heading;
+    color: var(--color-design-page-title);
   }
 
   /* ページの骨格(資産管理・取引明細で同じ順序・同じ余白で並べる)。
@@ -1445,6 +1502,10 @@
     @apply block min-w-px flex-1 rounded-t;
   }
 
+  .home-month-bar.home-chart-previous {
+    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
+  }
+
   .home-chart-month-labels {
     @apply mt-1.5 flex;
   }
@@ -1500,6 +1561,11 @@
 
   .home-donut-hole {
     @apply flex h-3/5 w-3/5 items-center justify-center rounded-full bg-surface;
+  }
+
+  .home-chart-previous {
+    background-color: var(--color-chart-previous);
+    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
   }
 
   /* 系列の境目は面の色の隙間にする(gap の下を面と同じ色で透かす) */
@@ -1645,10 +1711,15 @@
     stroke: var(--color-chart-5);
   }
 
+  .comp-slice-5 {
+    stroke: var(--color-chart-6);
+  }
+
   .comp-slice-gap {
     fill: none;
     stroke: var(--color-page);
-    stroke-width: 2;
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
   }
 
   .comp-donut-center {
@@ -1864,7 +1935,7 @@
   /* 並べ替えの矢印は幅を固定して常に確保する。矢印の有無で文字が動くと、
      並べ替えのたびに見出しの文字がずれて列の境目が読めなくなる */
   .asset-sort-arrow {
-    @apply font-bold text-gold;
+    @apply font-bold text-accent;
     display: inline-block;
     width: 1.5em;
     text-align: center;

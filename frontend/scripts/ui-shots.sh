@@ -4,6 +4,7 @@
 # 本番の接続情報・実保有データには触らない。
 
 set -euo pipefail
+unset NO_COLOR
 
 usage() {
   cat <<'EOF'

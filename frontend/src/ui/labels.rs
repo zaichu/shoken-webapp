@@ -819,6 +819,8 @@ pub fn api_status_error(status: u16) -> String {
 
 /// 口座区分の短い表示名(バッジと同じ表記)
 pub const ACCOUNT_SPECIFIC: &str = "特定";
+/// 口座区分の連結表示名
+pub const ACCOUNT_SPECIFIC_GENERAL: &str = "特定・一般";
 /// 口座区分の短い表示名(バッジと同じ表記)
 pub const ACCOUNT_GENERAL: &str = "一般";
 /// 口座区分の短い表示名(バッジと同じ表記)

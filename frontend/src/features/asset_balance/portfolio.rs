@@ -5,9 +5,11 @@ use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView, hol
 use crate::features::asset_balance::model::{ValuationInput, chart_percentages, holding_valuation};
 use crate::ui::badge::account_display_name;
 use crate::ui::labels::{
-    ACQUISITION_YIELD, ANNUAL_DIVIDEND, COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT,
-    COMPOSITION_GROUP_HOLDING, COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING,
-    MUTUAL_FUND, VALUATION_PROFIT_LOSS,
+    ACCOUNT_GENERAL, ACCOUNT_NISA_GROWTH, ACCOUNT_NISA_TSUMITATE, ACCOUNT_OLD_NISA,
+    ACCOUNT_SPECIFIC, ACCOUNT_SPECIFIC_GENERAL, ACQUISITION_YIELD, ANNUAL_DIVIDEND,
+    COMPOSITION_DIVIDEND_BASIS, COMPOSITION_GROUP_ACCOUNT, COMPOSITION_GROUP_HOLDING,
+    COMPOSITION_GROUP_PRODUCT, DOMESTIC_STOCK, MARKET_VALUE, MISSING, MUTUAL_FUND,
+    VALUATION_PROFIT_LOSS,
 };
 use crate::urls::fund_holding_href;
 use std::cmp::Ordering;
@@ -248,6 +250,7 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
 /// 構成比の区分1行。`value` は基準の金額で、算出不可は `None`(一覧の末尾に置く)。
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompositionEntry {
+    pub color_key: String,
     pub name: String,
     pub sub: String,
     pub value: Option<f64>,
@@ -286,6 +289,18 @@ pub fn composition_entries(
     for (source, value) in sources.iter().zip(basis.iter().copied()) {
         let value = value.filter(|value| *value != 0.0);
         let key = entry_key(source, group);
+        let color_key = match group {
+            CompositionGroup::Holding => match source.product {
+                CompositionProduct::Stock => source.sub.clone(),
+                CompositionProduct::Fund => source.name.clone(),
+            },
+            CompositionGroup::Product => source.product.label().to_string(),
+            CompositionGroup::Account => source
+                .account
+                .as_deref()
+                .map_or(MISSING, account_display_name)
+                .to_string(),
+        };
         let is_new_holding = matches!(group, CompositionGroup::Holding);
         let position = if is_new_holding {
             entries.len()
@@ -300,6 +315,7 @@ pub fn composition_entries(
         };
         if position == entries.len() {
             entries.push(CompositionEntry {
+                color_key,
                 name: match group {
                     CompositionGroup::Holding => source.name.clone(),
                     CompositionGroup::Product => source.product.label().to_string(),
@@ -360,10 +376,26 @@ pub fn composition_percentages(values: &[Option<f64>]) -> (f64, Vec<Option<f64>>
 /// 残りは「ほか N 件」にまとめる
 pub const COMPOSITION_LEGEND_MAX: usize = 5;
 
-/// 区分の色番号。`[0, 2, 4, 1, 3]` を回して隣り合う区分の色が並ばないようにする
-pub const fn composition_color(position: usize) -> usize {
-    const ORDER: [usize; 5] = [0, 2, 4, 1, 3];
-    ORDER[position % ORDER.len()]
+/// 区分色は商品・口座名、または保有商品の識別子に固定する
+/// 表外はホーム内訳帯のフォールバックとそろえ、同じキーなら同じ色にする
+const FALLBACK_CHART_COLORS: [usize; 5] = [0, 1, 2, 4, 5];
+
+pub fn composition_color(key: &str) -> usize {
+    match key {
+        DOMESTIC_STOCK | ACCOUNT_SPECIFIC => 0,
+        MUTUAL_FUND | ACCOUNT_NISA_GROWTH => 1,
+        ACCOUNT_OLD_NISA => 2,
+        ACCOUNT_SPECIFIC_GENERAL => 3,
+        ACCOUNT_NISA_TSUMITATE => 4,
+        ACCOUNT_GENERAL => 5,
+        _ => {
+            let index = key.bytes().fold(2_166_136_261_u32, |hash, byte| {
+                (hash ^ u32::from(byte)).wrapping_mul(16_777_619)
+            }) as usize
+                % FALLBACK_CHART_COLORS.len();
+            FALLBACK_CHART_COLORS[index]
+        }
+    }
 }
 
 /// 構成比の表示1行。割合は未丸めで、算出不可の行は `computable` が false
@@ -389,14 +421,13 @@ pub fn composition_rows(
     entries
         .iter()
         .zip(percentages.iter().copied())
-        .enumerate()
-        .map(|(position, (entry, percentage))| CompositionRow {
+        .map(|(entry, percentage)| CompositionRow {
             name: entry.name.clone(),
             sub: entry.sub.clone(),
             value: entry.value,
             percentage: percentage.unwrap_or(0.0),
             computable: percentage.is_some(),
-            color: composition_color(position),
+            color: composition_color(&entry.color_key),
             holdings: entry.holdings,
             href: entry.href.clone(),
         })
