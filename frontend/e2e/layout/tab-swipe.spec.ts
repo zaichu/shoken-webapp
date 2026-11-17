@@ -246,7 +246,7 @@ async function slideX(page: Page, testid: string): Promise<number | null> {
 async function inkPercent(page: Page): Promise<number | null> {
   // PC 用とスマホ用の下線が両方あるため、見えている側を読む
   const transform = await page
-    .locator('.tab-swipe-ink:visible')
+    .locator('.asset-mobile-tabs-links .tab-swipe-ink')
     .evaluate((element) => (element as HTMLElement).style.transform);
   return parseTranslateXPercent(transform);
 }
