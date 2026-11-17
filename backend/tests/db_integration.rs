@@ -6163,6 +6163,34 @@ async fn app_restricted_role_has_least_privilege() {
     .expect("スキーマ権限の取得に失敗");
     assert!(schema_usage, "app_restricted は public の USAGE を持つはず");
 
+    for (signature, expected) in [
+        ("public.login_notify_peek_v2(bytea)", true),
+        ("public.login_notify_consume_v2(bytea)", true),
+        (
+            "public.admin_login_search_data_v2(text[],text[],text[],text,text,bigint,bigint)",
+            false,
+        ),
+        (
+            "public.admin_login_search_count_v2(text[],text[],text[])",
+            false,
+        ),
+        (
+            "public.scheduled_stock_price_targets_v2(date,bigint)",
+            false,
+        ),
+        ("public.scheduled_fund_price_targets_v2(date,bigint)", false),
+        ("public.prune_login_events_older_than_90_days_v2()", false),
+    ] {
+        let executable = db::query_scalar::<bool>(
+            "SELECT has_function_privilege('app_restricted', $1, 'EXECUTE')",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert_eq!(executable, expected, "{signature}");
+    }
+
     let grants = db::query(
         "SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'app_restricted' AND table_schema = 'public'",
         vec![],
@@ -6547,10 +6575,16 @@ async fn stage5b_definer_functions_and_app_enter() {
         } else {
             "search_path=public, pg_temp"
         };
-        assert!(
-            config.contains(&(expected_search_path.to_string(),)),
-            "{signature} は search_path を固定するはず"
-        );
+        if signature == "public.login_notify_peek_by_token(bytea)"
+            || signature == "public.login_notify_consume_by_token(bytea)"
+        {
+            assert!(config.is_empty(), "{signature} の旧設定は変更しない");
+        } else {
+            assert!(
+                config.contains(&(expected_search_path.to_string(),)),
+                "{signature} は search_path を固定するはず"
+            );
+        }
     }
 
     pool.batch_execute("CREATE ROLE fn_nogrant WITH LOGIN PASSWORD 'fn-nogrant-password'")

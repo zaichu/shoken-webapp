@@ -245,9 +245,9 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let latest = latest_close_date(Utc::now());
-    let mut tx = pool.begin_restricted().await?;
+    let mut tx = pool.begin_as_role("app_price_target_executor").await?;
     let codes: Vec<SecurityCode> = crate::db::query(
-        "SELECT security_code FROM public.scheduled_stock_price_targets($1, $2)",
+        "SELECT security_code FROM public.scheduled_stock_price_targets_v2($1, $2)",
         vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
     )
     .fetch_all::<(SecurityCode,), _>(&mut tx)

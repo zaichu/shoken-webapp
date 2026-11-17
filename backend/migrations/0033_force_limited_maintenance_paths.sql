@@ -1,9 +1,8 @@
--- FORCE も SECURITY DEFINER の所有者に適用されるため、NOLOGIN の関数所有者だけに BYPASSRLS と表列単位の権限を与える。
 DO $$
 BEGIN
-    CREATE ROLE app_notify_token_executor NOLOGIN BYPASSRLS;
+    CREATE ROLE app_notify_token_v2_executor NOLOGIN BYPASSRLS;
 EXCEPTION WHEN duplicate_object THEN
-    ALTER ROLE app_notify_token_executor NOLOGIN BYPASSRLS;
+    ALTER ROLE app_notify_token_v2_executor NOLOGIN BYPASSRLS;
 END
 $$;
 
@@ -31,16 +30,15 @@ EXCEPTION WHEN duplicate_object THEN
 END
 $$;
 
--- OWNER 移譲には SET が要る。適用後は通常接続へ SET/INHERIT を残さない。
-GRANT app_notify_token_executor, app_admin_login_executor,
+GRANT app_notify_token_v2_executor, app_admin_login_executor,
     app_price_target_executor, app_login_event_prune_executor
-    TO CURRENT_USER WITH SET TRUE, INHERIT TRUE;
-GRANT CREATE ON SCHEMA public TO app_notify_token_executor,
+    TO CURRENT_USER WITH SET TRUE, INHERIT FALSE;
+GRANT CREATE ON SCHEMA public TO app_notify_token_v2_executor,
     app_admin_login_executor, app_price_target_executor, app_login_event_prune_executor;
 
-GRANT USAGE ON SCHEMA public TO app_notify_token_executor;
+GRANT USAGE ON SCHEMA public TO app_notify_token_v2_executor;
 GRANT SELECT (token_hash, user_id, expires_at, used_at), UPDATE (used_at)
-    ON public.login_notify_tokens TO app_notify_token_executor;
+    ON public.login_notify_tokens TO app_notify_token_v2_executor;
 GRANT USAGE ON SCHEMA public TO app_admin_login_executor;
 GRANT SELECT (id, occurred_at, user_id, result, country, region, browser, os)
     ON public.login_events TO app_admin_login_executor;
@@ -57,7 +55,7 @@ GRANT SELECT (association_fund_cd, price_as_of, updated_at)
 GRANT USAGE ON SCHEMA public TO app_login_event_prune_executor;
 GRANT SELECT (occurred_at), DELETE ON public.login_events TO app_login_event_prune_executor;
 
-CREATE OR REPLACE FUNCTION public.login_notify_peek_by_token(p_token_hash bytea)
+CREATE FUNCTION public.login_notify_peek_v2(p_token_hash bytea)
     RETURNS TABLE(user_id uuid, expires_at timestamptz)
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path = pg_catalog, public, pg_temp
@@ -69,10 +67,11 @@ AS $$
       AND t.used_at IS NULL
       AND t.expires_at > pg_catalog.now()
 $$;
-ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO app_notify_token_executor;
-REVOKE ALL ON FUNCTION public.login_notify_peek_by_token(bytea) FROM PUBLIC;
+ALTER FUNCTION public.login_notify_peek_v2(bytea) OWNER TO app_notify_token_v2_executor;
+REVOKE ALL ON FUNCTION public.login_notify_peek_v2(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.login_notify_peek_v2(bytea) TO app_restricted;
 
-CREATE OR REPLACE FUNCTION public.login_notify_consume_by_token(p_token_hash bytea)
+CREATE FUNCTION public.login_notify_consume_v2(p_token_hash bytea)
     RETURNS uuid
     LANGUAGE sql VOLATILE SECURITY DEFINER
     SET search_path = pg_catalog, public, pg_temp
@@ -85,27 +84,16 @@ AS $$
       AND t.expires_at > pg_catalog.now()
     RETURNING t.user_id
 $$;
-ALTER FUNCTION public.login_notify_consume_by_token(bytea) OWNER TO app_notify_token_executor;
-REVOKE ALL ON FUNCTION public.login_notify_consume_by_token(bytea) FROM PUBLIC;
+ALTER FUNCTION public.login_notify_consume_v2(bytea) OWNER TO app_notify_token_v2_executor;
+REVOKE ALL ON FUNCTION public.login_notify_consume_v2(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.login_notify_consume_v2(bytea) TO app_restricted;
 
-CREATE FUNCTION public.admin_login_search_data(
-    p_query_patterns text[],
-    p_email_patterns text[],
-    p_place_patterns text[],
-    p_sort_by text,
-    p_sort_order text,
-    p_limit bigint,
-    p_offset bigint
+CREATE FUNCTION public.admin_login_search_data_v2(
+    p_query_patterns text[], p_email_patterns text[], p_place_patterns text[],
+    p_sort_by text, p_sort_order text, p_limit bigint, p_offset bigint
 )
-RETURNS TABLE(
-    occurred_at timestamptz,
-    email text,
-    result text,
-    country text,
-    region text,
-    browser text,
-    os text
-)
+RETURNS TABLE(occurred_at timestamptz, email text, result text,
+    country text, region text, browser text, os text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
 SET row_security = off
@@ -135,19 +123,18 @@ AS $$
         CASE WHEN p_sort_by = 'result' AND p_sort_order = 'desc' THEN le.result END DESC,
         CASE WHEN p_sort_by = 'place' AND p_sort_order = 'asc' THEN pg_catalog.concat_ws(' ', le.country, le.region) END ASC,
         CASE WHEN p_sort_by = 'place' AND p_sort_order = 'desc' THEN pg_catalog.concat_ws(' ', le.country, le.region) END DESC,
-        le.occurred_at DESC,
-        le.id DESC
+        le.occurred_at DESC, le.id DESC
     LIMIT p_limit OFFSET p_offset
 $$;
-ALTER FUNCTION public.admin_login_search_data(text[], text[], text[], text, text, bigint, bigint)
+ALTER FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
     OWNER TO app_admin_login_executor;
-REVOKE ALL ON FUNCTION public.admin_login_search_data(text[], text[], text[], text, text, bigint, bigint)
-    FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
+    FROM PUBLIC, app_restricted, CURRENT_USER;
+GRANT EXECUTE ON FUNCTION public.admin_login_search_data_v2(text[], text[], text[], text, text, bigint, bigint)
+    TO app_admin_login_executor;
 
-CREATE FUNCTION public.admin_login_search_count(
-    p_query_patterns text[],
-    p_email_patterns text[],
-    p_place_patterns text[]
+CREATE FUNCTION public.admin_login_search_count_v2(
+    p_query_patterns text[], p_email_patterns text[], p_place_patterns text[]
 )
 RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -171,11 +158,13 @@ AS $$
         WHERE pg_catalog.concat_ws(' ', le.country, le.region) NOT ILIKE q.pattern ESCAPE '\'
     )
 $$;
-ALTER FUNCTION public.admin_login_search_count(text[], text[], text[])
+ALTER FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
     OWNER TO app_admin_login_executor;
-REVOKE ALL ON FUNCTION public.admin_login_search_count(text[], text[], text[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[]) FROM PUBLIC, app_restricted, CURRENT_USER;
+GRANT EXECUTE ON FUNCTION public.admin_login_search_count_v2(text[], text[], text[])
+    TO app_admin_login_executor;
 
-CREATE FUNCTION public.scheduled_stock_price_targets(p_target_date date, p_limit bigint)
+CREATE FUNCTION public.scheduled_stock_price_targets_v2(p_target_date date, p_limit bigint)
 RETURNS TABLE(security_code character varying)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
@@ -190,10 +179,11 @@ AS $$
     ORDER BY pg_catalog.min(sp.updated_at) ASC NULLS FIRST
     LIMIT p_limit
 $$;
-ALTER FUNCTION public.scheduled_stock_price_targets(date, bigint) OWNER TO app_price_target_executor;
-REVOKE ALL ON FUNCTION public.scheduled_stock_price_targets(date, bigint) FROM PUBLIC;
+ALTER FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) OWNER TO app_price_target_executor;
+REVOKE ALL ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) FROM PUBLIC, app_restricted, CURRENT_USER;
+GRANT EXECUTE ON FUNCTION public.scheduled_stock_price_targets_v2(date, bigint) TO app_price_target_executor;
 
-CREATE FUNCTION public.scheduled_fund_price_targets(p_target_date date, p_limit bigint)
+CREATE FUNCTION public.scheduled_fund_price_targets_v2(p_target_date date, p_limit bigint)
 RETURNS TABLE(association_fund_cd character varying)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
@@ -209,11 +199,12 @@ AS $$
     ORDER BY pg_catalog.min(fp.updated_at) ASC NULLS FIRST
     LIMIT p_limit
 $$;
-ALTER FUNCTION public.scheduled_fund_price_targets(date, bigint)
+ALTER FUNCTION public.scheduled_fund_price_targets_v2(date, bigint)
     OWNER TO app_price_target_executor;
-REVOKE ALL ON FUNCTION public.scheduled_fund_price_targets(date, bigint) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint) FROM PUBLIC, app_restricted, CURRENT_USER;
+GRANT EXECUTE ON FUNCTION public.scheduled_fund_price_targets_v2(date, bigint) TO app_price_target_executor;
 
-CREATE FUNCTION public.prune_login_events_older_than_90_days()
+CREATE FUNCTION public.prune_login_events_older_than_90_days_v2()
 RETURNS bigint
 LANGUAGE sql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
@@ -226,41 +217,11 @@ AS $$
     )
     SELECT pg_catalog.count(*) FROM deleted
 $$;
-ALTER FUNCTION public.prune_login_events_older_than_90_days()
+ALTER FUNCTION public.prune_login_events_older_than_90_days_v2()
     OWNER TO app_login_event_prune_executor;
-REVOKE ALL ON FUNCTION public.prune_login_events_older_than_90_days() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.prune_login_events_older_than_90_days_v2() FROM PUBLIC, app_restricted, CURRENT_USER;
+GRANT EXECUTE ON FUNCTION public.prune_login_events_older_than_90_days_v2()
+    TO app_login_event_prune_executor;
 
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'app_restricted') THEN
-        GRANT EXECUTE ON FUNCTION public.login_notify_peek_by_token(bytea) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.login_notify_consume_by_token(bytea) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.admin_login_search_data(text[], text[], text[], text, text, bigint, bigint) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.admin_login_search_count(text[], text[], text[]) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.scheduled_stock_price_targets(date, bigint) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.scheduled_fund_price_targets(date, bigint) TO app_restricted;
-        GRANT EXECUTE ON FUNCTION public.prune_login_events_older_than_90_days() TO app_restricted;
-    ELSE
-        RAISE NOTICE 'app_restricted がないため限定関数への EXECUTE 付与を省略';
-    END IF;
-END
-$$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pg_catalog.pg_roles
-        WHERE rolname = CURRENT_USER AND rolsuper
-    ) THEN
-        REVOKE app_notify_token_executor, app_admin_login_executor,
-            app_price_target_executor, app_login_event_prune_executor
-            FROM CURRENT_USER;
-    ELSE
-        GRANT app_notify_token_executor, app_admin_login_executor,
-            app_price_target_executor, app_login_event_prune_executor
-            TO CURRENT_USER WITH ADMIN FALSE, SET FALSE, INHERIT FALSE;
-    END IF;
-END
-$$;
-REVOKE CREATE ON SCHEMA public FROM app_notify_token_executor,
+REVOKE CREATE ON SCHEMA public FROM app_notify_token_v2_executor,
     app_admin_login_executor, app_price_target_executor, app_login_event_prune_executor;

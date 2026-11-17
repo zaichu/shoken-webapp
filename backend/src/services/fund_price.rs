@@ -331,9 +331,9 @@ fn nav_publication_date(now: DateTime<Utc>) -> NaiveDate {
 /// 戻り値は取得に成功したコード数（ログ用）
 pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let target = nav_publication_date(Utc::now());
-    let mut tx = pool.begin_restricted().await?;
+    let mut tx = pool.begin_as_role("app_price_target_executor").await?;
     let codes: Vec<String> = crate::db::query(
-        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets($1, $2)",
+        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
         vec![Bind::from(target), Bind::from(MAX_CODES_PER_RUN)],
     )
     .fetch_all::<(String,), _>(&mut tx)
