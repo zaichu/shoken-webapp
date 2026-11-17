@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Phase9 rest担当分の新案HTMLを生成する。型・色・余白は phase8-visual/home-*.html と
-phase9-screens/opencode (gen.py の共通CSS) と同じにする。新しい色・部品は作らない。
+"""Phase9 rest担当分の新案HTMLを生成する。旧見本用の生成スクリプト。
 数値は ../phase5-codex/data/fixtures.json の架空データを直書き。
 対象: search / settings / login / loginprompt(未ログイン時ホーム) / notfound(404) /
 admin-logins / dialogs(9種)。各 *-mobile(390px) / *-pc(1280px)。"""
