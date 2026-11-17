@@ -71,7 +71,10 @@ def expand_use(tree):
         part = part.strip()
         if not part:
             continue
-        out.extend(expand_use(prefix + "::" + part + suffix))
+        # ルート直下の `{...}` (prefix が空) では `::` を足さない。
+        # 足すと `::crate::...` になり、後段の `crate::` 判定をすり抜ける
+        sep = "::" if prefix else ""
+        out.extend(expand_use(prefix + sep + part + suffix))
     return out
 
 def is_module(parent_parts, leaf):
@@ -97,7 +100,11 @@ for path in sys.argv[1:]:
         tree_m = re.match(r'\s*use\s+(.*);', stmt, re.DOTALL)
         if not tree_m:
             continue
-        tree = re.sub(r'\s+', ' ', tree_m.group(1)).strip()
+        # use 木の中のコメントを取り除く。取り除かないとコメント片が
+        # 識別子に混ざり、名前取り込みの判定をすり抜ける
+        # (use 宣言に文字列リテラルは現れないため単純な除去でよい)
+        tree_nc = re.sub(r'//[^\n]*|/\*.*?\*/', ' ', tree_m.group(1), flags=re.DOTALL)
+        tree = re.sub(r'\s+', ' ', tree_nc).strip()
         # 先頭の `crate::` を含む木だけ調べる
         if not tree.startswith("crate::") and "crate::" not in tree:
             continue
@@ -154,6 +161,10 @@ tmp_self=$(mktemp -d)
 printf 'use crate::services::{auth::{SESSION_COOKIE_NAME}, domain::{bulk::{bulk_insert}}};\n' >"$tmp_self/bad_nested.rs"
 printf 'use crate::models::common::validate_length_field;\n' >>"$tmp_self/bad_nested.rs"
 printf 'use crate::services::domain::bulk::{RowLimit, bulk_insert};\n' >>"$tmp_self/bad_nested.rs"
+# ルート直下の `{...}` (prefix が空) も見逃さない
+printf 'use {crate::config::MAX_CSV_ROWS};\n' >>"$tmp_self/bad_nested.rs"
+# use 木の中のコメントで隠した名前取り込みも見逃さない
+printf 'use crate::services::domain::search_filters::{\n // 検索用\n NO_FIELD\n};\n' >>"$tmp_self/bad_nested.rs"
 printf 'use crate::db;\nuse crate::services::auth;\n' >"$tmp_self/good_module.rs"
 printf 'use crate::db::{Bind, Db};\n' >>"$tmp_self/good_module.rs"
 if bash "$SCRIPT_PATH" "$tmp_self/bad_nested.rs" >/dev/null 2>&1; then

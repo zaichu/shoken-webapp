@@ -70,10 +70,11 @@ mod tests {
         super::AuthenticatedUser,
         crate::{
             config::Config,
-            db::connect_pool_lazy,
+            db,
             errors::ApiError,
             models::user::User,
-            services::auth::{SESSION_COOKIE_NAME, SessionToken},
+            services::auth,
+            services::auth::SessionToken,
             state::{AppState, Secrets},
         },
         axum::extract::FromRequestParts,
@@ -85,7 +86,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_lookup_database_error_is_not_unauthorized() {
-        let pool = connect_pool_lazy(
+        let pool = db::connect_pool_lazy(
             "postgresql://user:password@127.0.0.1:1/test_db?connect_timeout=1",
             1,
         )
@@ -107,7 +108,7 @@ mod tests {
         let request = axum::http::Request::builder()
             .header(
                 axum::http::header::COOKIE,
-                format!("{SESSION_COOKIE_NAME}={}", SessionToken::default()),
+                format!("{}={}", auth::SESSION_COOKIE_NAME, SessionToken::default()),
             )
             .body(())
             .expect("request should be built");
