@@ -13,7 +13,8 @@
 
 ## ホーム(`/`、完成形)
 
-現行見本: `../phase10-redesign/home-mobile.html` / `home-pc.html` と `../phase10-redesign/shots/home-{mobile|pc}-{light|dark}.png`。旧phase8の完成形・状態HTML/PNGは削除済み。
+#1973 で本番に入った画面を正とする。静的見本・スクリーンショットは置かない。
+資産管理・取引明細の見本は [Phase 10](../phase10-redesign/README.md) を参照。
 
 ## 資産管理(`/assetbalance`、完成形)
 
