@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use backend::{
+    cron_log,
     db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},
     models::user::GoogleUserInfo,
     services::{
@@ -135,6 +136,16 @@ async fn fund_price_targets_as(pool: &Db, user_id: UserId) -> Vec<String> {
     .collect()
 }
 
+async fn visible_cache_rows(pool: &Db, code: &str) -> i64 {
+    db::query_scalar::<i64>(
+        "SELECT count(*) FROM public.dividend_per_share_cache WHERE security_code = $1",
+        vec![Bind::from(code)],
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
 async fn owner_pool() -> (Db, Db, Db, impl Drop) {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
@@ -190,6 +201,28 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         1,
     )
     .unwrap();
+    // 本番の障害の再現: RLS が有効でポリシーが無いと、行があっても app_worker からは 0 行に見える。
+    pool.batch_execute(
+        "INSERT INTO public.dividend_per_share_cache (security_code, status) VALUES ('0000', 'ok');
+         DROP POLICY app_worker_shared_read ON public.dividend_per_share_cache;
+         DROP POLICY app_worker_shared_read ON public.market_data_provider_rate_control;
+         DROP POLICY app_worker_shared_read ON public.stock;
+         DROP POLICY app_worker_shared_read ON public.security_prices;
+         DROP POLICY app_worker_shared_read ON public.fund_prices;
+         DROP POLICY app_worker_shared_read ON public.fund_codes",
+    )
+    .await
+    .unwrap();
+    assert_eq!(visible_cache_rows(&worker, "0000").await, 0);
+    pool.batch_execute(include_str!(
+        "../migrations/0036_shared_table_worker_rls.sql"
+    ))
+    .await
+    .expect("RLS 有効化後に共有表 policy を適用");
+    assert_eq!(visible_cache_rows(&worker, "0000").await, 1);
+    pool.batch_execute("DELETE FROM public.dividend_per_share_cache WHERE security_code = '0000'")
+        .await
+        .unwrap();
     let (member, can_set) = db::query(
         "SELECT pg_has_role(current_user, 'app_restricted', 'MEMBER'), pg_has_role(current_user, 'app_restricted', 'SET')",
         vec![],
@@ -272,6 +305,30 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         .await
         .unwrap();
         assert!(readable, "app_worker は {table} を読める");
+        let rls_enabled = db::query_scalar::<bool>(
+            "SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid = $1::regclass",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let policy_count = db::query_scalar::<i64>(
+            "SELECT count(*) FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND tablename = split_part($1, '.', 2) AND policyname = 'app_worker_shared_read' AND roles @> ARRAY['app_worker', 'app_restricted']::name[]",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(rls_enabled, "{table} は RLS 有効");
+        assert!(policy_count > 0, "{table} は RLS ポリシーを持つ");
+        let force_rls = db::query_scalar::<bool>(
+            "SELECT relforcerowsecurity FROM pg_catalog.pg_class WHERE oid = $1::regclass",
+            vec![Bind::from(table)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!force_rls, "{table} は FORCE RLS ではない");
         for privilege in ["INSERT", "UPDATE", "DELETE"] {
             let writable = db::query_scalar::<bool>(
                 "SELECT has_table_privilege('app_worker', $1, $2)",
@@ -283,6 +340,61 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             assert!(!writable, "app_worker は {table} へ {privilege} できない");
         }
     }
+    let personal_table_policy_count = db::query_scalar::<i64>(
+        "SELECT count(*) FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND tablename IN ('asset_balances', 'fund_balances', 'dividends', 'mutualfunds') AND policyname = 'app_worker_shared_read'",
+        vec![],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        personal_table_policy_count, 0,
+        "個人表に共有ポリシーを付けない"
+    );
+    let state_lines: Vec<String> = db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+        .fetch_all::<(String,), _>(&worker)
+        .await
+        .expect("app_worker から接続状態を読める")
+        .into_iter()
+        .map(|(line,)| line)
+        .collect();
+    assert!(
+        state_lines
+            .contains(&"session current_user=app_worker rolbypassrls=false rolsuper=false".into())
+    );
+    for table in [
+        "dividend_per_share_cache",
+        "market_data_provider_rate_control",
+        "stock",
+        "security_prices",
+        "fund_prices",
+        "fund_codes",
+    ] {
+        let expected = format!(
+            "table {table} relrowsecurity=true relforcerowsecurity=false policies=1 select=true"
+        );
+        assert!(
+            state_lines.contains(&expected),
+            "{expected}: {state_lines:?}"
+        );
+    }
+    let functions: Vec<&String> = state_lines
+        .iter()
+        .filter(|line| line.starts_with("function "))
+        .collect();
+    assert_eq!(functions.len(), 8, "{state_lines:?}");
+    assert!(
+        functions
+            .iter()
+            .all(|line| line.ends_with(" owner_bypassrls=true")),
+        "{functions:?}"
+    );
+    assert!(
+        state_lines
+            .iter()
+            .any(|line| line.starts_with("event_triggers count=")),
+        "{state_lines:?}"
+    );
     // 残高ビューは所有者権限で動くため app_worker 直からは読めない。
     // 利用者の残高読み取りは app_restricted 経由(WHERE user_id 付き)の既存経路だけを使う。
     for view in ["public.asset_balances_view", "public.fund_balances_view"] {
