@@ -257,13 +257,23 @@ pub(crate) fn build_dividend_card(
 
 /// 「残り」欄の表示文。受取が予想を超えたとき負の残りではなく
 /// 「予想を N 上回り」に書き分ける
-pub(crate) fn remaining_label(remaining: Option<f64>) -> String {
+pub(crate) fn remaining_label(remaining: Option<f64>) -> (&'static str, String, &'static str) {
     match remaining {
-        Some(value) if value < 0.0 => {
-            labels::home_remaining_over(&asset_balance::format_valuation_amount(Some(-value)))
-        }
-        Some(value) => labels::home_remaining(&asset_balance::format_valuation_amount(Some(value))),
-        None => labels::HOME_REMAINING_EMPTY.to_string(),
+        Some(value) if value < 0.0 => (
+            labels::HOME_REMAINING_OVER_PREFIX,
+            asset_balance::format_valuation_amount(Some(-value)),
+            labels::HOME_REMAINING_OVER_SUFFIX,
+        ),
+        Some(value) => (
+            labels::HOME_REMAINING_PREFIX,
+            asset_balance::format_valuation_amount(Some(value)),
+            "",
+        ),
+        None => (
+            labels::HOME_REMAINING_PREFIX,
+            labels::MISSING.to_string(),
+            "",
+        ),
     }
 }
 

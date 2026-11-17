@@ -93,11 +93,6 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
     }
 }
 
-fn daily_rate_text(market: Option<f64>, daily: Option<f64>) -> String {
-    summary::daily_rate(market, daily)
-        .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1))
-}
-
 #[component]
 fn BandTiles(
     merged: Option<AssetBalanceSummary>,
@@ -130,9 +125,10 @@ fn BandTiles(
             |valuation| asset_balance::format_signed_valuation_amount(valuation.profit_loss.amount),
         )
     };
-    let profit_rate = valuation
+    let profit_rate_value = valuation
         .as_ref()
-        .and_then(|valuation| valuation.profit_loss.rate)
+        .and_then(|valuation| valuation.profit_loss.rate);
+    let profit_rate = profit_rate_value
         .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1));
     let daily_value = daily;
     let daily_text = if loading {
@@ -140,10 +136,12 @@ fn BandTiles(
     } else {
         asset_balance::format_signed_row_valuation_amount(daily_value)
     };
-    let daily_rate = if loading {
+    let daily_rate_value = summary::daily_rate(market_value, daily_value);
+    let daily_rate_text = if loading {
         String::new()
     } else {
-        daily_rate_text(market_value, daily_value)
+        daily_rate_value
+            .map_or_default(|rate| asset_balance::format_signed_valuation_rate(Some(rate), 1))
     };
     let daily_negative = asset_balance::is_negative_valuation(daily_value);
     let daily_positive = asset_balance::is_positive_valuation(daily_value);
@@ -183,6 +181,8 @@ fn BandTiles(
             aux_label=labels::VALUATION_PROFIT_LOSS
             aux_value=profit_text
             aux_rate=profit_rate
+            aux_rate_negative=profit_rate_value.is_some_and(|rate| asset_balance::is_negative_rate(Some(rate)))
+            aux_rate_positive=profit_rate_value.is_some_and(|rate| asset_balance::is_positive_rate(Some(rate)))
             aux_negative=pnl_negative
             aux_positive=pnl_positive
             pc_items=vec![
@@ -191,6 +191,8 @@ fn BandTiles(
                     value: dividend_text.clone(),
                     note: String::new(),
                     tone: SummaryTone::Neutral,
+                    note_negative: false,
+                    note_positive: false,
                     extra_class: String::new(),
                 },
             ]
@@ -200,7 +202,9 @@ fn BandTiles(
                     value: daily_text,
                     negative: daily_negative,
                     positive: daily_positive,
-                    rate: daily_rate,
+                    rate: daily_rate_text,
+                    rate_negative: daily_rate_value.is_some_and(|rate| asset_balance::is_negative_rate(Some(rate))),
+                    rate_positive: daily_rate_value.is_some_and(|rate| asset_balance::is_positive_rate(Some(rate))),
                 },
                 SummaryBreakdownEntry {
                     label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
@@ -208,6 +212,8 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: estimate_pending_text,
+                    rate_negative: false,
+                    rate_positive: false,
                 },
                 SummaryBreakdownEntry {
                     label: labels::TOTAL_ACQUISITION.to_string(),
@@ -215,6 +221,8 @@ fn BandTiles(
                     negative: false,
                     positive: false,
                     rate: String::new(),
+                    rate_negative: false,
+                    rate_positive: false,
                 },
             ]
             testid_toggle="summary-details-toggle"

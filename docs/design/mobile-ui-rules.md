@@ -50,7 +50,7 @@
 | 行 | 全一覧で `ListRow`。行の器は左右16px・上下12px・下に区切り線。口座は `AccountBadge`、日付は2段目の先頭に `M/D`。右端に矢印などの印は付けない。スマホでは行をカードで包まない | `ui/list_row.rs` `ListRow`・`ListRowButton`・`ListRowLink`・`ListRowStatic`・`ListGroupHeader`、`ui/badge.rs` `AccountBadge`、行の器 |
 | 行を押したとき | 保有している物(銘柄・ファンド)は詳細画面へ移る。1回の出来事(入金・売買)はダイアログで開く。その場で展開はしない。全部見えている行(ログイン履歴など)は押せなくてよい | `<a>` + 行の器 / `ui/detail_dialog.rs` `DetailDialog` |
 | リンクとボタン | 3種類だけ: 上バーの枠つき小ボタン、本文内の移動リンク(下線なし・強調色の文字に「→」)、戻る。下線付きリンクは外部サイトへのリンクだけ | `page-secondary-link-sm`、`more-link`(`ui/more_link.rs` `MoreLink`)、`page-back-link`、`ui/security_link.rs` |
-| 数字 | 金額・率は `Amount` と `format.rs` を通す。お金の出入りと損益(配当の受取額・売買の損益・評価損益・前日比)と税の3つ(税引前・税額・税引後)は符号(+/−)と色の両方(緑/赤)で出す。税引前は損益または受取額としてプラスは+¥の緑・マイナスは−¥の赤、税額は出ていくお金として−¥の赤(還付のマイナスの税額は+¥の緑、0は¥0の通常色)、税引後は今のまま。予想額(年間予想配当など)は実際の出入りではないので通常色・符号なしで出す。残高・価格・元になる額(評価額・現在値・取得総額)は通常の文字色で出し、▲▼は使わない。DeltaかPlainかは `AmountKind` で表し、画面ごとに色を書かない。帯の内訳(PCの横並び・スマホの縦リスト)も同じ決まりで出す。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D")。一覧の月の見出しは YYYY年M月 | `ui/amount.rs` `Amount`、`ui/format.rs` |
+| 数字 | 金額・率は `Amount` と `format.rs` を通す。表示値がプラスなら緑、マイナスなら赤、0 は色なしとし、税額・配当・利回りも同じにする。画面ごとの例外は作らず、色判定は `Amount` に集約する。符号は色だけに頼らず +/− も表示する。予想額(年間予想配当など)は符号のない通常値で表示する。▲▼は使わない。帯の内訳(PCの横並び・スマホの縦リスト)も同じ決まりで出す。日付は `format_iso_date`("YYYY/MM/DD")か `format_short_date`("M/D")。一覧の月の見出しは YYYY年M月 | `ui/amount.rs` `Amount`、`ui/format.rs` |
 | 余白 | 文字の左端は画面端から16px。帯・タブ・行は端まで敷き、中の文字だけ16px。`page-gutter` の中にさらに `page-gutter` や余白つきのカードを重ねない | `PageFrame`(`page-gutter`)/`content-gutter` |
 | スクロール | スマホはページ全体(`main.app-scroll`)の1本だけ。本文の内側にスクロール領域を作らない | `PageFrame` |
 | 空・読み込み中・失敗 | 空は `EmptyState`、読み込み中は `ListSkeleton`、失敗は `ListLoadError`(再読み込みつき)。裏の再取得の失敗だけ `Alert` | `ui/empty_state.rs`、`ui/state.rs` |
@@ -87,7 +87,7 @@
 | 切り替え | `ui/segmented.rs` `Segmented` + `segmented`・`segment-option`、条件は `condition-segment`・`condition-option`・`condition-option-list`、年・月は `year-option`、種別タブは `page-tab-list`・`page-tab`・`badge-count`、下線タブの横 swipe は `tab-swipe-area`・`tab-swipe-track`・`tab-swipe-slide`・`tab-swipe-ink` | `Segmented` と条件の切り替えは同じ `segment-option`。`flex-1` は容器側だけに置く |
 | リンク | `ui/more_link.rs` `MoreLink` + `more-link`、上バーの枠つき小は `page-secondary-link-sm`、戻りは `page-back-link`、銘柄は `ui/security_link.rs` `SecurityCodeLink`・`CopyableInstrumentName` + `security-code-link`・`copyable-name`・`copy-icon` | 本文内の移動は `MoreLink` に寄せる。下線付きは外部リンクだけ |
 | バッジの種別 | `ui/badge.rs` `Badge`(`BadgeVariant::Positive`・`Info`・`Accent`・`Danger`・`AccountSpecific`・`AccountGeneral`・`AccountNisa`・`AccountOldNisa`・`Code`・`CodeFlush`・`Count`)・`AccountBadge`・`CodeBadge`。クラスは `badge` + `badge-positive`・`badge-info`・`badge-accent`・`badge-danger`・`badge-account`・`badge-account-specific`・`badge-account-nisa`・`badge-account-old-nisa`・`badge-code`・`badge-code-flush`・`badge-count`。表の薄字コードは `table-code` | 小さな札は `Badge` の種別で表す。角丸・余白の差は variant に集める |
-| 金額の種別 | `ui/amount.rs` `Amount`(`AmountKind::Plain`・`Delta`、`block`)。`Delta` は `text-positive`・`data-negative="true"`、紺帯では明色に寄せる | 出入り・損益・税の3つ(税引前・税額・税引後)だけ `Delta`、残高・価格・元額は `Plain`。画面ごとに色を書かない |
+| 金額・率の色 | `ui/amount.rs` `Amount`(`AmountKind::Plain`・`Delta`、`block`)。正は `text-positive`、負は `data-negative="true"`、0 は無色 | 表示文字列の符号を共通判定する。金額・率とも画面ごとに色を書かない |
 | 保有のタイル | `ui/holding_tiles.rs` `HoldingTiles` + `holding-tiles`・`holding-tile`(`holding-tile-wide` で2列幅)・`holding-tile-label`・`holding-tile-value`。ラベルを上・値を下にしたタイルのグリッド(PC 4列・タブレット 3列・スマホ 2列)。主役(評価額・評価損益)は `wide` で2列幅 | 銘柄画面の保有情報・投資信託の詳細で使う。タイルの並べ方は画面ごとに作らない |
 
 ## 例外として認めるもの

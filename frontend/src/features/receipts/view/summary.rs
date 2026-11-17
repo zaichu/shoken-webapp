@@ -18,18 +18,19 @@ fn is_band_profit(label: &str) -> bool {
     label == labels::DIVIDEND_AMOUNT || label == labels::REALIZED_PROFIT_LOSS
 }
 
-/// 帯の内訳の表示値・正負・PC用の種別。税額は正を「-」・還付(負)を「+」に反転し、0は通常色にする
+/// 帯の内訳の表示値・正負・PC用の種別。税額は出ていくお金として符号を反転する。
+/// 反転後の表示(納税「-」・還付「+」)に合わせて正負と色の種類も付ける
 pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, bool, SummaryTone) {
     let text = settings::format_amount(value);
     if is_band_tax(label) {
         if value > Decimal::ZERO {
-            (format!("-{text}"), false, false, SummaryTone::Neutral)
+            (format!("-{text}"), true, false, SummaryTone::Loss)
         } else if value < Decimal::ZERO {
             (
                 format!("+{}", settings::format_amount(-value)),
                 false,
-                false,
-                SummaryTone::Neutral,
+                true,
+                SummaryTone::Gain,
             )
         } else {
             (text, false, false, SummaryTone::Neutral)
@@ -137,6 +138,8 @@ pub fn SummaryStrip(
             negative,
             positive,
             rate: String::new(),
+            rate_negative: false,
+            rate_positive: false,
         }
     };
     let to_sub = |(label, value, _): (&'static str, Decimal, StatTone)| {
@@ -146,6 +149,8 @@ pub fn SummaryStrip(
             value: text,
             note: String::new(),
             tone,
+            note_negative: false,
+            note_positive: false,
             extra_class: String::new(),
         }
     };

@@ -298,7 +298,7 @@ pub fn ReceiptTable(
                                                                     if bold { " font-bold" } else { "" },
                                                                 )
                                                                 title=text.clone()
-                                                                data-negative=(*label != labels::TAX && negative).then_some("true")
+                                                                data-negative=negative.then_some("true")
                                                             >
                                                                 <Amount
                                                                     kind=kind
@@ -395,7 +395,7 @@ pub fn ReceiptTable(
                                                                             let content = if header == labels::ACCOUNT {
                                                                                 view! { <AccountBadge label=value.clone() /> }
                                                                                     .into_any()
-                                                                            } else if is_trio {
+                                                                            } else {
                                                                                 view! {
                                                                                     <Amount
                                                                                         kind=kind
@@ -405,8 +405,6 @@ pub fn ReceiptTable(
                                                                                     />
                                                                                 }
                                                                                     .into_any()
-                                                                            } else {
-                                                                                text.clone().into_any()
                                                                             };
                                                                             let account_class = if header == labels::ACCOUNT {
                                                                                 " receipt-account-col"
@@ -419,7 +417,7 @@ pub fn ReceiptTable(
                                                                                         "{align}{bold_class}{muted_class}{account_class}",
                                                                                     )
                                                                                     title=title
-                                                                                    data-negative=(header != labels::TAX && negative).then_some("true")
+                                                                                    data-negative=negative.then_some("true")
                                                                                 >
                                                                                     {content}
                                                                                 </td>

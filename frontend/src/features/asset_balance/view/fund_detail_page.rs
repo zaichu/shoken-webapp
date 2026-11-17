@@ -107,6 +107,8 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
                                 let pnl_rate_text =
                                     balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
+                                let pnl_rate_negative = balance_format::is_negative_rate(view.profit_loss_rate);
+                                let pnl_rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
                                 let pnl_negative =
                                     balance_format::is_negative_valuation(Some(view.profit_loss));
                                 let pnl_positive =
@@ -156,7 +158,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                         <div class="p-4">
                                             <HoldingTiles>
                                                 <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
-                                                    <span class="tabular-nums">{market_text}</span>
+                                                    <Amount text=market_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::VALUATION_PROFIT_LOSS.to_string() wide=true>
                                                     <Amount
@@ -166,12 +168,16 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         negative=pnl_negative
                                                         positive=pnl_positive
                                                     />
-                                                    <span class="ml-1 text-cell text-text-muted tabular-nums">
-                                                        {pnl_rate_text}
-                                                    </span>
+                                                    <Amount
+                                                        kind=AmountKind::Delta
+                                                        class="ml-1 text-cell"
+                                                        text=pnl_rate_text
+                                                        negative=pnl_rate_negative
+                                                        positive=pnl_rate_positive
+                                                    />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::BASE_PRICE.to_string()>
-                                                    <span class="tabular-nums">{base_price_text}</span>
+                                                    <Amount text=base_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::BASE_PRICE_DAY_CHANGE.to_string()>
                                                     <Amount
@@ -196,10 +202,10 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     <span class="tabular-nums">{shares_text}</span>
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
-                                                    <span class="tabular-nums">{average_price_text}</span>
+                                                    <Amount text=average_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
-                                                    <span class="tabular-nums">{purchase_text}</span>
+                                                    <Amount text=purchase_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_RETURN.to_string()>
                                                     <Amount

@@ -94,7 +94,11 @@ stop_server() {
 trap stop_server EXIT INT TERM
 
 port_in_use() {
-  (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnH "sport = :$1" | grep -q .
+  else
+    timeout 1 bash -c 'exec 3<>"/dev/tcp/127.0.0.1/$1"' _ "$1" >/dev/null 2>&1
+  fi
 }
 
 # 選んだポートを自分のサーバーが保持しているかを確認する。

@@ -13,6 +13,7 @@ use crate::features::asset_balance::portfolio::{
 use crate::features::asset_balance::store;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
+use crate::ui::amount::Amount;
 use crate::ui::button::TabButton;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
@@ -281,10 +282,10 @@ fn CompositionContent(
                     CompositionGroup::Account => labels::composition_accounts(entries.len()),
                 };
                 view! {
-                    <SkeletonNote note=labels::composition_basis_note(
-                        current_basis.label(),
-                        &balance_format::format_amount(total),
-                    ) />
+                    <SkeletonNote note=labels::composition_basis_note(current_basis.label())>
+                        <Amount text=balance_format::format_amount(total) />
+                        {labels::COMPOSITION_NOTE_SUFFIX}
+                    </SkeletonNote>
                     {if total <= 0.0 {
                         view! {
                             <div class="px-4 py-4">
@@ -303,14 +304,9 @@ fn CompositionContent(
                                     .into_iter()
                                     .map(|row| {
                                         let fill = color_fill_class(row.color);
-                                        let percentage = if row.computable {
-                                            format::format_fixed_percent(row.percentage, 1)
-                                        } else {
-                                            labels::MISSING.to_string()
-                                        };
-                                        let amount = row
-                                            .value
-                                            .map_or_else(|| labels::MISSING.to_string(), format::format_currency);
+                                        let static_computable = row.computable;
+                                        let static_percentage = row.percentage;
+                                        let row_value = row.value;
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -321,9 +317,26 @@ fn CompositionContent(
                                         let row_body = view! {
                                             <ListRow
                                                 name=move || name.clone()
-                                                primary=move || amount.clone()
+                                                primary=move || row_value.map_or_else(
+                                                    || view! { {labels::MISSING} }.into_any(),
+                                                    |value| view! {
+                                                        <Amount
+                                                            text=format::format_currency(value)
+                                                        />
+                                                    }.into_any(),
+                                                )
                                                 meta=move || sub.clone()
-                                                secondary=move || percentage.clone()
+                                                secondary=move || view! {
+                                                    {if static_computable {
+                                                        view! {
+                                                            <Amount
+                                                                text=format::format_fixed_percent(static_percentage, 1)
+                                                            />
+                                                        }.into_any()
+                                                    } else {
+                                                        view! { {labels::MISSING} }.into_any()
+                                                    }}
+                                                }
                                             />
                                             <div class="comp-bar" aria-hidden="true">
                                                 <span
@@ -335,9 +348,7 @@ fn CompositionContent(
                                         let href = row.href.clone();
                                         let static_name = row.name.clone();
                                         let static_sub = row.sub.clone();
-                                        let static_value = row.value;
-                                        let static_computable = row.computable;
-                                        let static_percentage = row.percentage;
+                                        let static_value = row_value;
                                         let static_fill = color_fill_class(row.color);
                                         let static_bar_width = if static_computable {
                                             format!("{}%", static_percentage.min(100.0))
@@ -352,9 +363,20 @@ fn CompositionContent(
                                                 {href.map_or_else(|| view! {
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
-                                                            primary=move || static_value.map_or_else(|| labels::MISSING.to_string(), format::format_currency)
+                                                            primary=move || static_value.map_or_else(
+                                                                || view! { {labels::MISSING} }.into_any(),
+                                                                |value| view! {
+                                                                    <Amount
+                                                                        text=format::format_currency(value)
+                                                                    />
+                                                                }.into_any(),
+                                                            )
                                                             meta=move || static_sub.clone()
-                                                            secondary=move || if static_computable { format::format_fixed_percent(static_percentage, 1) } else { labels::MISSING.to_string() }
+                                                            secondary=move || if static_computable { view! {
+                                                                <Amount
+                                                                    text=format::format_fixed_percent(static_percentage, 1)
+                                                                />
+                                                            }.into_any() } else { view! { {labels::MISSING} }.into_any() }
                                                         />
                                                         <div class="comp-bar" aria-hidden="true">
                                                             <span
@@ -501,7 +523,9 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                                     aria-hidden="true"
                                 />
                                 <span class="comp-legend-name lg:whitespace-normal">{name}</span>
-                                <span class="comp-legend-rate">{rate}</span>
+                                <span class="comp-legend-rate">
+                                    <Amount text=rate />
+                                </span>
                             </li>
                         }
                     })

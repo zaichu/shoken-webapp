@@ -134,7 +134,7 @@ export function assetBalances() {
   const rows = STOCK_NAMES.map((security_name, index) => {
     const shares = stockShares(index);
     const average_purchase_price = decimal(1500, index * 20);
-    const current_price = decimal(1550, index * 21);
+    const current_price = index === 0 ? average_purchase_price - 100 : decimal(1550, index * 21);
     const daily_change = decimal(index % 3 === 0 ? -25 : 20, index * 0.35);
     return {
       id: `asset-balance-${index + 1}`,
@@ -176,7 +176,7 @@ export function fundBalances() {
   const rows = FUND_NAMES.map((fund_name, index) => {
     const shares = fundShares(index);
     const average_purchase_price = decimal(9000, index * 100);
-    const base_price = decimal(9500, index * 110);
+    const base_price = index === 0 ? average_purchase_price - 500 : decimal(9500, index * 110);
     const market_value = Number(((shares * base_price) / 10000).toFixed(2));
     const total_purchase_amount = Number(((shares * average_purchase_price) / 10000).toFixed(2));
     const profit_loss = Number((market_value - total_purchase_amount).toFixed(2));
@@ -266,12 +266,12 @@ export function dividends(year = 2026) {
 export function domesticStockTransactions() {
   const rows = STOCK_NAMES.map((security_name, index) => {
     const shares = stockShares(index);
-    const asked_price = decimal(1750, index * 19);
+    const asked_price = index === 0 ? decimal(1400, 0) : decimal(1750, index * 19);
     const purchase_price = decimal(1500, index * 18);
     const proceeds = Number((shares * asked_price).toFixed(2));
     const realized_profit_and_loss = Number((proceeds - shares * purchase_price).toFixed(2));
     const account = ACCOUNTS[index % ACCOUNTS.length];
-    const taxes = domesticTaxes(account, realized_profit_and_loss);
+    const taxes = index === 0 ? -500 : domesticTaxes(account, realized_profit_and_loss);
     return {
       id: `domestic-stock-${index + 1}`,
       trade_date: settlementDate(index),

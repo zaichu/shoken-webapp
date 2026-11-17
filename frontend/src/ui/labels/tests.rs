@@ -3,17 +3,14 @@ use std::path::{Path, PathBuf};
 
 #[test]
 fn previous_dividend_span_collapses_single_month_and_ends_in_december() {
-    let amount = "123,456";
     for month in [1, 9, 10] {
-        let text = previous_dividend_span(month, amount);
+        let text = previous_dividend_span(month);
         assert!(text.contains(&format!("{}〜12", month + 1)));
-        assert!(text.contains(amount));
     }
-    let single_month = previous_dividend_span(11, amount);
+    let single_month = previous_dividend_span(11);
     assert!(single_month.contains("12"));
-    assert!(single_month.contains(amount));
     assert!(!single_month.contains('〜'));
-    assert_eq!(previous_dividend_span(12, amount), "");
+    assert_eq!(previous_dividend_span(12), "");
 }
 
 fn source_root() -> PathBuf {

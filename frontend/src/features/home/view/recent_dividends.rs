@@ -34,6 +34,9 @@ pub(super) fn home_dividend_dialog_cells(
             label: labels::BEFORE_TAX.to_string(),
             value: gross.0,
             sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative: gross.1,
             positive: gross.2,
             bold: false,
@@ -43,11 +46,14 @@ pub(super) fn home_dividend_dialog_cells(
             label: labels::TAX.to_string(),
             value: tax.0,
             sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
             negative: tax.1,
             positive: tax.2,
             bold: false,
             kind: if tax.1 || tax.2 {
-                AmountKind::NeutralDelta
+                AmountKind::Delta
             } else {
                 AmountKind::Plain
             },

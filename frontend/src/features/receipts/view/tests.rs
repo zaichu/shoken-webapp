@@ -692,7 +692,7 @@ fn dividend_receipt_counts_as_inflow() {
     assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥100"),
-        AmountKind::NeutralDelta
+        AmountKind::Delta
     );
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥0"),
@@ -768,9 +768,9 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
             },
         );
         let expected = if tab == ReceiptsTab::DomesticStock {
-            "税引前 +¥1,000"
+            "+¥1,000"
         } else {
-            "税引前 +¥900"
+            "+¥900"
         };
         assert_eq!(
             before_tax_subtext(tab, &card.details).as_deref(),
@@ -1032,8 +1032,8 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
         );
         assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
         assert!(
-            right[1].kind == AmountKind::NeutralDelta || right[1].kind == AmountKind::Plain,
-            "{tab:?}: 税額は中立色で出す"
+            right[1].kind == AmountKind::Delta || right[1].kind == AmountKind::Plain,
+            "{tab:?}: 税額は符号に応じて色を出す"
         );
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
@@ -1340,14 +1340,14 @@ fn band_breakdown_signs_match_detail_dialog() {
     assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(406));
     assert_eq!(text, "-¥406");
-    assert!(!negative);
+    assert!(negative);
     assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(labels::TAX, dec!(-100));
     assert_eq!(text, "+¥100");
     assert!(!negative);
-    assert!(!positive);
-    assert_eq!(tone, SummaryTone::Neutral);
+    assert!(positive);
+    assert_eq!(tone, SummaryTone::Gain);
     let (text, negative, positive, tone) = band_value(labels::TAX, Decimal::ZERO);
     assert_eq!(text, "¥0");
     assert!(!negative);

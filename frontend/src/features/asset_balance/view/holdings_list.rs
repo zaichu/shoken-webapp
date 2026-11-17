@@ -20,11 +20,6 @@ pub(crate) fn holding_detail_cells(
     let market_text = balance_format::format_row_valuation_amount(valuation.market_value);
     let pnl_text = balance_format::format_signed_row_valuation_amount(valuation.profit_loss.amount);
     let pnl_rate = balance_format::format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-    let pnl_sub = valuation
-        .profit_loss
-        .rate
-        .map(|_| format!("{pnl_text} {pnl_rate}"))
-        .or_else(|| valuation.profit_loss.amount.map(|_| pnl_text.clone()));
     let pnl_negative = balance_format::is_negative_valuation(valuation.profit_loss.amount);
     let pnl_positive = balance_format::is_positive_valuation(valuation.profit_loss.amount);
     let (day_text, day_negative, day_positive) = (
@@ -54,19 +49,44 @@ pub(crate) fn holding_detail_cells(
             day_positive,
         ),
         DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
-        DetailCell::plain(labels::ACQUISITION_YIELD.to_string(), yield_text),
-        DetailCell::plain(labels::PER_SHARE_DIVIDEND.to_string(), per_share),
+        DetailCell {
+            label: labels::ACQUISITION_YIELD.to_string(),
+            value: yield_text,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: balance_format::is_negative_rate(dividend.yield_value),
+            positive: balance_format::is_positive_rate(dividend.yield_value),
+            bold: false,
+            kind: AmountKind::Delta,
+        },
+        DetailCell {
+            label: labels::PER_SHARE_DIVIDEND.to_string(),
+            value: per_share,
+            sub: None,
+            sub_rate: None,
+            sub_rate_negative: false,
+            sub_rate_positive: false,
+            negative: balance_format::is_negative_rate(dividend.per_share),
+            positive: balance_format::is_positive_rate(dividend.per_share),
+            bold: false,
+            kind: AmountKind::Delta,
+        },
     ];
-    let market_cell = match pnl_sub {
-        Some(sub) => DetailCell::strong_sub(
+    let mut market_cell = match valuation.profit_loss.amount {
+        Some(_) => DetailCell::strong_sub(
             labels::MARKET_VALUE.to_string(),
             market_text,
-            sub,
+            pnl_text,
             pnl_negative,
             pnl_positive,
         ),
         None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
     };
+    market_cell.sub_rate = valuation.profit_loss.rate.map(|_| pnl_rate);
+    market_cell.sub_rate_negative = balance_format::is_negative_rate(valuation.profit_loss.rate);
+    market_cell.sub_rate_positive = balance_format::is_positive_rate(valuation.profit_loss.rate);
     let right = vec![
         DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
