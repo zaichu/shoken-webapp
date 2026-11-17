@@ -24,8 +24,7 @@ use crate::features::asset_balance::fund::{AssetKind, AssetSearch, FundSortKey, 
 use crate::features::asset_balance::lookup::AssetBalanceLookupStore;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::asset_balance::store::csv::{
-    AssetBalanceCsvStore, asset_balance_counts, fund_balance_counts, resolve_asset_balance,
-    resolve_fund_balance,
+    AssetBalanceCsvStore, resolve_asset_balance, resolve_fund_balance,
 };
 use crate::features::asset_balance::store::{
     BalanceSlot, DataOps, FundSlot, has_current_balances, load_asset_balances, load_fund_balances,
@@ -297,21 +296,7 @@ pub fn AssetBalancePage() -> impl IntoView {
         prev_kind.set(next);
         search.update(|search| *search = text_only_search(search));
     });
-    // タブの件数表示用。タブ行をページレベルで描くためここで算出
-    let stock_count = Signal::derive(move || {
-        let generation = rail_session.generation.get();
-        balances
-            .with(|slot| asset_balance_counts(generation, slot))
-            .map_or(0, |(rows_len, _)| rows_len)
-    });
-    let fund_count = Signal::derive(move || {
-        let generation = rail_session.generation.get();
-        funds
-            .with(|slot| fund_balance_counts(generation, slot))
-            .map_or(0, |(rows_len, total)| {
-                summary::fund_tab_count(rows_len, total)
-            })
-    });
+    // タブ行をページレベルで描く
     if session.user.get_untracked().is_some()
         && has_current_balances(
             &balances.get_untracked(),
@@ -365,13 +350,7 @@ pub fn AssetBalancePage() -> impl IntoView {
             {/* タブ行: 固定上部 */}
             <div class="content-gutter no-print">
                 <SkeletonTabs>
-                    <AssetKindTabs
-                        kind=state.kind
-                        all_count=Signal::derive(move || stock_count.get() + fund_count.get())
-                        stock_count=stock_count
-                        fund_count=fund_count
-                        motion=motion
-                    />
+                    <AssetKindTabs kind=state.kind motion=motion />
                 </SkeletonTabs>
             </div>
             {/* 本文: スクロール可能。スマホ幅では横スワイプでタブを切り替える */}
