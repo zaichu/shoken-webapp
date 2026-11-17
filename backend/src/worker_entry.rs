@@ -10,8 +10,11 @@ use worker::*;
 
 use crate::{
     config::{self, Config},
-    cron_log::{CronStep, CronTimer, format_cron_noop, format_cron_step},
-    handlers,
+    cron_log::{
+        CronStep, CronTimer, DB_ACCESS_STATE_SQL, format_cron_noop, format_cron_step,
+        should_log_db_access_at,
+    },
+    db, handlers,
     middleware::{add_security_headers, binding_rate_limit, validate_origin},
     services::{
         auth, dividend_cache, fund_price, jquants, jquants::JQuantsClient, login_event,
@@ -256,6 +259,9 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             return;
         }
     };
+    if should_log_db_access_at(event.schedule()) {
+        log_db_access_state(&state).await;
+    }
     let mut ran = false;
     {
         let timer = CronTimer::start();
@@ -319,6 +325,20 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     }
     if !ran {
         console_log!("{}", format_cron_noop(total.elapsed_ms()));
+    }
+}
+
+async fn log_db_access_state(state: &AppState) {
+    match db::query(DB_ACCESS_STATE_SQL, vec![])
+        .fetch_all::<(String,), _>(&state.pool)
+        .await
+    {
+        Ok(lines) => {
+            for (line,) in lines {
+                console_log!("cron db access: {line}");
+            }
+        }
+        Err(_) => console_log!("cron db access: inspection failed"),
     }
 }
 

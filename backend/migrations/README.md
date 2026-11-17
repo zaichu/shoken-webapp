@@ -32,7 +32,7 @@ migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` �
 
 ## _sqlx_migrations 履歴の扱い
 
-`run_migrations` は `_sqlx_migrations` の履歴が現行ファイル(`0000〜0035`)と
+`run_migrations` は `_sqlx_migrations` の履歴が現行ファイル(`0000〜0036`)と
 一致することを前提にする。一致しない履歴(対応するファイルが無い version、
 適用済み内容が現行ファイルと異なる version)がある DB では、状態と対処
 (`make db-reset` で作り直し)を示してエラーで停止する。履歴の書き換えはしない。
