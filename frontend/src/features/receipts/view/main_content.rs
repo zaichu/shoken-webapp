@@ -243,9 +243,11 @@ pub fn ReceiptsMainContent(
                 .into_any()
         }}
         {move || (store.active_tab.get() == tab).then(|| view! {
-            <SkeletonTabs><div class="lg:hidden">
-                <ReceiptsTabNav store=store motion=motion suffix="-mobile" />
-            </div></SkeletonTabs>
+            <div class="lg:hidden">
+                <SkeletonTabs>
+                    <ReceiptsTabNav store=store motion=motion suffix="-mobile" />
+                </SkeletonTabs>
+            </div>
         })}
         {move || {
             let ready = tab_state.with(|state| matches!(state, TabState::Ready(_))) && !is_empty.get();
