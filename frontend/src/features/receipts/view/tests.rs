@@ -688,7 +688,7 @@ fn dividend_receipt_counts_as_inflow() {
     assert!(!is_profit_label(ReceiptsTab::DomesticStock, "税額"));
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥100"),
-        AmountKind::Delta
+        AmountKind::NeutralDelta
     );
     assert_eq!(
         amount_kind_for_label(ReceiptsTab::Dividend, "税額", "¥0"),
@@ -989,9 +989,21 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
             }
         }
         assert!(right[2].bold, "{tab:?}: 税引後は太字");
-        assert!(right[2].delta, "{tab:?}: 税引後は損益として符号と色");
-        assert!(right[0].delta, "{tab:?}: 税引前は損益として符号と色");
+        assert_eq!(
+            right[2].kind,
+            AmountKind::Delta,
+            "{tab:?}: 税引後は損益として符号と色"
+        );
+        assert_eq!(
+            right[0].kind,
+            AmountKind::Delta,
+            "{tab:?}: 税引前は損益として符号と色"
+        );
         assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
+        assert!(
+            right[1].kind == AmountKind::NeutralDelta || right[1].kind == AmountKind::Plain,
+            "{tab:?}: 税額は中立色で出す"
+        );
         let (hero, _, _, _) = detail_value(&card, "税引後");
         assert!(!hero.is_empty(), "{tab:?}: 行の主役が無い");
         assert_eq!(right[2].value, hero, "{tab:?}: ダイアログは行と同じ基準");
@@ -1133,7 +1145,7 @@ fn profit_positive_gets_plus_and_green_only_for_profit_labels() {
     assert_eq!(tax_text, "-¥203");
     assert!(tax_negative);
     assert!(!tax_positive);
-    assert!(tax_profit);
+    assert!(!tax_profit);
 }
 
 #[test]
@@ -1169,7 +1181,7 @@ fn tax_zero_uses_plain_and_refund_uses_plus() {
     assert_eq!(refund_text, "+¥100");
     assert!(!refund_negative);
     assert!(refund_positive);
-    assert!(refund_profit);
+    assert!(!refund_profit);
 }
 
 #[test]
@@ -1196,7 +1208,7 @@ fn before_tax_loss_uses_minus_and_delta() {
         .find(|cell| cell.label == "税引前")
         .expect("税引前がある");
     assert_eq!(before.value, "-¥1,000");
-    assert!(before.delta);
+    assert_eq!(before.kind, AmountKind::Delta);
     assert!(before.negative);
 }
 
@@ -1223,7 +1235,7 @@ fn dividend_receipt_gets_plus_as_inflow() {
     assert_eq!(tax_text, "-¥100");
     assert!(tax_negative);
     assert!(!tax_positive);
-    assert!(tax_profit);
+    assert!(!tax_profit);
 }
 
 #[test]
@@ -1291,14 +1303,14 @@ fn band_breakdown_signs_match_detail_dialog() {
     assert_eq!(tone, SummaryTone::Loss);
     let (text, negative, positive, tone) = band_value(TAX, dec!(406));
     assert_eq!(text, "-¥406");
-    assert!(negative);
+    assert!(!negative);
     assert!(!positive);
-    assert_eq!(tone, SummaryTone::Loss);
+    assert_eq!(tone, SummaryTone::Neutral);
     let (text, negative, positive, tone) = band_value(TAX, dec!(-100));
     assert_eq!(text, "+¥100");
     assert!(!negative);
-    assert!(positive);
-    assert_eq!(tone, SummaryTone::Gain);
+    assert!(!positive);
+    assert_eq!(tone, SummaryTone::Neutral);
     let (text, negative, positive, tone) = band_value(TAX, Decimal::ZERO);
     assert_eq!(text, "¥0");
     assert!(!negative);

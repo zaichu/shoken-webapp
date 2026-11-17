@@ -185,7 +185,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             negative: month_negative,
             positive: month_positive,
             bold: false,
-            delta: true,
+            kind: AmountKind::Delta,
         },
         DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
         DetailCell::plain(labels::DISTRIBUTION.to_string(), course_text),
@@ -284,6 +284,7 @@ mod tests {
     use super::fund_detail_cells;
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
+    use crate::ui::amount::AmountKind;
     use crate::ui::labels;
 
     fn sample_fund() -> FundView {
@@ -354,7 +355,7 @@ mod tests {
         view.base_price_month_change = Some(-30.0);
         let (left, _) = fund_detail_cells(&view);
         let month = &left[1];
-        assert!(month.delta);
+        assert_eq!(month.kind, AmountKind::Delta);
         assert!(month.negative);
         assert!(!month.positive);
         assert!(month.value.starts_with('-'));

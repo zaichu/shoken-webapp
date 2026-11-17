@@ -6,6 +6,7 @@ use super::recent_dividends::{
 };
 use crate::api::dto::Dividend;
 use crate::features::home::model::CompositionSlice;
+use crate::ui::amount::AmountKind;
 use crate::ui::labels::ACCOUNT_SPECIFIC_GENERAL;
 
 fn composition_slice(label: &str, amount: f64) -> CompositionSlice {
@@ -108,7 +109,7 @@ fn dividend_dialog_shows_signed_trio() {
         .find(|cell| cell.label == "税引前")
         .expect("ダイアログに税引前がある");
     assert_eq!(before_tax.value, "+¥2,000");
-    assert!(before_tax.delta);
+    assert_eq!(before_tax.kind, AmountKind::Delta);
     assert!(!before_tax.negative);
     assert!(before_tax.positive);
     let tax = right
@@ -116,7 +117,7 @@ fn dividend_dialog_shows_signed_trio() {
         .find(|cell| cell.label == "税額")
         .expect("ダイアログに税額がある");
     assert_eq!(tax.value, "-¥406");
-    assert!(tax.delta);
+    assert_eq!(tax.kind, AmountKind::NeutralDelta);
     assert!(tax.negative);
     assert!(!tax.positive);
     let net = right
@@ -124,7 +125,7 @@ fn dividend_dialog_shows_signed_trio() {
         .find(|cell| cell.label == "税引後")
         .expect("ダイアログに税引後がある");
     assert_eq!(net.value, "+¥1,594");
-    assert!(net.delta);
+    assert_eq!(net.kind, AmountKind::Delta);
 }
 
 #[test]
@@ -142,7 +143,7 @@ fn dividend_dialog_tax_zero_uses_plain() {
         .find(|cell| cell.label == "税額")
         .expect("ダイアログに税額がある");
     assert_eq!(tax.value, "¥0");
-    assert!(!tax.delta);
+    assert_eq!(tax.kind, AmountKind::Plain);
     assert!(!tax.negative);
     assert!(!tax.positive);
 }
@@ -162,7 +163,7 @@ fn dividend_dialog_tax_refund_uses_plus() {
         .find(|cell| cell.label == "税額")
         .expect("ダイアログに税額がある");
     assert_eq!(tax.value, "+¥100");
-    assert!(tax.delta);
+    assert_eq!(tax.kind, AmountKind::NeutralDelta);
     assert!(!tax.negative);
     assert!(tax.positive);
 }

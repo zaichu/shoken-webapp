@@ -14,7 +14,7 @@ pub struct DetailCell {
     pub negative: bool,
     pub positive: bool,
     pub bold: bool,
-    pub delta: bool,
+    pub kind: AmountKind,
 }
 
 impl DetailCell {
@@ -26,7 +26,7 @@ impl DetailCell {
             negative: false,
             positive: false,
             bold: false,
-            delta: false,
+            kind: AmountKind::Plain,
         }
     }
 
@@ -44,7 +44,7 @@ impl DetailCell {
             negative,
             positive,
             bold: false,
-            delta: false,
+            kind: AmountKind::Plain,
         }
     }
 
@@ -62,7 +62,7 @@ impl DetailCell {
             negative,
             positive,
             bold: true,
-            delta: false,
+            kind: AmountKind::Plain,
         }
     }
 
@@ -71,7 +71,7 @@ impl DetailCell {
         value: String,
         negative: bool,
         positive: bool,
-        delta: bool,
+        kind: AmountKind,
     ) -> Self {
         Self {
             label,
@@ -80,17 +80,13 @@ impl DetailCell {
             negative,
             positive,
             bold: true,
-            delta,
+            kind,
         }
     }
 }
 
 fn detail_value(cell: &DetailCell) -> AnyView {
-    let kind = if cell.delta {
-        AmountKind::Delta
-    } else {
-        AmountKind::Plain
-    };
+    let kind = cell.kind;
     let class = if cell.bold { "font-bold" } else { "" };
     view! {
         <Amount
@@ -218,11 +214,12 @@ pub fn DetailDialog(
 #[cfg(test)]
 mod tests {
     use super::DetailCell;
+    use crate::ui::amount::AmountKind;
 
     #[test]
     fn plain_cell_has_no_delta_or_bold() {
         let cell = DetailCell::plain("口座".to_string(), "特定".to_string());
-        assert!(!cell.delta);
+        assert_eq!(cell.kind, AmountKind::Plain);
         assert!(!cell.bold);
         assert!(cell.sub.is_none());
     }
@@ -236,7 +233,7 @@ mod tests {
             false,
             true,
         );
-        assert!(!cell.delta);
+        assert_eq!(cell.kind, AmountKind::Plain);
         assert!(!cell.bold);
         assert_eq!(cell.sub.as_deref(), Some("+¥10,000"));
         assert!(cell.positive);
@@ -249,10 +246,10 @@ mod tests {
             "¥1,594".to_string(),
             false,
             false,
-            false,
+            AmountKind::Plain,
         );
         assert!(cell.bold);
-        assert!(!cell.delta);
+        assert_eq!(cell.kind, AmountKind::Plain);
     }
 
     #[test]
@@ -265,7 +262,7 @@ mod tests {
             false,
         );
         assert!(cell.bold);
-        assert!(!cell.delta);
+        assert_eq!(cell.kind, AmountKind::Plain);
         assert!(cell.negative);
     }
 }

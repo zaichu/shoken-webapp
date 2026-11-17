@@ -25,13 +25,13 @@ pub(crate) fn band_value(label: &'static str, value: Decimal) -> (String, bool, 
     let text = format_amount(value);
     if is_band_tax(label) {
         if value > Decimal::ZERO {
-            (format!("-{text}"), true, false, SummaryTone::Loss)
+            (format!("-{text}"), false, false, SummaryTone::Neutral)
         } else if value < Decimal::ZERO {
             (
                 format!("+{}", format_amount(-value)),
                 false,
-                true,
-                SummaryTone::Gain,
+                false,
+                SummaryTone::Neutral,
             )
         } else {
             (text, false, false, SummaryTone::Neutral)
@@ -71,7 +71,7 @@ pub fn header_summary(
         .into_iter()
         .enumerate()
         .map(|(index, (label, marks_profit))| {
-            let tone = if marks_profit {
+            let tone = if label != TAX && marks_profit {
                 profit_tone(values[index])
             } else {
                 StatTone::Neutral

@@ -34,7 +34,7 @@ pub(super) fn home_dividend_dialog_cells(
             negative: gross.1,
             positive: gross.2,
             bold: false,
-            delta: true,
+            kind: AmountKind::Delta,
         },
         DetailCell {
             label: labels::TAX.to_string(),
@@ -43,9 +43,19 @@ pub(super) fn home_dividend_dialog_cells(
             negative: tax.1,
             positive: tax.2,
             bold: false,
-            delta: tax.1 || tax.2,
+            kind: if tax.1 || tax.2 {
+                AmountKind::NeutralDelta
+            } else {
+                AmountKind::Plain
+            },
         },
-        DetailCell::strong(labels::AFTER_TAX.to_string(), net.0, net.1, net.2, true),
+        DetailCell::strong(
+            labels::AFTER_TAX.to_string(),
+            net.0,
+            net.1,
+            net.2,
+            AmountKind::Delta,
+        ),
     ];
     (left, right)
 }

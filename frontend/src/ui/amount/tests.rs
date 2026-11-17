@@ -41,6 +41,13 @@ fn plain_amount_never_colors_green_or_negative() {
 }
 
 #[test]
+fn neutral_delta_keeps_sign_without_negative_color() {
+    let class = amount_classes(AmountKind::NeutralDelta, true, false, "");
+    assert!(class.contains("text-text-soft"));
+    assert_eq!(amount_negative_attr(AmountKind::NeutralDelta, true), None);
+}
+
+#[test]
 fn unit_stays_in_same_nowrap_chunk() {
     let class = amount_classes(AmountKind::Plain, false, false, "");
     assert!(class.contains("whitespace-nowrap"));

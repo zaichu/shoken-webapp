@@ -379,7 +379,6 @@ pub const COMPOSITION_LEGEND_MAX: usize = 5;
 /// 区分色は商品・口座名、または保有商品の識別子に固定する
 /// 表外はホーム内訳帯のフォールバックとそろえ、同じキーなら同じ色にする
 const FALLBACK_CHART_COLORS: [usize; 5] = [0, 1, 2, 4, 5];
-
 pub fn composition_color(key: &str) -> usize {
     match key {
         DOMESTIC_STOCK | ACCOUNT_SPECIFIC => 0,

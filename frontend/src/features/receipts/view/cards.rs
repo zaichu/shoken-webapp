@@ -20,7 +20,6 @@ use leptos::prelude::*;
 use std::collections::HashSet;
 
 // 税引前(配当金・実現損益・ダイアログの税引前)と税引後はお金の出入りとして Delta。
-// 税額は出ていくお金として符号を反転し、0 のときだけ Plain にする
 pub(crate) fn is_profit_label(_tab: ReceiptsTab, label: &str) -> bool {
     matches!(
         label,
@@ -121,7 +120,7 @@ pub(crate) fn signed_text_for_profit(tab: ReceiptsTab, label: &str, value: &str)
 pub(crate) fn amount_kind_for_label(tab: ReceiptsTab, label: &str, value: &str) -> AmountKind {
     if is_tax_label(label) {
         if is_positive_text(value) || is_negative_text(value) {
-            return AmountKind::Delta;
+            return AmountKind::NeutralDelta;
         }
         return AmountKind::Plain;
     }
@@ -187,7 +186,7 @@ pub(crate) fn card_detail_value(
         CardDetailValue::Text {
             negative: is_negative_labeled_value(tab, label, &raw),
             positive: is_positive_labeled_value(tab, label, &raw),
-            is_profit: amount_kind_for_label(tab, label, &raw) == AmountKind::Delta,
+            is_profit: is_profit_label(tab, label),
             text,
         }
     }
@@ -346,7 +345,7 @@ pub(crate) fn receipt_detail_cells(
                 negative: gross_neg,
                 positive: gross_pos,
                 bold: false,
-                delta: true,
+                kind: AmountKind::Delta,
             },
             DetailCell {
                 label: TAX.to_string(),
@@ -355,9 +354,19 @@ pub(crate) fn receipt_detail_cells(
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
-                delta: tax_neg || tax_pos,
+                kind: if tax_neg || tax_pos {
+                    AmountKind::NeutralDelta
+                } else {
+                    AmountKind::Plain
+                },
             },
-            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+            DetailCell::strong(
+                AFTER_TAX.to_string(),
+                net,
+                net_neg,
+                net_pos,
+                AmountKind::Delta,
+            ),
         ];
         (left, right)
     } else {
@@ -385,7 +394,7 @@ pub(crate) fn receipt_detail_cells(
                 negative: pnl_neg,
                 positive: pnl_pos,
                 bold: false,
-                delta: true,
+                kind: AmountKind::Delta,
             },
             DetailCell {
                 label: TAX.to_string(),
@@ -394,9 +403,19 @@ pub(crate) fn receipt_detail_cells(
                 negative: tax_neg,
                 positive: tax_pos,
                 bold: false,
-                delta: tax_neg || tax_pos,
+                kind: if tax_neg || tax_pos {
+                    AmountKind::NeutralDelta
+                } else {
+                    AmountKind::Plain
+                },
             },
-            DetailCell::strong(AFTER_TAX.to_string(), net, net_neg, net_pos, true),
+            DetailCell::strong(
+                AFTER_TAX.to_string(),
+                net,
+                net_neg,
+                net_pos,
+                AmountKind::Delta,
+            ),
         ];
         (left, right)
     }
