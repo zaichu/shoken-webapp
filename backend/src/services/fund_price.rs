@@ -182,11 +182,7 @@ async fn fetch_fund_nav(
         let body = worker::send::SendFuture::new(response.text())
             .await
             .unwrap_or_default();
-        worker::console_warn!(
-            "投信情報APIエラー: status={}, cd={}",
-            status,
-            association_fund_cd
-        );
+        worker::console_warn!("投信情報APIエラー: status={}", status);
         return Err(nav_status_error(status, body));
     }
 
