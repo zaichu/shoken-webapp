@@ -25,11 +25,43 @@ fi
 # 文字列合成のため静的検索では拾えないが、Rust テストが対応を保証する
 TEST_BACKED='^(receipt-tier-|receipt-span-|comp-slice-|comp-bar-fill|comp-legend-dot)'
 
+# CSS のブロックコメント(/* ... */、複数行も)を取り除く。
+# コメント内の .rs などの文字列をクラス定義と誤認しないため
+strip_css_comments() {
+  perl -0777 -pe 's{/\*.*?\*/}{}gs'
+}
+
 # data-testid/testid の値を取り除く(同名の testid があっても使用中とは数えない)
 strip_testids() {
   sed -E -e 's/(data-)?testid="[^"]*"//g' \
     -e "s/(data-)?testid='[^']*'//g" \
-    -e 's/(data-)?testid=\{[^}]*\}//g' "$1"
+    -e 's/(data-)?testid=\{[^}]*\}//g'
+}
+
+# Rust のコメントを取り除く。行コメント(// ...)と RSX 内の {/* ... */} が対象。
+# 通常の文字列リテラル内の // (URL など)は残す。raw string は src/ に無いため対象外
+strip_rs_comments() {
+  perl -ne '
+    BEGIN { $q = 0 }
+    @c = split //, $_;
+    $out = "";
+    for ($i = 0; $i < @c; $i++) {
+      if ($q) {
+        $out .= $c[$i];
+        if ($c[$i] eq "\\") { $i++; $out .= $c[$i] if $i < @c; }
+        elsif ($c[$i] eq "\"") { $q = 0; }
+      } else {
+        if ($c[$i] eq "\"") { $q = 1; $out .= $c[$i]; }
+        elsif ($c[$i] eq "/" && $i + 1 < @c && $c[$i + 1] eq "/") { last; }
+        elsif ($c[$i] eq "/" && $i + 1 < @c && $c[$i + 1] eq "*") {
+          $i += 2;
+          while ($i < @c && !($c[$i] eq "*" && $i + 1 < @c && $c[$i + 1] eq "/")) { $i++; }
+          $i++;
+        } else { $out .= $c[$i]; }
+      }
+    }
+    print $out;
+  '
 }
 
 check_unused() {
@@ -38,9 +70,9 @@ check_unused() {
   local defined corpus tmp_corpus
   tmp_corpus=$(mktemp)
   for file in "$@"; do
-    strip_testids "$file" >>"$tmp_corpus"
+    strip_rs_comments <"$file" | strip_testids >>"$tmp_corpus"
   done
-  defined=$(grep -oE '\.[a-z][a-z0-9_-]*' "$css" | sed 's/^\.//' | sort -u)
+  defined=$(strip_css_comments <"$css" | grep -oE '\.[a-z][a-z0-9_-]*' | sed 's/^\.//' | sort -u)
   local fail=0 class
   for class in $defined; do
     if grep -Eq "$TEST_BACKED" <<<"$class"; then
@@ -64,11 +96,12 @@ if [ "$#" -eq 0 ]; then
   [ "$status" -ne 0 ] && exit "$status"
 
   # 自己テスト: testid のみの一致は未使用、class=/class:/format! の静的部分は使用中、
-  # テスト保証の動的クラスは対象外
+  # テスト保証の動的クラスは対象外。CSS/Rust のコメントは無視する
   tmp_invalid=$(mktemp -d)
-  printf '.used-basic{color:red}.unused-gone{color:red}.testid-only{color:red}.used-directive{color:red}.used-format{color:red}.receipt-tier-fixture{color:red}\n' >"$tmp_invalid/check.css"
+  printf '/* See component.rs for .commented-gone */\n.used-basic{color:red}.unused-gone{color:red}.testid-only{color:red}.used-directive{color:red}.used-format{color:red}.gone-widget{color:red}.receipt-tier-fixture{color:red}\n' >"$tmp_invalid/check.css"
   cat >"$tmp_invalid/check.rs" <<'EOF'
 view! {
+  // gone-widget was deleted
   <div class="used-basic">
     <span data-testid="testid-only">x</span>
     <div class:used-directive=flag />
@@ -89,13 +122,13 @@ EOF
     echo "ERROR: 未使用クラス検査の自己テストが exit 1 になりません" >&2
     exit 1
   fi
-  for expected in '.unused-gone' '.testid-only'; do
+  for expected in '.unused-gone' '.testid-only' '.gone-widget'; do
     if ! grep -Fq "$expected" <<<"$invalid_output"; then
       echo "ERROR: 未使用クラス検査の自己テストが $expected を検出しません" >&2
       exit 1
     fi
   done
-  for unexpected in '.used-basic' '.used-directive' '.used-format' '.receipt-tier-fixture'; do
+  for unexpected in '.used-basic' '.used-directive' '.used-format' '.receipt-tier-fixture' '.commented-gone' '.rs'; do
     if grep -Fq "$unexpected" <<<"$invalid_output"; then
       echo "ERROR: 未使用クラス検査が使用中の $unexpected を未使用としました" >&2
       exit 1
@@ -104,8 +137,8 @@ EOF
   echo "  OK: 違反fixtureの自己テスト"
 
   tmp_valid=$(mktemp -d)
-  printf '.ok-one{color:red}\n' >"$tmp_valid/check.css"
-  printf '<div class="ok-one">x</div>\n' >"$tmp_valid/check.rs"
+  printf '/* See component.rs for details */\n.ok-one{color:red}\n' >"$tmp_valid/check.css"
+  printf 'let url = "https://example.com/x";\n<div class="ok-one">x</div>\n' >"$tmp_valid/check.rs"
   valid_output=""
   if ! valid_output=$(bash "$SCRIPT_PATH" "$tmp_valid/check.css" "$tmp_valid/check.rs" 2>&1); then
     echo "ERROR: 未使用クラス検査が使用中クラスを誤検知しました" >&2
