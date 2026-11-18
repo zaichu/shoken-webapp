@@ -39,14 +39,14 @@ pub fn Amount(
     let text = move || text.get();
     if block {
         view! {
-            <p class=classes data-negative=negative_attr>
+            <p class=classes data-amount="" data-negative=negative_attr>
                 {text}
             </p>
         }
         .into_any()
     } else {
         view! {
-            <span class=classes data-negative=negative_attr>
+            <span class=classes data-amount="" data-negative=negative_attr>
                 {text}
             </span>
         }

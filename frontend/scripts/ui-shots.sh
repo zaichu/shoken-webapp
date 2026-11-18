@@ -27,6 +27,9 @@ usage() {
   --viewports <幅一覧>   撮る幅を絞る(latest の既定: 390,1280,1920。PR 確認用は既定で全幅)
   --shots-branch <名>    画像を置くブランチ(既定: screenshots。push 動作の検証用に一時名を指定できる)
   --no-push              画像を push しない(撮るだけ。--cleanup-pr とは併用不可)
+  --numerals <候補|all>  数字と記号の書体比較(#2042)。Amount の書体だけを候補に替えて撮る
+                         (inter,roboto,manrope,figtree,barlow か all)。画像名に候補名を前置し、
+                         字形見本と拡大画像も撮る。指定しなければ従来どおり
   -h, --help             この説明を表示する
 EOF
 }
@@ -39,6 +42,7 @@ PR_NUMBER=""
 VIEWPORTS=""
 SHOTS_BRANCH="screenshots"
 PUSH=1
+NUMERALS=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --cleanup-pr)
@@ -64,6 +68,10 @@ while [ "$#" -gt 0 ]; do
     --no-push)
       PUSH=0
       shift
+      ;;
+    --numerals)
+      NUMERALS="$2"
+      shift 2
       ;;
     -h | --help)
       usage
@@ -267,6 +275,9 @@ build_and_shoot() {
   if [ -n "$VIEWPORTS" ]; then
     SHOOT_ARGS+=(--viewports "$VIEWPORTS")
   fi
+  if [ -n "$NUMERALS" ]; then
+    SHOOT_ARGS+=(--numerals "$NUMERALS")
+  fi
   node scripts/ui-shots/shoot.mjs "${SHOOT_ARGS[@]}"
 
   stop_server
@@ -336,6 +347,14 @@ if ! git diff --cached --quiet; then
   git commit -m "pr${PR_NUMBER}: ${NAME} のスクリーンショット(${SIDE})"
 fi
 SHA="$(push_shots)" || exit 1
+
+if [ -n "$NUMERALS" ]; then
+  # 候補名を前置した画像は前後比較の表に当てはまらないため、置き場所だけ出す
+  echo "==> 書体比較の画像: pr${PR_NUMBER}/${SIDE}/ (screenshots ${SHA})"
+  cd "$REPO_ROOT"
+  git worktree remove "$SHOTS_DIR"
+  exit 0
+fi
 
 echo "==> Markdown($MARKDOWN_FILE にも出しました)"
 node "$FRONTEND_DIR/scripts/ui-shots/markdown.mjs" \

@@ -1,0 +1,114 @@
+[
+  {
+    "key": "inter",
+    "label": "Shoken Numerals A",
+    "source": "Inter",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/inter/Inter[opsz,wght].ttf",
+    "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+    "axes": {
+      "opsz": 14,
+      "wght": [
+        400,
+        700
+      ]
+    },
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "inter.woff2",
+    "license": "OFL-inter.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/inter/OFL.txt"
+  },
+  {
+    "key": "roboto",
+    "label": "Shoken Numerals B",
+    "source": "Roboto",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/roboto/Roboto[wdth,wght].ttf",
+    "sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+    "axes": {
+      "wdth": 100,
+      "wght": [
+        400,
+        700
+      ]
+    },
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "roboto.woff2",
+    "license": "OFL-roboto.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/roboto/OFL.txt"
+  },
+  {
+    "key": "manrope",
+    "label": "Shoken Numerals C",
+    "source": "Manrope",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/manrope/Manrope[wght].ttf",
+    "sha256": "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
+    "axes": {
+      "wght": [
+        400,
+        700
+      ]
+    },
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "manrope.woff2",
+    "license": "OFL-manrope.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/manrope/OFL.txt"
+  },
+  {
+    "key": "figtree",
+    "label": "Shoken Numerals D",
+    "source": "Figtree",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/figtree/Figtree[wght].ttf",
+    "sha256": "26ad3db9b31ff7dde67a91ff515d022d2f495cd506590699cf264f0bfe6fb714",
+    "axes": {
+      "wght": [
+        400,
+        700
+      ]
+    },
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "figtree.woff2",
+    "license": "OFL-figtree.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/figtree/OFL.txt"
+  },
+  {
+    "key": "barlow",
+    "label": "Shoken Numerals E",
+    "source": "Barlow",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/barlow/Barlow-Regular.ttf",
+    "sha256": "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
+    "axes": {},
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "barlow-400.woff2",
+    "license": "OFL-barlow.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/barlow/OFL.txt"
+  },
+  {
+    "key": "barlow",
+    "label": "Shoken Numerals E",
+    "source": "Barlow",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/barlow/Barlow-Bold.ttf",
+    "sha256": "84e6a4d61e7c3e21f3c50ea6a4f7e5303a3467864c038be6ea3759bab8d547f9",
+    "axes": {},
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "barlow-700.woff2",
+    "license": "OFL-barlow.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/barlow/OFL.txt"
+  }
+]
