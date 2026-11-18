@@ -12,6 +12,7 @@ use crate::features::receipts::{ReceiptCell, ReceiptRow, ReceiptsTab};
 use crate::ui::amount::Amount;
 use crate::ui::badge::AccountBadge;
 use crate::ui::labels;
+use crate::ui::receipts::{ReceiptMobileCardList, ReceiptTableBody, ReceiptTableGroupCount};
 use crate::ui::security_link::{CopyableInstrumentName, TableSecurityCode};
 use leptos::prelude::*;
 use std::collections::HashSet;
@@ -209,7 +210,7 @@ pub fn ReceiptTable(
     };
     view! {
         <div class=surface_class data-testid="receipt-table-card">
-            <div class="p-0" data-testid="receipt-table-body">
+            <ReceiptTableBody>
                 <div class=desktop_class>
                     <div class=table_card_class>
                         <table class=table_class>
@@ -266,9 +267,9 @@ pub fn ReceiptTable(
                                                                 )
                                                             >
                                                                 <span class="font-bold">{group.label.clone()}</span>
-                                                                <span class="ml-2 font-normal">
-                                                                    {format!("· {}", labels::count(count))}
-                                                                </span>
+                                                                <ReceiptTableGroupCount
+                                                                    text=format!("· {}", labels::count(count))
+                                                                />
                                                             </td>
                                                         }
                                                     })
@@ -461,7 +462,7 @@ pub fn ReceiptTable(
                         .into_any()
                     } else {
                         view! {
-                            <div class="space-y-3 p-2">
+                            <ReceiptMobileCardList>
                                 {card_groups
                                     .into_iter()
                                     .map(|(group_index, key, label, count, summary, cards)| {
@@ -479,12 +480,12 @@ pub fn ReceiptTable(
                                         }
                                     })
                                     .collect_view()}
-                            </div>
+                            </ReceiptMobileCardList>
                         }
                         .into_any()
                     }}
                 </div>
-            </div>
+            </ReceiptTableBody>
         </div>
     }
 }

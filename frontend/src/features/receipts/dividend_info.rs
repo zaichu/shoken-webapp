@@ -8,12 +8,16 @@ use crate::session::{Generation, SessionStore};
 use crate::settings;
 use crate::support::list_search;
 use crate::support::list_search::group_key;
-use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::amount::Amount;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::card::{Card, CardVariant};
 use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::format;
 use crate::ui::labels;
+use crate::ui::receipts::{
+    DividendStatCard, DividendStatGrid, DividendSummaryBody, DividendSummaryTitle,
+    DividendTotalCard, DividendTotalGrid,
+};
 use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
@@ -194,35 +198,6 @@ fn AssetBadge() -> impl IntoView {
 }
 
 #[component]
-fn StatCard(
-    label: &'static str,
-    children: Children,
-    /// 非活性時の案内文。title_hint 指定時は値のツールチップにも使う
-    #[prop(optional_no_strip)]
-    hint: Option<Signal<Option<&'static str>>>,
-    #[prop(optional)] title_hint: bool,
-) -> impl IntoView {
-    view! {
-        <Card variant=CardVariant::Sunken>
-            <p class="text-cell font-medium text-text-muted mb-1">{label}</p>
-            <p
-                class="text-summary-secondary font-bold tabular-nums text-text-deep"
-                title=move || {
-                    title_hint.then(|| hint.and_then(|hint| hint.get())).flatten()
-                }
-            >
-                {children()}
-            </p>
-            {move || {
-                hint.and_then(|hint| hint.get()).map(|text| {
-                    view! { <p class="mt-0.5 text-cell text-text-subtle">{text}</p> }
-                })
-            }}
-        </Card>
-    }
-}
-
-#[component]
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Leptos component props are owned by the view"
@@ -260,97 +235,69 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
 
     view! {
         <div>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <StatCard
+            <DividendStatGrid>
+                <DividendStatCard
                     label=labels::AVERAGE_PRICE
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     <Amount text=Signal::derive(average_price_text) />
-                </StatCard>
-                <StatCard
+                </DividendStatCard>
+                <DividendStatCard
                     label=labels::QUANTITY
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     {shares_text}
-                </StatCard>
-                <StatCard
+                </DividendStatCard>
+                <DividendStatCard
                     label=labels::PER_SHARE_DIVIDEND
                     hint=Some(Signal::derive(move || {
                         (!loading() && per_share().is_none()).then_some(labels::DIVIDEND_AUTO_HINT)
                     }))
                 >
                     <Amount text=Signal::derive(per_share_text) />
-                </StatCard>
-            </div>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mt-4 pt-4 border-t border-border-subtle">
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{labels::DIVIDEND_AMOUNT_AND_YIELD}</p>
-                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        <Amount
-                            kind=AmountKind::Delta
-                            text=settings::format_amount(totals.total_dividends_before_tax)
-                            negative=gross_negative
-                            positive=gross_positive
-                        />
-                        {move || {
-                            let rate = gross_rate();
-                            (rate != 0.0).then(|| {
-                                view! {
-                                    " ("
-                                    <Amount
-                                        kind=AmountKind::Delta
-                                        class="text-cell font-normal ml-1"
-                                        text=format::format_percentage_value(rate)
-                                        negative=rate.is_sign_negative()
-                                        positive=rate.is_sign_positive()
-                                    />
-                                    ")"
-                                }
-                            })
-                        }}
-                    </p>
-                </Card>
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{labels::TAX}</p>
-                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        <Amount
-                            kind=AmountKind::Delta
-                            text=settings::format_amount(totals.total_taxes)
-                            negative=tax_negative
-                            positive=tax_positive
-                        />
-                    </p>
-                </Card>
-                <Card variant=CardVariant::Sunken>
-                    <p class="text-cell font-medium text-text-muted mb-1">{labels::AFTER_TAX_AND_YIELD}</p>
-                    <p class="text-summary-secondary font-bold tabular-nums text-ink">
-                        <Amount
-                            kind=AmountKind::Delta
-                            text=settings::format_amount(totals.total_net_amount_received)
-                            negative=net_negative
-                            positive=net_positive
-                        />
-                        {move || {
-                            let rate = net_rate();
-                            (rate != 0.0).then(|| {
-                                view! {
-                                    " ("
-                                    <Amount
-                                        kind=AmountKind::Delta
-                                        class="text-cell font-normal ml-1"
-                                        text=format::format_percentage_value(rate)
-                                        negative=rate.is_sign_negative()
-                                        positive=rate.is_sign_positive()
-                                    />
-                                    ")"
-                                }
-                            })
-                        }}
-                    </p>
-                </Card>
-            </div>
+                </DividendStatCard>
+            </DividendStatGrid>
+            <DividendTotalGrid>
+                <DividendTotalCard
+                    label=labels::DIVIDEND_AMOUNT_AND_YIELD
+                    text=settings::format_amount(totals.total_dividends_before_tax)
+                    negative=gross_negative
+                    positive=gross_positive
+                    rate=Signal::derive(move || {
+                        let rate = gross_rate();
+                        (rate != 0.0)
+                            .then(|| (
+                                format::format_percentage_value(rate),
+                                rate.is_sign_negative(),
+                                rate.is_sign_positive(),
+                            ))
+                    })
+                />
+                <DividendTotalCard
+                    label=labels::TAX
+                    text=settings::format_amount(totals.total_taxes)
+                    negative=tax_negative
+                    positive=tax_positive
+                    rate=Signal::derive(|| None)
+                />
+                <DividendTotalCard
+                    label=labels::AFTER_TAX_AND_YIELD
+                    text=settings::format_amount(totals.total_net_amount_received)
+                    negative=net_negative
+                    positive=net_positive
+                    rate=Signal::derive(move || {
+                        let rate = net_rate();
+                        (rate != 0.0)
+                            .then(|| (
+                                format::format_percentage_value(rate),
+                                rate.is_sign_negative(),
+                                rate.is_sign_positive(),
+                            ))
+                    })
+                />
+            </DividendTotalGrid>
         </div>
     }
 }
@@ -389,14 +336,14 @@ pub(crate) fn DividendSummarySection(
                     hint=true
                     on_toggle=move || expanded.update(bool::toggle)
                 >
-                    <div class="flex items-center gap-2">
+                    <DividendSummaryTitle>
                         <h2 class="text-heading font-black text-ink">{title}</h2>
                         {move || store.asset_balance.get().is_some().then(AssetBadge)}
-                    </div>
+                    </DividendSummaryTitle>
                 </DisclosureToggle>
-                <div id="receipt-summary-body" hidden=move || !expanded.get() class="pt-3">
+                <DividendSummaryBody expanded=expanded>
                     <DividendInfo store=store totals=totals.clone() />
-                </div>
+                </DividendSummaryBody>
             </div>
         </Card>
     }
