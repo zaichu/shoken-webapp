@@ -402,8 +402,8 @@ fn FoundBody(
     dividends: RwSignal<DividendMaps>,
 ) -> impl IntoView {
     view! {
-        {holding.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
         <StockInfo stock=stock />
+        {holding.map(|group| view! { <HoldingSection group=group dividends=dividends /> })}
     }
 }
 
