@@ -247,11 +247,6 @@ async function swipe(
   await touchEnd(page, testid, toX, toY ?? y);
 }
 
-function parseTranslateXPercent(transform: string): number | null {
-  const match = /translateX\((-?\d+(?:\.\d+)?)%\)/.exec(transform);
-  return match ? Number(match[1]) : null;
-}
-
 async function activeSlideTransform(
   page: Page,
   testid: string,
@@ -363,12 +358,61 @@ async function mobileTabStrip(page: Page, testid: string) {
   }, testid);
 }
 
-async function inkPercent(page: Page, testid: string): Promise<number | null> {
-  // PC 用とスマホ用の下線が両方あるため、見えている側を読む
-  const transform = await page
-    .locator(`[data-testid="${testid}"] .tab-swipe-tabs .tab-swipe-ink`)
-    .evaluate((element) => (element as HTMLElement).style.transform);
-  return parseTranslateXPercent(transform);
+async function inkGeometry(page: Page, testid: string) {
+  return page.getByTestId(testid).evaluate((stage) => {
+    const tabs = stage.querySelector('.tab-swipe-tabs');
+    const list = tabs?.querySelector('[role="tablist"]');
+    const ink = tabs?.querySelector('.tab-swipe-ink');
+    const tabElements = list ? Array.from(list.querySelectorAll('[role="tab"]')) : [];
+    const box = (element: Element | null | undefined) => {
+      if (!(element instanceof HTMLElement)) {
+        return null;
+      }
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, width: rect.width };
+    };
+    const slide = stage.querySelector('.tab-swipe-slide[data-active="true"]');
+    const track = stage.querySelector('.tab-swipe-track');
+    const slideDx =
+      slide instanceof HTMLElement
+        ? (() => {
+            const match = /translateX\((-?\d+(?:\.\d+)?)px\)/.exec(slide.style.transform);
+            return match ? Number(match[1]) : null;
+          })()
+        : null;
+    return {
+      tabs: tabElements.map(box),
+      ink: box(ink),
+      inkVisible:
+        ink instanceof HTMLElement &&
+        ink.offsetParent !== null &&
+        getComputedStyle(ink).display !== 'none',
+      slideDx,
+      // 進み具合の分母は面の幅(トラック)。段階の幅とは padding が違うため区別する
+      trackWidth: track instanceof HTMLElement ? track.clientWidth : null,
+    };
+  });
+}
+
+// 指を止めたまま追従が描画されるのを待つ。スライドの移動と下線の配置が両方載るまで待つ
+async function waitForDragUnderline(page: Page, testid: string) {
+  await page.waitForFunction((id) => {
+    const stage = document.querySelector(`[data-testid="${id}"]`);
+    const slide = stage?.querySelector('.tab-swipe-slide[data-active="true"]');
+    const ink = stage?.querySelector('.tab-swipe-tabs .tab-swipe-ink');
+    return (
+      slide instanceof HTMLElement &&
+      slide.style.transform !== '' &&
+      slide.style.transform !== 'translateX(0px)' &&
+      ink instanceof HTMLElement &&
+      ink.dataset.on === 'true' &&
+      ink.style.left !== ''
+    );
+  }, testid);
+  // 反映の順序ずれを吸うため2フレーム待つ
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
 }
 
 // スワイプ中の下線の見え方。選択中タブ側の下線(::after)は隠れ、
@@ -719,20 +763,18 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    const before = await inkPercent(page, 'assetbalance-main-stage');
+    const before = await inkGeometry(page, 'assetbalance-main-stage');
+    expect(before.inkVisible).toBe(false);
 
     await touchStart(page, 'assetbalance-main-stage', 300, 400);
     await touchMove(page, 'assetbalance-main-stage', 190, 400);
-    await page.waitForFunction(() => {
-      const ink = document.querySelector('.tab-swipe-ink');
-      return (
-        ink instanceof HTMLElement && ink.dataset.on === 'true'
-      );
-    });
-    const during = await inkPercent(page, 'assetbalance-main-stage');
-    expect(during).not.toBeNull();
-    expect(before).not.toBeNull();
-    expect(during as number).toBeGreaterThan(before as number);
+    await waitForDragUnderline(page, 'assetbalance-main-stage');
+    const during = await inkGeometry(page, 'assetbalance-main-stage');
+    expect(during.inkVisible).toBe(true);
+    expect(during.tabs[0]).not.toBeNull();
+    expect(during.ink).not.toBeNull();
+    // 左スワイプ(次へ)では下線が今のタブから右へ進む
+    expect(during.ink?.x ?? 0).toBeGreaterThan(during.tabs[0]?.x ?? 0);
 
     await touchEnd(page, 'assetbalance-main-stage', 190, 400);
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
@@ -752,7 +794,7 @@ test.describe('下線タブの横スワイプ', () => {
 
     await touchStart(page, 'assetbalance-main-stage', 300, 400);
     await touchMove(page, 'assetbalance-main-stage', 190, 400);
-    await waitForDrag(page, 'assetbalance-main-stage');
+    await waitForDragUnderline(page, 'assetbalance-main-stage');
     const mid = await swipeUnderlineState(page, 'assetbalance-main-stage');
     // 選択中タブ側の下線は隠れ、指に追従する1本だけが残る。色は通常の下線と同じ青
     expect(mid.inkCount).toBe(1);
@@ -762,6 +804,28 @@ test.describe('下線タブの横スワイプ', () => {
       mid.tabAfterDisplay === 'none' || mid.tabAfterContent === 'none',
       '選択中タブ側の下線は出ない',
     ).toBe(true);
+    // 下線は今のタブから隣のタブへ補間された位置・幅にある(±1px)
+    const shape = await inkGeometry(page, 'assetbalance-main-stage');
+    const frac = Math.min(Math.max(-(shape.slideDx ?? 0) / (shape.trackWidth ?? 1), 0), 1);
+    const from = shape.tabs[0];
+    const to = shape.tabs[1];
+    expect(from).not.toBeNull();
+    expect(to).not.toBeNull();
+    expect(shape.ink).not.toBeNull();
+    expect(
+      Math.abs(
+        (shape.ink?.x ?? 0) -
+          ((from?.x ?? 0) + ((to?.x ?? 0) - (from?.x ?? 0)) * frac),
+      ),
+      '下線の左端はタブ間を補間した位置',
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(
+        (shape.ink?.width ?? 0) -
+          ((from?.width ?? 0) + ((to?.width ?? 0) - (from?.width ?? 0)) * frac),
+      ),
+      '下線の幅はタブ間を補間した幅',
+    ).toBeLessThanOrEqual(1);
 
     await touchMove(page, 'assetbalance-main-stage', 90, 400);
     await touchEnd(page, 'assetbalance-main-stage', 90, 400);
@@ -790,7 +854,7 @@ test.describe('下線タブの横スワイプ', () => {
 
     await touchStart(page, 'receipts-workspace', 300, 400);
     await touchMove(page, 'receipts-workspace', 190, 400);
-    await waitForDrag(page, 'receipts-workspace');
+    await waitForDragUnderline(page, 'receipts-workspace');
     const mid = await swipeUnderlineState(page, 'receipts-workspace');
     expect(mid.inkCount).toBe(1);
     expect(mid.inkBackground).toBe(rest.listAfterColor);
@@ -799,6 +863,28 @@ test.describe('下線タブの横スワイプ', () => {
       mid.tabAfterDisplay === 'none' || mid.tabAfterContent === 'none',
       '選択中タブ側の下線は出ない',
     ).toBe(true);
+    // 下線は今のタブから隣のタブへ補間された位置・幅にある(±1px)
+    const shape = await inkGeometry(page, 'receipts-workspace');
+    const frac = Math.min(Math.max(-(shape.slideDx ?? 0) / (shape.trackWidth ?? 1), 0), 1);
+    const from = shape.tabs[0];
+    const to = shape.tabs[1];
+    expect(from).not.toBeNull();
+    expect(to).not.toBeNull();
+    expect(shape.ink).not.toBeNull();
+    expect(
+      Math.abs(
+        (shape.ink?.x ?? 0) -
+          ((from?.x ?? 0) + ((to?.x ?? 0) - (from?.x ?? 0)) * frac),
+      ),
+      '下線の左端はタブ間を補間した位置',
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(
+        (shape.ink?.width ?? 0) -
+          ((from?.width ?? 0) + ((to?.width ?? 0) - (from?.width ?? 0)) * frac),
+      ),
+      '下線の幅はタブ間を補間した幅',
+    ).toBeLessThanOrEqual(1);
 
     await touchMove(page, 'receipts-workspace', 90, 400);
     await touchEnd(page, 'receipts-workspace', 90, 400);

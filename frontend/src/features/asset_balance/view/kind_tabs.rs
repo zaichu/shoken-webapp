@@ -24,6 +24,22 @@ pub(crate) fn AssetKindTabs(
     #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
     let suffix = suffix.unwrap_or("");
+    let list = NodeRef::<leptos::html::Div>::new();
+    {
+        let position = kind;
+        let follow = motion;
+        Effect::new(move || {
+            let selected = AssetKind::ALL
+                .iter()
+                .position(|item| *item == position.get())
+                .unwrap_or(0);
+            let progress = follow.progress.get();
+            let _dragging = follow.dragging.get();
+            if let Some(list) = list.get() {
+                underline_tabs::place_ink(&list, selected, progress);
+            }
+        });
+    }
     view! {
         <div
             class="page-tab-list no-print relative"
@@ -31,6 +47,7 @@ pub(crate) fn AssetKindTabs(
             aria-label=labels::ASSET_KIND_TABS_LABEL
             data-testid=format!("asset-kind-tabs{suffix}")
             data-swiping=move || motion.dragging.get().to_string()
+            node_ref=list
         >
             {AssetKind::ALL
                 .into_iter()
@@ -79,17 +96,6 @@ pub(crate) fn AssetKindTabs(
             <span
                 class="tab-swipe-ink"
                 data-on=move || motion.dragging.get().to_string()
-                style:width=format!("calc(100% / {})", AssetKind::ALL.len())
-                style:transform=move || {
-                    let position = AssetKind::ALL
-                        .iter()
-                        .position(|item| *item == kind.get())
-                        .unwrap_or(0);
-                    format!(
-                        "translateX({}%)",
-                        underline_tabs::tab_ink_offset(position, motion.progress.get()) * 100.0
-                    )
-                }
             ></span>
         </div>
     }

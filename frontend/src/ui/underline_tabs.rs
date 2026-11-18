@@ -199,9 +199,49 @@ pub fn swipe_commit_index(
     }
 }
 
-/// 下線の滑り量(タブ何個分)。指の進み具合そのまま
-pub fn tab_ink_offset(current: usize, progress: f64) -> f64 {
-    current.to_f64().unwrap_or(f64::MAX) + progress.clamp(-1.0, 1.0)
+/// 指に追従する下線(ink)を実測のタブ位置へ置く。タブ行の padding や gap があっても
+/// 選択中の下線(`.page-tab-list::after`)とずれないよう、左端と幅を隣との間で補間する
+pub fn place_ink(list: &web_sys::HtmlElement, current: usize, progress: f64) {
+    let Some(ink) = list
+        .query_selector(".tab-swipe-ink")
+        .ok()
+        .flatten()
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+    else {
+        return;
+    };
+    let tabs = list.query_selector_all(".page-tab").map_or_default(|all| {
+        (0..all.length())
+            .filter_map(|index| all.item(index))
+            .filter_map(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+            .collect::<Vec<_>>()
+    });
+    if tabs.is_empty() {
+        return;
+    }
+    let current = current.min(tabs.len() - 1);
+    let neighbor = if progress > 0.0 {
+        (current + 1).min(tabs.len() - 1)
+    } else if progress < 0.0 {
+        current.saturating_sub(1)
+    } else {
+        current
+    };
+    let rate = progress.abs().clamp(0.0, 1.0);
+    let rect_of = |tab: &web_sys::HtmlElement| {
+        let rect = tab.get_bounding_client_rect();
+        (rect.x(), rect.width())
+    };
+    let (from_x, from_width) = rect_of(&tabs[current]);
+    let (to_x, to_width) = rect_of(&tabs[neighbor]);
+    if from_width <= 0.0 || to_width <= 0.0 {
+        return;
+    }
+    let list_x = list.get_bounding_client_rect().x();
+    let left = from_x + (to_x - from_x) * rate - list_x;
+    let width = from_width + (to_width - from_width) * rate;
+    let _ = ink.style().set_property("left", &format!("{left}px"));
+    let _ = ink.style().set_property("width", &format!("{width}px"));
 }
 
 /// タブ番号方向の進み具合。左スワイプ(指は負)を正(次へ)で表す
