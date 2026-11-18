@@ -139,20 +139,6 @@ fn fund_summary(
     )
 }
 
-#[component]
-fn EmptyAssetPanel() -> impl IntoView {
-    view! { <AssetEmptyPanel /> }
-}
-
-/// 検索で全行が消えたときの表示
-#[component]
-fn EmptyFilteredPanel(
-    title: &'static str,
-    on_clear: impl Fn() + Copy + Send + Sync + 'static,
-) -> impl IntoView {
-    view! { <AssetFilteredEmpty title=title on_clear=on_clear /> }
-}
-
 /// 検索で全行が消えたときの文面。3タブで同じ文言を使う
 const EMPTY_FILTERED_TITLE: &str = labels::NO_MATCH_TITLE;
 
@@ -160,7 +146,7 @@ const EMPTY_FILTERED_TITLE: &str = labels::NO_MATCH_TITLE;
 #[component]
 fn EmptyFilteredSearch(search: RwSignal<AssetSearch>) -> impl IntoView {
     view! {
-        <EmptyFilteredPanel
+        <AssetFilteredEmpty
             title=EMPTY_FILTERED_TITLE
             on_clear=move || {
                 search.update(|search| *search = AssetSearch::default());
@@ -223,7 +209,7 @@ fn StockContent(
         (values, tags, purchase)
     });
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-stock-list">
             {move || {
                 (!empty).then(|| {
@@ -355,7 +341,7 @@ fn FundContent(
     let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
     let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-fund-list">
             {(!empty).then(|| view! {
                 <>
@@ -539,7 +525,7 @@ fn AllContent(
     let account_options = Memo::new(|_| Vec::<String>::new());
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-all-list">
             {(!empty).then(|| view! {
                 <>
