@@ -79,13 +79,13 @@ erDiagram
 
 根拠:
 
-- [backend/migrations/0001_users.sql:3](../../backend/migrations/0001_users.sql#L3)、[backend/migrations/0002_sessions.sql:3](../../backend/migrations/0002_sessions.sql#L3)、[同:26](../../backend/migrations/0002_sessions.sql#L26): ユーザーとセッションの列・制約。
-- [backend/migrations/0003_dividends.sql:3](../../backend/migrations/0003_dividends.sql#L3)、[同:47](../../backend/migrations/0003_dividends.sql#L47): 配当明細と所有者。
-- [backend/migrations/0004_domestic_stocks.sql:3](../../backend/migrations/0004_domestic_stocks.sql#L3)、[同:48](../../backend/migrations/0004_domestic_stocks.sql#L48): 国内株式取引と所有者。
-- [backend/migrations/0005_mutualfunds.sql:3](../../backend/migrations/0005_mutualfunds.sql#L3)、[同:47](../../backend/migrations/0005_mutualfunds.sql#L47): 投資信託取引と所有者。
-- [backend/migrations/0006_asset_balances.sql:3](../../backend/migrations/0006_asset_balances.sql#L3)、[同:32](../../backend/migrations/0006_asset_balances.sql#L32)、[backend/migrations/0014_asset_balances_account.sql:4](../../backend/migrations/0014_asset_balances_account.sql#L4): 国内株式残高と後から追加された口座区分。
-- [backend/migrations/0011_fund_balances.sql:4](../../backend/migrations/0011_fund_balances.sql#L4)、[同:40](../../backend/migrations/0011_fund_balances.sql#L40): 投資信託残高と所有者。
-- [backend/migrations/0017_csv_import_history.sql:1](../../backend/migrations/0017_csv_import_history.sql#L1): ユーザー・CSV種類の複合主キーと所有者。
+- [backend/migrations/0101_users_and_auth.sql:5](../../backend/migrations/0101_users_and_auth.sql#L5)、[backend/migrations/0101_users_and_auth.sql:30](../../backend/migrations/0101_users_and_auth.sql#L30)、[同:38](../../backend/migrations/0101_users_and_auth.sql#L38): ユーザーとセッションの列・制約。
+- [backend/migrations/0102_transactions.sql:4](../../backend/migrations/0102_transactions.sql#L4)、[同:20](../../backend/migrations/0102_transactions.sql#L20): 配当明細と所有者。
+- [backend/migrations/0102_transactions.sql:41](../../backend/migrations/0102_transactions.sql#L41)、[同:61](../../backend/migrations/0102_transactions.sql#L61): 国内株式取引と所有者。
+- [backend/migrations/0102_transactions.sql:81](../../backend/migrations/0102_transactions.sql#L81)、[同:100](../../backend/migrations/0102_transactions.sql#L100): 投資信託取引と所有者。
+- [backend/migrations/0104_holdings.sql:5](../../backend/migrations/0104_holdings.sql#L5)、[同:19](../../backend/migrations/0104_holdings.sql#L19)、[backend/migrations/0104_holdings.sql:17](../../backend/migrations/0104_holdings.sql#L17): 国内株式残高と後から追加された口座区分。
+- [backend/migrations/0104_holdings.sql:67](../../backend/migrations/0104_holdings.sql#L67)、[同:88](../../backend/migrations/0104_holdings.sql#L88): 投資信託残高と所有者。
+- [backend/migrations/0102_transactions.sql:120](../../backend/migrations/0102_transactions.sql#L120): ユーザー・CSV種類の複合主キーと所有者。
 
 セッションのハッシュ計算・保存は [backend/src/services/auth.rs:28](../../backend/src/services/auth.rs#L28)、[同:153](../../backend/src/services/auth.rs#L153) を参照。
 
@@ -100,7 +100,7 @@ erDiagram
 | `fund_balances` | CSVで受け取った投資信託残高。ファンド名・口座・分配金コースなどを持つ |
 | `csv_import_history` | ユーザー・CSV種類ごとの最終取り込み成功時刻。全取込の履歴一覧ではない |
 
-`asset_balances` の一意性は [0014_asset_balances_account.sql:12](../../backend/migrations/0014_asset_balances_account.sql#L12) にある。`fund_balances` に同じ形の複合一意制約はないため、同じキー構造として扱わない。
+`asset_balances` の一意性は [0104_holdings.sql:24](../../backend/migrations/0104_holdings.sql#L24) にある。`fund_balances` に同じ形の複合一意制約はないため、同じキー構造として扱わない。
 
 ## 全ユーザーで共有するデータ
 
@@ -146,9 +146,9 @@ erDiagram
 
 根拠:
 
-- [backend/migrations/0007_stock.sql:3](../../backend/migrations/0007_stock.sql#L3)、[backend/migrations/0010_security_prices.sql:3](../../backend/migrations/0010_security_prices.sql#L3): 銘柄マスタと共有株価。
-- [backend/migrations/0008_dividend_per_share_cache.sql:3](../../backend/migrations/0008_dividend_per_share_cache.sql#L3)、[backend/migrations/0009_market_data_provider_rate_control.sql:3](../../backend/migrations/0009_market_data_provider_rate_control.sql#L3): 1株配当とAPI呼出間隔。
-- [backend/migrations/0013_fund_nav.sql:29](../../backend/migrations/0013_fund_nav.sql#L29)、[同:269](../../backend/migrations/0013_fund_nav.sql#L269)、[backend/migrations/0015_fund_nav_fetch_status.sql:5](../../backend/migrations/0015_fund_nav_fetch_status.sql#L5): ファンド名対応表、共有基準価額、取得失敗の列。
+- [backend/migrations/0103_shared_masters_and_caches.sql:7](../../backend/migrations/0103_shared_masters_and_caches.sql#L7)、[backend/migrations/0103_shared_masters_and_caches.sql:27](../../backend/migrations/0103_shared_masters_and_caches.sql#L27): 銘柄マスタと共有株価。
+- [backend/migrations/0103_shared_masters_and_caches.sql:336](../../backend/migrations/0103_shared_masters_and_caches.sql#L336)、[backend/migrations/0103_shared_masters_and_caches.sql:358](../../backend/migrations/0103_shared_masters_and_caches.sql#L358): 1株配当とAPI呼出間隔。
+- [backend/migrations/0103_shared_masters_and_caches.sql:68](../../backend/migrations/0103_shared_masters_and_caches.sql#L68)、[同:313](../../backend/migrations/0103_shared_masters_and_caches.sql#L313)、[backend/migrations/0103_shared_masters_and_caches.sql:319](../../backend/migrations/0103_shared_masters_and_caches.sql#L319): ファンド名対応表、共有基準価額、取得失敗の列。
 
 | 表 | 主な役割 |
 | --- | --- |
@@ -180,11 +180,11 @@ flowchart LR
 
 根拠:
 
-- [backend/migrations/0014_asset_balances_account.sql:16](../../backend/migrations/0014_asset_balances_account.sql#L16): 国内株式ビューの最新定義と `security_code` による結合。
-- [backend/migrations/0013_fund_nav.sql:281](../../backend/migrations/0013_fund_nav.sql#L281)、[同:294](../../backend/migrations/0013_fund_nav.sql#L294)、[同:324](../../backend/migrations/0013_fund_nav.sql#L324): ファンド名正規化と2段の結合。
+- [backend/migrations/0104_holdings.sql:39](../../backend/migrations/0104_holdings.sql#L39): 国内株式ビューの最新定義と `security_code` による結合。
+- [backend/migrations/0104_holdings.sql:86](../../backend/migrations/0104_holdings.sql#L86)、[同:114](../../backend/migrations/0104_holdings.sql#L114)、[同:144](../../backend/migrations/0104_holdings.sql#L144): ファンド名正規化と2段の結合。
 
 国内株式は共有価格に基準日があれば共有値を使い、それ以外は本人のCSV値を使う。投資信託は共有値の基準日とCSVの取込時刻などで採用元を決め、`price_source`（採用元）と `nav_is_latest`（前日比を最新として表示できるか）も返す。
-投資信託ビューの詳しい条件は [0013_fund_nav.sql:318](../../backend/migrations/0013_fund_nav.sql#L318) を参照。単に「APIがあれば常に優先」とは扱わない。
+投資信託ビューの詳しい条件は [0104_holdings.sql:138](../../backend/migrations/0104_holdings.sql#L138) を参照。単に「APIがあれば常に優先」とは扱わない。
 
 ## 未確認
 
@@ -194,5 +194,4 @@ flowchart LR
 ## 文書との食い違い
 
 - [docs/db-design.md:19](../db-design.md#L19) のテーブル一覧には、`0011`以降で追加された `fund_balances`・`fund_codes`・`fund_prices`・`fund_balances_view`・`csv_import_history` が載っていない。本資料では実際の追加SQLも対象とした。
-- 同文書の「派生値は保存しない」は、すべての表の列に一律には当てはまらない。`fund_balances` はCSV由来の `market_value`・`profit_loss` なども保存し、共有値採用時はビューで計算する（[0011_fund_balances.sql:16](../../backend/migrations/0011_fund_balances.sql#L16)、[0013_fund_nav.sql:341](../../backend/migrations/0013_fund_nav.sql#L341)）。
-- [docs/architecture.md:68](../architecture.md#L68) のbaseline範囲は `0000〜0009`、[backend/migrations/README.md:11](../../backend/migrations/README.md#L11) は `0000〜0010`。現在の登録対象は `0000〜0017`（[backend/src/db/migrate.rs:15](../../backend/src/db/migrate.rs#L15)）。baselineとその後の追加を区別して読む。
+- 同文書の「派生値は保存しない」は、すべての表の列に一律には当てはまらない。`fund_balances` はCSV由来の `market_value`・`profit_loss` なども保存し、共有値採用時はビューで計算する（[0104_holdings.sql:79](../../backend/migrations/0104_holdings.sql#L79)、[0104_holdings.sql:161](../../backend/migrations/0104_holdings.sql#L161)）。

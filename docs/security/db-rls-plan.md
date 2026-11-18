@@ -119,7 +119,7 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 
 ## 8. 第一段階の記録(#1675)
 
-- `backend/migrations/0023_csv_import_history_rls.sql`: `csv_import_history` に RLS を有効化し、
+- `backend/migrations/archive/0023_csv_import_history_rls.sql`: `csv_import_history` に RLS を有効化し、
   `user_id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
   `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
 - 結合テスト(`backend/tests/db_integration.rs`): RLS が有効であること、所有者の既存操作(2利用者の読み書き)が通ること、
@@ -128,7 +128,7 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 
 ## 9. 第二段階の記録(#1691)
 
-- `backend/migrations/0024_audit_tables_rls.sql`: 監査系 3 表(`login_events`・`admin_login_views`・`login_notify_tokens`)に RLS を有効化し、
+- `backend/migrations/archive/0024_audit_tables_rls.sql`: 監査系 3 表(`login_events`・`admin_login_views`・`login_notify_tokens`)に RLS を有効化し、
   各表に `user_id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
   3 表とも `user_id` 列を持つことを計画書 §1.2 の表の一覧で確認したため、対象外の表はない。
   `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
@@ -138,7 +138,7 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 
 ## 10. 第三段階(前半)の記録(#1697)
 
-- `backend/migrations/0025_trading_tables_rls.sql`: 取引明細・残高の 5 表(`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`)に RLS を有効化し、
+- `backend/migrations/archive/0025_trading_tables_rls.sql`: 取引明細・残高の 5 表(`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`)に RLS を有効化し、
   各表に `user_id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
   5 表とも `user_id` 列を持つことを計画書 §1.2 の表の一覧と各テーブルの migration で確認したため、対象外の表はない。
   `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
@@ -199,7 +199,7 @@ RLS(行の分離)を主とし、ロールの分離(権限の縮小)を従とす�
 
 ## 12. 第四段階の記録(#1723)
 
-- `backend/migrations/0026_sessions_users_rls.sql`: `sessions`・`users` に RLS を有効化し、
+- `backend/migrations/archive/0026_sessions_users_rls.sql`: `sessions`・`users` に RLS を有効化し、
   `sessions` は `user_id`、`users` は `id` と接続ごとの `app.current_user_id` が一致する行だけを許可するポリシーを追加。
   `FORCE` なしのため現行の所有者ロールの挙動は不変。比較はテキスト同士で行い、不正な値でも型変換エラーにならない。
 - 結合テスト(`backend/tests/db_integration.rs` の `sessions_users_rls_isolates_restricted_role`):
@@ -418,7 +418,7 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 
 ## 14. 第五段階(5a)の記録(#1747)
 
-- `backend/migrations/0027_app_restricted_role.sql`: 制限ロール `app_restricted` を `NOLOGIN` で作成し、
+- `backend/migrations/archive/0027_app_restricted_role.sql`: 制限ロール `app_restricted` を `NOLOGIN` で作成し、
   本人表 11 表(`users`・`sessions`・`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・
   `fund_balances`・`csv_import_history`・`login_events`・`login_notify_tokens`・`admin_login_views`)に
   `SELECT, INSERT, UPDATE, DELETE`、共有表 6 表(`stock`・`security_prices`・`dividend_per_share_cache`・
@@ -454,7 +454,7 @@ cron の破棄(`prune_login_events`)は 5d で所有者のまま残すか管理�
 
 ## 16. 第五段階(5b)の記録(#1750)
 
-- `backend/migrations/0028_app_enter_and_auth_functions.sql`: 準備を1呼び出しにまとめる
+- `backend/migrations/archive/0028_app_enter_and_auth_functions.sql`: 準備を1呼び出しにまとめる
   `app_enter(uuid)`(`SECURITY INVOKER`、Tx 内で `SET LOCAL ROLE app_restricted` 相当の
   `set_config('role', ...)` と利用者 ID の `set_config('app.current_user_id', ...)` を行う)と、
   §13.3 の照会用 `SECURITY DEFINER` 関数 6 件
@@ -650,7 +650,7 @@ FORCE はテーブル所有者自身が `ALTER TABLE ... NO FORCE ROW LEVEL SECU
 
 ### FORCE が及ぶ所有者経路
 
-対象表は RLS 有効な11表: `users`・`sessions`・`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`・`csv_import_history`・`login_events`・`login_notify_tokens`・`admin_login_views`。根拠は `backend/migrations/0023_csv_import_history_rls.sql`・`0024_audit_tables_rls.sql`・`0025_trading_tables_rls.sql`・`0026_sessions_users_rls.sql`。次の8経路をコード検索で確認した。
+対象表は RLS 有効な11表: `users`・`sessions`・`dividends`・`domestic_stocks`・`mutualfunds`・`asset_balances`・`fund_balances`・`csv_import_history`・`login_events`・`login_notify_tokens`・`admin_login_views`。根拠は `backend/migrations/archive/0023_csv_import_history_rls.sql`・`0024_audit_tables_rls.sql`・`0025_trading_tables_rls.sql`・`0026_sessions_users_rls.sql`。次の8経路をコード検索で確認した。
 
 | # | 所有者経路(根拠) | FORCE 下の予測 | 必要な扱い |
 |---:|---|---|---|
@@ -712,7 +712,7 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 
 ## 23. 第五段階(5e-1)の記録(#1956)
 
-- `backend/migrations/0032_auth_session_user_function.sql`: セッション認証の利用者行取得を
+- `backend/migrations/archive/0032_auth_session_user_function.sql`: セッション認証の利用者行取得を
   引数(token_hash のみ)・返却値(利用者行の最小 7 列)に限定した
   `auth_session_user_by_token(bytea)`(`STABLE`/`SECURITY DEFINER`、`search_path` 固定)へ移す土台にした。
   `EXECUTE` は `app_restricted` にだけ与え、`PUBLIC` からは取り上げる(0028 と同じ定型)。
@@ -749,7 +749,7 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 
 ## 24. 第五段階(5e-2)の記録(#1957)
 
-- `backend/migrations/0033_force_limited_maintenance_paths.sql` で、
+- `backend/migrations/archive/0033_force_limited_maintenance_paths.sql` で、
   通知 token・管理者検索・価格候補抽出・履歴掃除の新しい限定関数を追加した。
   株価/基準価額の試行時刻、取得値の反映、投信の取得失敗記録と解除も限定関数にし、
   Worker から共有価格表へ直接書き込まない。
@@ -853,7 +853,7 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   Bitmap Heap Scan で読んでから並べ替えていた(§10・§11 の申し送りの事象)。
   §11 は `::uuid` 形を「空文字が残るとエラーになる」ため不採用にしたが、
   `NULLIF(..., '')` で空文字を NULL にすれば 0 件(fail-closed)のままエラーにならない。
-- `backend/migrations/0037_rls_views_invoker_and_indexable_policies.sql`:
+- `backend/migrations/archive/0037_rls_views_invoker_and_indexable_policies.sql`:
   残高ビュー 2 件に `security_invoker = true` を付け、利用者表 11 件のポリシーを
   `user_id = (SELECT NULLIF(current_setting('app.current_user_id', true), '')::uuid)`
   (`users` は `id`)へ `ALTER POLICY` で置き換える(`USING`・`WITH CHECK` とも)。
@@ -882,7 +882,8 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
 - 本番には `public` の新しい表へ RLS を自動で有効にする event trigger `ensure_rls` があるため、
   新しい表には読み書きするロール向けのポリシーを同じ migration で必ず付ける
   (無いと NOBYPASSRLS の接続からはエラーなしで 0 行に見える)。利用者の表は 0037 の式、
-  共有の表は 0036 の `FOR SELECT TO app_worker, app_restricted USING (true)` に揃える。
+  共有の表は 0036 の `FOR SELECT TO app_worker, app_restricted USING (true)` に揃える
+  (#1993 で土台に畳んだ後は `0101_users_and_auth.sql` と `0103_shared_masters_and_caches.sql` が同じ形の見本)。
 - 詳細は `backend/migrations/README.md` の「ビューと新しい表の RLS の決まり」。
 
 ## 28. 第五段階(5e-4) FORCE を付けない判断(#1959)

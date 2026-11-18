@@ -8,7 +8,7 @@ Google 認証のユーザー
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.csv_import_history](public.csv_import_history.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) [public.login_notify_tokens](public.login_notify_tokens.md) |  |  |
+| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) [public.login_notify_tokens](public.login_notify_tokens.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.csv_import_history](public.csv_import_history.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) |  |  |
 | google_id | varchar(255) |  | false |  |  |  |
 | email | varchar(255) |  | false |  |  |  |
 | name | varchar(255) |  | true |  |  |  |
@@ -21,15 +21,15 @@ Google 認証のユーザー
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
-| users_google_id_key | UNIQUE | UNIQUE (google_id) |
 | users_pkey | PRIMARY KEY | PRIMARY KEY (id) |
+| users_google_id_key | UNIQUE | UNIQUE (google_id) |
 
 ## Indexes
 
 | Name | Definition |
 | ---- | ---------- |
-| users_google_id_key | CREATE UNIQUE INDEX users_google_id_key ON public.users USING btree (google_id) |
 | users_pkey | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id) |
+| users_google_id_key | CREATE UNIQUE INDEX users_google_id_key ON public.users USING btree (google_id) |
 
 ## Relations
 
@@ -37,15 +37,15 @@ Google 認証のユーザー
 erDiagram
 
 "public.sessions" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.dividends" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.domestic_stocks" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.mutualfunds" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.asset_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-"public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.login_events" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.admin_login_views" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.login_notify_tokens" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.dividends" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.domestic_stocks" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.mutualfunds" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.asset_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -64,6 +64,30 @@ erDiagram
   timestamp_with_time_zone expires_at
   bytea token_hash
   bytea device_hash
+}
+"public.login_events" {
+  uuid id
+  uuid user_id FK
+  timestamp_with_time_zone occurred_at
+  text result
+  bytea device_hash
+  text country
+  text region
+  text browser
+  text os
+}
+"public.admin_login_views" {
+  uuid id
+  uuid user_id FK
+  timestamp_with_time_zone occurred_at
+}
+"public.login_notify_tokens" {
+  uuid id
+  uuid user_id FK
+  bytea token_hash
+  timestamp_with_time_zone expires_at
+  timestamp_with_time_zone used_at
+  timestamp_with_time_zone created_at
 }
 "public.dividends" {
   uuid id
@@ -120,6 +144,11 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
 }
+"public.csv_import_history" {
+  uuid user_id FK
+  text kind
+  timestamp_with_time_zone last_imported_at
+}
 "public.asset_balances" {
   uuid id
   uuid user_id FK
@@ -154,35 +183,6 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
   text normalized_fund_name
-}
-"public.csv_import_history" {
-  uuid user_id FK
-  text kind
-  timestamp_with_time_zone last_imported_at
-}
-"public.login_events" {
-  uuid id
-  uuid user_id FK
-  timestamp_with_time_zone occurred_at
-  text result
-  bytea device_hash
-  text country
-  text region
-  text browser
-  text os
-}
-"public.admin_login_views" {
-  uuid id
-  uuid user_id FK
-  timestamp_with_time_zone occurred_at
-}
-"public.login_notify_tokens" {
-  uuid id
-  uuid user_id FK
-  bytea token_hash
-  timestamp_with_time_zone expires_at
-  timestamp_with_time_zone used_at
-  timestamp_with_time_zone created_at
 }
 ```
 

@@ -10,15 +10,16 @@ description: |
 ## マイグレーションファイル
 
 ### 配置場所
-`backend/migrations/` ディレクトリ
+`backend/migrations/` ディレクトリ(役割ごとの土台 `0100〜0106` と、その後の追記。旧版は `archive/`)
 
 ### 命名規則
 ```
 NNNN_<説明>.sql
-例: 0004_create_dividends.sql
+例: 0107_add_dividends_memo.sql
 ```
 
 新規ファイルは `backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する（登録しないと適用されない）。
+土台と適用済みのファイルは書き換えない。新しい表の RLS・ポリシー・GRANT の決まりは `backend/migrations/README.md` に従う。
 
 ## 新規テーブル作成テンプレート
 
