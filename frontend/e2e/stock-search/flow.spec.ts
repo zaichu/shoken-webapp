@@ -180,7 +180,7 @@ async function setupHoldingMocks(page: Page, rows: ReturnType<typeof holdingRow>
   );
 }
 
-test('持っている銘柄は結果の上に保有情報と資産管理への戻りが出る', async ({ page }) => {
+test('持っている銘柄は結果の下に保有情報と資産管理への戻りが出る', async ({ page }) => {
   await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
 
   await page.goto('/search?code=9905');

@@ -1,14 +1,15 @@
 use super::super::model::{self, CompositionSlice, ProductCompositionSlice};
 use super::super::store::{self, HomeOverviewData};
-use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{fund_market, funds_of, stock_market, stocks_of};
 use crate::features::asset_balance;
 use crate::session;
 use crate::ui::amount::Amount;
 use crate::ui::badge;
-use crate::ui::card::{Card, CardVariant};
-use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
+use crate::ui::home::{
+    HomeCardEmpty, HomeCardError, HomeCardHead, HomeCardSkeleton, HomeCompositionAccounts,
+    HomeCompositionRows, HomeCompositionTop, HomeDetailCard, HomeStackedBar,
+};
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use leptos::prelude::*;
@@ -70,32 +71,30 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
         (assets, funds)
     };
     view! {
-        <Card variant=CardVariant::Panel class="pb-4" testid="home-composition-card">
-            <CardHead title=labels::HOME_COMPOSITION_TITLE href="/assetbalance" link_label=labels::ASSET_BALANCE_TITLE />
+        <HomeDetailCard testid="home-composition-card">
+            <HomeCardHead title=labels::HOME_COMPOSITION_TITLE href="/assetbalance" link_label=labels::ASSET_BALANCE_TITLE />
             {move || {
                 let (assets, funds) = card();
                 if assets.is_none() && funds.is_none() {
-                    return view! { <CardSkeleton /> }.into_any();
+                    return view! { <HomeCardSkeleton /> }.into_any();
                 }
                 if matches!(assets, Some(None)) && matches!(funds, Some(None)) {
-                    return view! { <CardError message=labels::HOME_ASSET_FETCH_FAILED.to_string() /> }
+                    return view! { <HomeCardError message=labels::HOME_ASSET_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let empty_holdings = stocks_of(&assets).is_none_or(<[_]>::is_empty)
                     && funds_of(&funds).is_none_or(<[_]>::is_empty);
                 if matches!((&assets, &funds), (Some(_), Some(_))) && empty_holdings {
                     return view! {
-                        <div class="px-4 py-4">
-                            <EmptyState
-                                title=labels::HOME_NO_HOLDINGS
-                                description=labels::HOME_NO_HOLDINGS_HINT
-                            >
-                                <MoreLink
-                                    href="/csv".to_string()
-                                    label=labels::SETTINGS_CSV_MANAGE_LINK.to_string()
-                                />
-                            </EmptyState>
-                        </div>
+                        <HomeCardEmpty
+                            title=labels::HOME_NO_HOLDINGS
+                            description=labels::HOME_NO_HOLDINGS_HINT
+                        >
+                            <MoreLink
+                                href="/csv".to_string()
+                                label=labels::SETTINGS_CSV_MANAGE_LINK.to_string()
+                            />
+                        </HomeCardEmpty>
                     }
                         .into_any();
                 }
@@ -112,11 +111,7 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                 let product_total: f64 = products.iter().map(|s| s.amount).sum();
                 view! {
                     {if product_total <= 0.0 {
-                        view! {
-                            <div class="px-4 py-4">
-                                <EmptyState title=labels::HOME_NO_MARKET_VALUE />
-                            </div>
-                        }
+                        view! { <HomeCardEmpty title=labels::HOME_NO_MARKET_VALUE /> }
                             .into_any()
                     } else {
                         view! { <ProductDonut products=products /> }.into_any()
@@ -129,7 +124,7 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
                 }
                     .into_any()
             }}
-        </Card>
+        </HomeDetailCard>
     }
 }
 
@@ -164,14 +159,14 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
         })
         .collect_view();
     view! {
-        <div class="px-4 pt-3.5">
+        <HomeCompositionTop>
             <div class="home-composition-total">
                 <span class="text-text-muted">{labels::HOME_COMPOSITION_TOTAL}</span>
                 <Amount class="font-bold" text=asset_balance::format_valuation_amount(Some(product_total)) />
             </div>
-            <div class="home-stacked-bar mt-3">{bar}</div>
-            <ul class="home-composition-rows mt-1.5">{rows}</ul>
-        </div>
+            <HomeStackedBar>{bar}</HomeStackedBar>
+            <HomeCompositionRows>{rows}</HomeCompositionRows>
+        </HomeCompositionTop>
     }
 }
 
@@ -206,13 +201,13 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
         })
         .collect_view();
     view! {
-        <div class="px-4 pt-4">
+        <HomeCompositionAccounts>
             <p class="text-label font-medium text-text-muted">
                 {labels::HOME_ACCOUNT_FUND_LABEL}
             </p>
-            <div class="home-stacked-bar mt-1.5">{bars}</div>
-            <ul class="home-composition-rows mt-1.5">{rows}</ul>
-        </div>
+            <HomeStackedBar secondary=true>{bars}</HomeStackedBar>
+            <HomeCompositionRows>{rows}</HomeCompositionRows>
+        </HomeCompositionAccounts>
     }
 }
 

@@ -11,12 +11,6 @@ spacing-features	src/features/asset_balance/view/main_content.rs	10
 spacing-features	src/features/asset_balance/view/search_bar.rs	6
 spacing-features	src/features/csv_page.rs	1
 spacing-features	src/features/csv_sync/view.rs	9
-spacing-features	src/features/home/view.rs	4
-spacing-features	src/features/home/view/card_parts.rs	5
-spacing-features	src/features/home/view/composition_card.rs	13
-spacing-features	src/features/home/view/dividend_card.rs	20
-spacing-features	src/features/home/view/pnl_ranking.rs	4
-spacing-features	src/features/home/view/recent_dividends.rs	2
 spacing-features	src/features/login.rs	3
 spacing-features	src/features/not_found.rs	3
 spacing-features	src/features/receipts/dividend_info.rs	13

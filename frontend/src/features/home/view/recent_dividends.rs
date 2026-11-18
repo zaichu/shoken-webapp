@@ -1,14 +1,12 @@
 use super::super::store::{self, HomeOverviewData};
-use super::card_parts::{CardError, CardHead, CardSkeleton};
 use crate::api::dto::Dividend;
 use crate::features::asset_balance;
 use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::card::{Card, CardVariant};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
-use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
+use crate::ui::home::{HomeCardEmpty, HomeCardError, HomeCardHead, HomeCardSkeleton, HomeListCard};
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButtonWithoutSecondary;
 use leptos::prelude::*;
@@ -229,17 +227,13 @@ pub(super) fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
         store::current_summary(data.recent, generation)
     };
     view! {
-        <Card variant=CardVariant::Panel class="overflow-clip" testid="home-recent-card">
-            <CardHead title=labels::HOME_RECENT_DIVIDENDS href="/receipts" link_label=labels::HOME_SEE_ALL />
+        <HomeListCard testid="home-recent-card">
+            <HomeCardHead title=labels::HOME_RECENT_DIVIDENDS href="/receipts" link_label=labels::HOME_SEE_ALL />
             {move || match card() {
-                None => view! { <CardSkeleton /> }.into_any(),
-                Some(None) => view! { <CardError message=labels::HOME_RECENT_FETCH_FAILED.to_string() /> }.into_any(),
+                None => view! { <HomeCardSkeleton /> }.into_any(),
+                Some(None) => view! { <HomeCardError message=labels::HOME_RECENT_FETCH_FAILED.to_string() /> }.into_any(),
                 Some(Some(rows)) if rows.is_empty() => {
-                    view! {
-                        <div class="px-4 py-4">
-                            <EmptyState title=labels::HOME_NO_RECENT />
-                        </div>
-                    }
+                    view! { <HomeCardEmpty title=labels::HOME_NO_RECENT /> }
                         .into_any()
                 }
                 Some(Some(rows)) => view! {
@@ -253,6 +247,6 @@ pub(super) fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
                 }
                     .into_any(),
             }}
-        </Card>
+        </HomeListCard>
     }
 }
