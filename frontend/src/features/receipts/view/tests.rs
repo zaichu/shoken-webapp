@@ -773,15 +773,18 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
             "+¥900"
         };
         assert_eq!(
-            before_tax_subtext(tab, &card.details).as_deref(),
+            before_tax_subtext(tab, &card.details)
+                .map(|(text, _, _)| text)
+                .as_deref(),
             Some(expected)
         );
+        // プラスは Amount(Delta)で緑になるよう正の符号を渡す
+        let (_, negative, positive) = before_tax_subtext(tab, &card.details).expect("税引前がある");
+        assert!(!negative);
+        assert!(positive);
     }
     let dividend = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
-    assert_eq!(
-        before_tax_subtext(ReceiptsTab::Dividend, &dividend.details),
-        None
-    );
+    assert!(before_tax_subtext(ReceiptsTab::Dividend, &dividend.details).is_none());
 }
 
 #[test]
