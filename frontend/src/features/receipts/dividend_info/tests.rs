@@ -140,7 +140,7 @@ fn refresh_balance_supersedes_balance_fetch_and_keeps_poll_alive() {
 fn per_share_display_uses_short_decimal_digits() {
     assert_eq!(per_share_display(Some(50.1), false), "¥50.1");
     assert_eq!(per_share_display(Some(50.0), false), "¥50");
-    assert_eq!(per_share_display(Some(50.12345), false), "¥50.12345");
+    assert_eq!(per_share_display(Some(50.12345), false), "¥50.12");
     assert_eq!(per_share_display(None, false), "—");
     assert_eq!(per_share_display(Some(50.1), true), "取得中…");
     assert_eq!(per_share_display(Some(f64::NAN), false), "—");
