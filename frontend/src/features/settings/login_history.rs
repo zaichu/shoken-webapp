@@ -4,12 +4,13 @@ mod tests;
 use crate::session;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::ui::card::{Card, CardVariant};
 use crate::ui::confirm_modal::ConfirmDeleteModal;
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowStatic;
 use crate::ui::search_entry::ShowMoreButton;
+use crate::ui::section_heading::SectionHeading;
+use crate::ui::settings as settings_ui;
 use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -109,8 +110,8 @@ async fn fetch_devices() -> Result<Vec<DeviceEntry>, ApiError> {
     reason = "Leptos component props are owned by the view"
 )]
 pub(crate) fn ResultBadge(result: String) -> impl IntoView {
-    let label = result_label(&result);
-    let variant = result_badge_variant(&result);
+    let label = self::result_label(&result);
+    let variant = self::result_badge_variant(&result);
     view! { <Badge variant=variant>{label}</Badge> }
 }
 
@@ -167,12 +168,12 @@ pub fn SectionLoginHistory() -> impl IntoView {
     });
 
     view! {
-        <section id="login-history" aria-labelledby="login-history-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="login-history-heading" class="text-heading font-bold mb-4">
+        <settings_ui::SettingsSection id="login-history" labelledby="login-history-heading">
+            <settings_ui::SettingsPanel>
+                <SectionHeading id="login-history-heading">
                     {labels::LOGIN_HISTORY_SECTION}
-                </h2>
-                <p class="pb-3 text-cell text-text-muted">{labels::LOGIN_HISTORY_COOKIE_NOTE}</p>
+                </SectionHeading>
+                <settings_ui::SettingsNote>{labels::LOGIN_HISTORY_COOKIE_NOTE}</settings_ui::SettingsNote>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -203,15 +204,15 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                             {desktop_rows
                                                 .into_iter()
                                                 .map(|entry| {
-                                                    let place = format_place(
+                                                    let place = self::format_place(
                                                         &entry.country,
                                                         &entry.region,
                                                     );
-                                                    let agent = format_agent(&entry.browser, &entry.os);
+                                                    let agent = self::format_agent(&entry.browser, &entry.os);
                                                     view! {
                                                         <tr>
                                                             <td class="login-history-datetime tabular-nums">
-                                                                {format_datetime(&entry.occurred_at)}
+                                                                {self::format_datetime(&entry.occurred_at)}
                                                             </td>
                                                             <td class="login-history-result">
                                                                 <ResultBadge result=entry.result.clone() />
@@ -229,9 +230,9 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                     {mobile_rows
                                         .into_iter()
                                         .map(|entry| {
-                                            let place = format_place(&entry.country, &entry.region);
-                                            let agent = format_agent(&entry.browser, &entry.os);
-                                            let datetime = format_datetime(&entry.occurred_at);
+                                            let place = self::format_place(&entry.country, &entry.region);
+                                            let agent = self::format_agent(&entry.browser, &entry.os);
+                                            let datetime = self::format_datetime(&entry.occurred_at);
                                             view! {
                                                 <li class="list-row-item">
                                                     <ListRowStatic
@@ -250,12 +251,12 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                         .get()
                                         .map(|message| {
                                             view! {
-                                                <div class="mt-4">
+                                                <settings_ui::SettingsRetry>
                                                     <ListLoadError
                                                         message=message
                                                         on_retry=move || load_more()
                                                     />
-                                                </div>
+                                                </settings_ui::SettingsRetry>
                                             }
                                         })
                                 }}
@@ -277,8 +278,8 @@ pub fn SectionLoginHistory() -> impl IntoView {
                         }
                     }
                 }}
-            </Card>
-        </section>
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
 
@@ -360,12 +361,12 @@ pub fn SectionDevices() -> impl IntoView {
     };
 
     view! {
-        <section id="devices" aria-labelledby="devices-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
-                <h2 id="devices-heading" class="text-heading font-bold mb-4">
+        <settings_ui::SettingsSection id="devices" labelledby="devices-heading">
+            <settings_ui::SettingsPanel>
+                <SectionHeading id="devices-heading">
                     {labels::REGISTERED_DEVICES_SECTION}
-                </h2>
-                <p class="pb-3 text-cell text-text-muted">{labels::LOGIN_HISTORY_COOKIE_NOTE}</p>
+                </SectionHeading>
+                <settings_ui::SettingsNote>{labels::LOGIN_HISTORY_COOKIE_NOTE}</settings_ui::SettingsNote>
                 {move || match devices.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -378,61 +379,40 @@ pub fn SectionDevices() -> impl IntoView {
                                 .into_any()
                         } else {
                             view! {
-                                <ul class="divide-y divide-ink/10 border-t border-ink/10" role="list">
+                                <settings_ui::DeviceList>
                                     {entries
                                         .into_iter()
                                         .map(|entry| {
                                             let revoke_entry = entry.clone();
                                             let (country, region) = entry.device_place();
-                                            let place = format_place(&country, &region);
-                                            let agent = format_agent(&entry.browser, &entry.os);
+                                            let place = self::format_place(&country, &region);
+                                            let agent = self::format_agent(&entry.browser, &entry.os);
                                             view! {
-                                                <li class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-stretch">
-                                                    <div class="min-w-0">
-                                                        <div class="flex flex-wrap items-center gap-2">
-                                                            <span class="tabular-nums text-cell font-medium">
-                                                                {format_datetime(&entry.last_used_at)}
-                                                            </span>
-                                                            {entry
-                                                                .is_current
-                                                                .then(|| {
-                                                                    view! {
-                                                                        <Badge variant=BadgeVariant::Info>
-                                                                            {labels::DEVICE_CURRENT}
-                                                                        </Badge>
-                                                                    }
-                                                                })}
-                                                        </div>
-                                                        <div class="mt-1 text-body break-words">
-                                                            {format!("{place} · {agent}")}
-                                                        </div>
-                                                        <div class="text-cell text-text-muted">
-                                                            {labels::DEVICE_COL_LAST_USED}
-                                                        </div>
-                                                    </div>
-                                                    <div class="shrink-0">
-                                                        <Button
-                                                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                                                            testid="device-revoke"
-                                                            on_click=move |_| start_revoke(revoke_entry.clone())
-                                                        >
-                                                            {labels::DEVICE_REVOKE}
-                                                        </Button>
-                                                    </div>
-                                                </li>
+                                                <settings_ui::DeviceRow
+                                                    datetime=self::format_datetime(&entry.last_used_at)
+                                                    description=format!("{place} · {agent}")
+                                                    current=entry.is_current
+                                                >
+                                                    <Button
+                                                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                                                        testid="device-revoke"
+                                                        on_click=move |_| start_revoke(revoke_entry.clone())
+                                                    >
+                                                        {labels::DEVICE_REVOKE}
+                                                    </Button>
+                                                </settings_ui::DeviceRow>
                                             }
                                         })
                                         .collect_view()}
-                                </ul>
+                                </settings_ui::DeviceList>
                             }
                                 .into_any()
                         }
                     }
                 }}
-                <div class="mt-4 border-t border-negative-border/50 pt-4">
+                <settings_ui::DeviceDangerActions>
                     <Button
-                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                        class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                        variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                         testid="device-logout-all"
                         on_click=move |_| {
                             logout_failed.set(None);
@@ -441,11 +421,11 @@ pub fn SectionDevices() -> impl IntoView {
                     >
                         {labels::DEVICE_LOGOUT_ALL}
                     </Button>
-                </div>
-            </Card>
+                </settings_ui::DeviceDangerActions>
+            </settings_ui::SettingsPanel>
             {move || {
                 pending_revoke.get().map(|entry| {
-                    let place = format_place(&entry.device_place().0, &entry.device_place().1);
+                    let place = self::format_place(&entry.device_place().0, &entry.device_place().1);
                     view! {
                         <ConfirmDeleteModal
                             title=labels::REGISTERED_DEVICES_SECTION.to_string()
@@ -478,7 +458,7 @@ pub fn SectionDevices() -> impl IntoView {
                     }
                 })
             }}
-        </section>
+        </settings_ui::SettingsSection>
     }
 }
 

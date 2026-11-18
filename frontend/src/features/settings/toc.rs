@@ -2,6 +2,7 @@
 mod tests;
 
 use crate::ui::labels;
+use crate::ui::settings as settings_ui;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -170,8 +171,7 @@ pub(crate) fn track_toc(active: RwSignal<String>, locked: RwSignal<bool>) {
 #[component]
 pub(crate) fn TocNav(active: RwSignal<String>, locked: RwSignal<bool>) -> impl IntoView {
     view! {
-        <nav class="hidden lg:block lg:w-48 shrink-0 lg:sticky lg:top-16 lg:self-start" aria-label=labels::SETTINGS_TOC_LABEL>
-            <ul class="flex flex-col gap-1" role="list">
+        <settings_ui::SettingsNavigation>
                 {TOC_ENTRIES.iter().map(|(id, label)| {
                     let id = *id;
                     let label = *label;
@@ -194,7 +194,6 @@ pub(crate) fn TocNav(active: RwSignal<String>, locked: RwSignal<bool>) -> impl I
                         </li>
                     }
                 }).collect_view()}
-            </ul>
-        </nav>
+        </settings_ui::SettingsNavigation>
     }
 }
