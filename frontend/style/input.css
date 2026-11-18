@@ -618,6 +618,16 @@
     /* 選択の色差が大きいため transition を付けると遷移途中が
        コントラスト不足になる(a11y の計測が落ちる)ので付けない */
     @apply flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border-link bg-surface px-2 text-[13px] text-night-soft hover:text-text-deep lg:min-h-0 lg:px-3.5 lg:text-sm;
+    position: relative;
+  }
+
+  /* 押せる高さが 44px 未満のタブは見た目を変えず当たり判定だけ広げる。
+     44px 以上の帯では inset が 0 以上で何もしない */
+  .page-tab::before {
+    content: "";
+    position: absolute;
+    inset-block: calc((100% - 44px) / 2);
+    inset-inline: 0;
   }
 
   .page-tab[aria-selected="true"] {
@@ -673,10 +683,11 @@
     }
   }
 
-  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
+  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す。
+     帯自体はページの地色で塗り、横滑り中に隣の面の中身が透けないようにする */
   @media (width < 64rem) {
     .page-tab-list {
-      @apply gap-0 border-b border-border-strong;
+      @apply gap-0 border-b border-border-strong bg-page;
     }
 
     .page-tab {
