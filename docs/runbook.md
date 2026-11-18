@@ -150,7 +150,7 @@ CI では作り直さない。frontend の変更を含むマージの後で行�
 ```bash
 # 1. main を最新化(上の手順 2 まで済ませた後)
 # 2. 全画面の最新を作り直す(latest/ を置き換える)
-frontend/scripts/ui-shots.sh i< Issue番号> latest
+frontend/scripts/ui-shots.sh i<Issue番号> latest
 
 # 3. マージ・close した PR の確認用画像を消す(開いている PR のものは残す)
 frontend/scripts/ui-shots.sh --cleanup-pr <PR番号>

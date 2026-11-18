@@ -26,7 +26,7 @@ usage() {
   --only <画面一覧>      撮る画面を絞る(例: --only home,asset-stock)
   --viewports <幅一覧>   撮る幅を絞る(latest の既定: 390,1280,1920。PR 確認用は既定で全幅)
   --shots-branch <名>    画像を置くブランチ(既定: screenshots。push 動作の検証用に一時名を指定できる)
-  --no-push              画像を push しない(撮るだけ。--cleanup-pr とは併用不可)
+  --no-push              画像を push しない(撮るだけ。--cleanup-pr では消す内容の表示だけ)
   -h, --help             この説明を表示する
 EOF
 }
@@ -92,10 +92,6 @@ done
 if [ -n "$CLEANUP_PR" ]; then
   if [ -n "$NAME" ] || [ -n "$SIDE" ] || [ -n "$PR_NUMBER" ]; then
     echo "--cleanup-pr と撮影引数は同時に指定できません" >&2
-    exit 2
-  fi
-  if [ "$PUSH" -eq 0 ]; then
-    echo "--cleanup-pr と --no-push は同時に指定できません(削除の publish が目的なため)" >&2
     exit 2
   fi
 elif [ -z "$NAME" ] || [ -z "$SIDE" ]; then
@@ -173,6 +169,7 @@ server_owns_port() {
 # まだ存在しないため、起点は screenshots にして push 先だけ一時名にする
 with_shots_worktree() {
   local work_dir="$1"
+  mkdir -p "$(dirname "$work_dir")"
   REMOTE="$(git remote get-url origin)"
   REPO_SLUG="${REMOTE##*github.com}"
   REPO_SLUG="${REPO_SLUG#:}"
@@ -206,6 +203,22 @@ with_shots_worktree() {
   fi
 }
 
+shots_worktree_dir() {
+  local suffix="$1" common_dir repo_name worktrees_root
+  common_dir="$(git rev-parse --git-common-dir)"
+  case "$common_dir" in
+    /*) ;;
+    *) common_dir="$REPO_ROOT/$common_dir" ;;
+  esac
+  repo_name="$(basename "$(dirname "$common_dir")")"
+  if [[ "$REPO_ROOT" == */.worktrees/* ]]; then
+    worktrees_root="${REPO_ROOT%%/.worktrees/*}/.worktrees"
+  else
+    worktrees_root="$(dirname "$REPO_ROOT")/.worktrees"
+  fi
+  printf '%s/%s-shots-%s\n' "$worktrees_root" "$repo_name" "$suffix"
+}
+
 # 画像ブランチへ通常 push する(force push しない)。
 # 新規ブランチにも押せるよう送り先は refs/heads/ で修飾する。
 # 他の lane が先に push していたら取り込んでからもう1度 push する。
@@ -215,7 +228,7 @@ push_shots() {
   local dest="refs/heads/${SHOTS_BRANCH}"
   if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/${SHOTS_BRANCH}" 2>/dev/null || echo none)" ]; then
     if ! git push origin "HEAD:${dest}"; then
-      git fetch origin "$SHOTS_BRANCH" || return 1
+      git fetch origin "$SHOTS_BRANCH" >&2 || return 1
       git merge "origin/${SHOTS_BRANCH}" >&2 || return 1
       git push origin "HEAD:${dest}" || return 1
     fi
@@ -274,7 +287,7 @@ build_and_shoot() {
 }
 
 if [ -n "$CLEANUP_PR" ]; then
-  SHOTS_DIR="$(dirname "$REPO_ROOT")/shots-cleanup-${CLEANUP_PR}"
+  SHOTS_DIR="$(shots_worktree_dir "cleanup-${CLEANUP_PR}")"
   with_shots_worktree "$SHOTS_DIR"
   cd "$SHOTS_DIR"
   if [ ! -d "pr${CLEANUP_PR}" ]; then
@@ -283,15 +296,23 @@ if [ -n "$CLEANUP_PR" ]; then
     git worktree remove "$SHOTS_DIR"
     exit 0
   fi
+  if [ "$PUSH" -eq 0 ]; then
+    echo "push しないため消しません。消す内容:"
+    git ls-files "pr${CLEANUP_PR}"
+    cd "$REPO_ROOT"
+    git worktree remove "$SHOTS_DIR"
+    exit 0
+  fi
   git rm -r "pr${CLEANUP_PR}"
   git commit -m "pr${CLEANUP_PR}: 確認用スクリーンショットを削除"
-  push_shots
+  push_shots >/dev/null || { cd "$REPO_ROOT"; git worktree remove "$SHOTS_DIR"; exit 1; }
   cd "$REPO_ROOT"
   git worktree remove "$SHOTS_DIR"
   exit 0
 fi
 
 build_and_shoot
+MAIN_SHA="$(git rev-parse HEAD)"
 
 if [ "$PUSH" -eq 0 ]; then
   echo "==> push しないため画像は $SHOT_DIR に残しました"
@@ -299,9 +320,8 @@ if [ "$PUSH" -eq 0 ]; then
 fi
 
 if [ "$SIDE" = "latest" ]; then
-  SHOTS_DIR="$(dirname "$REPO_ROOT")/shots-latest"
+  SHOTS_DIR="$(shots_worktree_dir "latest")"
   with_shots_worktree "$SHOTS_DIR"
-  MAIN_SHA="$(git rev-parse origin/main)"
   NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   TARGET_DIR="$SHOTS_DIR/latest"
@@ -316,14 +336,14 @@ if [ "$SIDE" = "latest" ]; then
   if ! git diff --cached --quiet; then
     git commit -m "${NAME}: 最新の全画面スクリーンショット"
   fi
-  SHA="$(push_shots)" || exit 1
+  SHA="$(push_shots)" || { cd "$REPO_ROOT"; git worktree remove "$SHOTS_DIR"; exit 1; }
 
   cd "$REPO_ROOT"
   git worktree remove "$SHOTS_DIR"
   exit 0
 fi
 
-SHOTS_DIR="$(dirname "$REPO_ROOT")/shots-pr${PR_NUMBER}"
+SHOTS_DIR="$(shots_worktree_dir "pr${PR_NUMBER}")"
 with_shots_worktree "$SHOTS_DIR"
 
 TARGET_DIR="$SHOTS_DIR/pr${PR_NUMBER}/${SIDE}"
@@ -335,7 +355,7 @@ git add "pr${PR_NUMBER}/${SIDE}"
 if ! git diff --cached --quiet; then
   git commit -m "pr${PR_NUMBER}: ${NAME} のスクリーンショット(${SIDE})"
 fi
-SHA="$(push_shots)" || exit 1
+SHA="$(push_shots)" || { cd "$REPO_ROOT"; git worktree remove "$SHOTS_DIR"; exit 1; }
 
 echo "==> Markdown($MARKDOWN_FILE にも出しました)"
 node "$FRONTEND_DIR/scripts/ui-shots/markdown.mjs" \

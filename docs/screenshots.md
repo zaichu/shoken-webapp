@@ -26,7 +26,7 @@ frontend/scripts/ui-shots.sh --cleanup-pr <番号>
 
 主なオプション: `--only home,asset-stock`(画面を絞る)、
 `--viewports 390,1280`(幅を絞る。latest の既定は `390,1280,1920`)、
-`--no-push`(撮るだけで push しない。`--cleanup-pr` とは併用不可)、
+`--no-push`(撮るだけで push しない。`--cleanup-pr` では消す内容の表示だけ)、
 `--shots-branch <名>`(push 先を変える。push 動作の検証用に一時名を指定できる)。
 
 ## PR 本文への貼り方
@@ -54,7 +54,7 @@ Playwright の全 matrix(約 150 枚)を回し、画像バイナリの push が�
 ```bash
 git switch main
 git pull --ff-only origin main
-frontend/scripts/ui-shots.sh i< Issue番号> latest
+frontend/scripts/ui-shots.sh i<Issue番号> latest
 frontend/scripts/ui-shots.sh --cleanup-pr <マージしたPR番号>
 ```
 
