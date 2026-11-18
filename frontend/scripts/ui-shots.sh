@@ -26,7 +26,7 @@ usage() {
   --only <画面一覧>      撮る画面を絞る(例: --only home,asset-stock)
   --viewports <幅一覧>   撮る幅を絞る(latest の既定: 390,1280,1920。PR 確認用は既定で全幅)
   --shots-branch <名>    画像を置くブランチ(既定: screenshots。push 動作の検証用に一時名を指定できる)
-  --no-push              画像を push しない(撮るだけ)
+  --no-push              画像を push しない(撮るだけ。--cleanup-pr とは併用不可)
   -h, --help             この説明を表示する
 EOF
 }
@@ -92,6 +92,10 @@ done
 if [ -n "$CLEANUP_PR" ]; then
   if [ -n "$NAME" ] || [ -n "$SIDE" ] || [ -n "$PR_NUMBER" ]; then
     echo "--cleanup-pr と撮影引数は同時に指定できません" >&2
+    exit 2
+  fi
+  if [ "$PUSH" -eq 0 ]; then
+    echo "--cleanup-pr と --no-push は同時に指定できません(削除の publish が目的なため)" >&2
     exit 2
   fi
 elif [ -z "$NAME" ] || [ -z "$SIDE" ]; then
@@ -204,14 +208,16 @@ with_shots_worktree() {
 
 # 画像ブランチへ通常 push する(force push しない)。
 # 新規ブランチにも押せるよう送り先は refs/heads/ で修飾する。
-# 他の lane が先に push していたら取り込んでからもう1度 push する
+# 他の lane が先に push していたら取り込んでからもう1度 push する。
+# 呼び出し側はコマンド置換で使うため set -e が効かない。
+# 失敗は明示的に return し、merge の標準出力は SHA の取り出しに混ざるため捨てる
 push_shots() {
   local dest="refs/heads/${SHOTS_BRANCH}"
   if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/${SHOTS_BRANCH}" 2>/dev/null || echo none)" ]; then
     if ! git push origin "HEAD:${dest}"; then
-      git fetch origin "$SHOTS_BRANCH"
-      git merge "origin/${SHOTS_BRANCH}"
-      git push origin "HEAD:${dest}"
+      git fetch origin "$SHOTS_BRANCH" || return 1
+      git merge "origin/${SHOTS_BRANCH}" >&2 || return 1
+      git push origin "HEAD:${dest}" || return 1
     fi
   fi
   git rev-parse HEAD
@@ -310,7 +316,7 @@ if [ "$SIDE" = "latest" ]; then
   if ! git diff --cached --quiet; then
     git commit -m "${NAME}: 最新の全画面スクリーンショット"
   fi
-  SHA="$(push_shots)"
+  SHA="$(push_shots)" || exit 1
 
   cd "$REPO_ROOT"
   git worktree remove "$SHOTS_DIR"
@@ -329,7 +335,7 @@ git add "pr${PR_NUMBER}/${SIDE}"
 if ! git diff --cached --quiet; then
   git commit -m "pr${PR_NUMBER}: ${NAME} のスクリーンショット(${SIDE})"
 fi
-SHA="$(push_shots)"
+SHA="$(push_shots)" || exit 1
 
 echo "==> Markdown($MARKDOWN_FILE にも出しました)"
 node "$FRONTEND_DIR/scripts/ui-shots/markdown.mjs" \
