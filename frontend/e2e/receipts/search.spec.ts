@@ -176,7 +176,7 @@ test('PC: タグの × で条件を外す', async ({ page }) => {
   await expect(page.getByRole('button', { name: '口座 SBI証券 を解除' })).toHaveCount(0);
 });
 
-test('PC: すべてクリアで全条件を外す', async ({ page }) => {
+test('PC: 条件をクリアで全条件を外す', async ({ page }) => {
   await gotoReceipts(page, 1280, 800);
 
   await pcSearch(page).getByRole('button', { name: '＋ 口座' }).click();
@@ -191,7 +191,7 @@ test('PC: すべてクリアで全条件を外す', async ({ page }) => {
     .click();
   await expect(pcSearch(page)).toContainText('1件 / 2件');
 
-  await pcSearch(page).getByRole('button', { name: 'すべてクリア' }).click();
+  await pcSearch(page).getByRole('button', { name: '条件をクリア' }).click();
   await expect(pcSearch(page)).toContainText('2件 / 2件');
 });
 

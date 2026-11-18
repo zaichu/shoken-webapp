@@ -129,8 +129,8 @@ test('PC の検索欄で口座を絞ると一覧・件数・集計が同じ対�
   await expect(table).toContainText('SBI証券');
   await expect(table).not.toContainText('楽天証券');
 
-  // すべてクリアで条件を外すと件数と一覧が元に戻る
-  await page.getByRole('button', { name: 'すべてクリア' }).click();
+  // 条件をクリアで条件を外すと件数と一覧が元に戻る
+  await page.getByRole('button', { name: '条件をクリア' }).click();
   await expect(
     page.getByRole('search', { name: '取引明細の検索' }),
   ).toContainText(`${DIVIDENDS.length}件 / ${DIVIDENDS.length}件`);

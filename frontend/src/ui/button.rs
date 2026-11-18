@@ -36,7 +36,7 @@ pub enum ButtonVariant {
     ConditionOption,
     /// 年・月の選択肢(枠線で選択中を示す)。aria-pressed で選択中を示す
     YearOption,
-    /// 検索条件の一括解除(「すべてクリア」)
+    /// 検索条件の一括解除(「条件をクリア」)
     SearchClear,
     /// 設定画面の少数択一(金額単位・自動ログアウト)。aria-pressed で選択中を示す
     Segmented,

@@ -167,9 +167,9 @@ fn EmptyFilteredPanel(
 ) -> impl IntoView {
     view! {
         <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
-            <div class="text-center">
+            <div>
                 <EmptyState title=title />
-                <div class="mt-3 text-center">
+                <div class="mt-3">
                     <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
                         {labels::CLEAR_SEARCH_CONDITIONS}
                     </Button>
