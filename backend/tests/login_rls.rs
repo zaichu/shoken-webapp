@@ -1817,3 +1817,49 @@ async fn balance_views_and_user_policies_isolate_rows_for_app_restricted() {
     assert_eq!(funds.total, 1);
     assert!(funds.data.iter().all(|row| row.user_id == user_a));
 }
+
+// FORCE を付けない前提: アプリのロールが表の所有者の権限を得ず、RLS を迂回できないこと。
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn app_roles_cannot_bypass_user_table_rls_without_force() {
+    let (_pool, worker, _admin, _node) = owner_pool().await;
+    let violations: String = db::query_scalar(
+        "SELECT COALESCE(string_agg(v, ', ' ORDER BY v), '')
+         FROM (
+             SELECT t.name || ' rls=' || COALESCE(c.relrowsecurity::text, 'missing') AS v
+             FROM pg_catalog.unnest($1::text[]) AS t(name)
+             LEFT JOIN pg_catalog.pg_class c
+                 ON c.relname = t.name AND c.relnamespace = 'public'::pg_catalog.regnamespace
+             WHERE c.relrowsecurity IS DISTINCT FROM true
+             UNION ALL
+             SELECT r.rolname || ' super=' || r.rolsuper::text || ' bypassrls=' || r.rolbypassrls::text
+             FROM pg_catalog.pg_roles r
+             WHERE r.rolname IN ('app_worker', 'app_restricted') AND (r.rolsuper OR r.rolbypassrls)
+             UNION ALL
+             SELECT r.rolname || ' member_of_owner=' || t.name
+             FROM pg_catalog.unnest($1::text[]) AS t(name)
+             JOIN pg_catalog.pg_class c
+                 ON c.relname = t.name AND c.relnamespace = 'public'::pg_catalog.regnamespace
+             CROSS JOIN pg_catalog.pg_roles r
+             WHERE r.rolname IN ('app_worker', 'app_restricted')
+               AND pg_catalog.pg_has_role(r.oid, c.relowner, 'MEMBER')
+         ) AS found",
+        vec![Bind::from(vec![
+            "users".to_string(),
+            "sessions".to_string(),
+            "dividends".to_string(),
+            "domestic_stocks".to_string(),
+            "mutualfunds".to_string(),
+            "asset_balances".to_string(),
+            "fund_balances".to_string(),
+            "csv_import_history".to_string(),
+            "login_events".to_string(),
+            "login_notify_tokens".to_string(),
+            "admin_login_views".to_string(),
+        ])],
+    )
+    .fetch_one(&worker)
+    .await
+    .unwrap();
+    assert_eq!(violations, "");
+}

@@ -88,6 +88,11 @@ baseline(`0000〜0010`)は適用済み環境があるため編集しない。
     (`WITH CHECK` も同じ式)。`user_id::text = ...` のように列側を変換すると索引が使えず、一覧が全行読みになる。
   - 共有の表(利用者の行なし)は 0036 と同じく `FOR SELECT TO app_worker, app_restricted USING (true)` にし、
     書き込みは BYPASSRLS の限定関数に閉じ込める。
+- `FORCE ROW LEVEL SECURITY` は付けない。表の所有者(移行ロール)が BYPASSRLS のため効かない。
+  RLS が効く根拠は「アプリのロールが所有者ではなく、所有者の権限も得られず、NOBYPASSRLS であること」で、
+  `app_worker` / `app_restricted` を表の所有者にしたり、所有者ロールへ所属させたりしない。
+  所有者を NOBYPASSRLS のロールに変えるときは、同じ変更で FORCE を付ける
+  (理由と手順は `docs/security/db-rls-plan.md` の §28)。
 - ロックを取る DDL(`ALTER POLICY`・`ALTER VIEW ... SET`・`ALTER TABLE` など)の先頭には
   `SET LOCAL lock_timeout = '5s';` を置く(ランナーは 1 ファイル 1 トランザクション)。
 

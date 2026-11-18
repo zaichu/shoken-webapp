@@ -884,3 +884,76 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   (無いと NOBYPASSRLS の接続からはエラーなしで 0 行に見える)。利用者の表は 0037 の式、
   共有の表は 0036 の `FOR SELECT TO app_worker, app_restricted USING (true)` に揃える。
 - 詳細は `backend/migrations/README.md` の「ビューと新しい表の RLS の決まり」。
+
+## 28. 第五段階(5e-4) FORCE を付けない判断(#1959)
+
+### 結論
+
+**利用者の表 11 件に `FORCE ROW LEVEL SECURITY` を付けない。** 今の本番の構成では、どの接続にも効き目がないため。
+§22 の「条件つきで導入を推奨」は、通常接続が表の所有者だった時点の判断である。
+§25 で接続を所有者でない `app_worker` に切り替えたため、FORCE で塞ぐ予定だった穴は接続の分離で塞がった。
+
+### FORCE が効く相手(使い捨て `postgres:16-alpine` で確認)
+
+FORCE で変わるのは「表の所有者」と「所有者の権限を継ぐロール」のうち、SUPERUSER でも BYPASSRLS でもないものだけ。
+3 行の表(`user_id` 1〜3)に 0037 と同じ形のポリシーを付け、`user_id = 1` を設定して `count(*)` を比べた。
+
+| 読む人 | FORCE なし | FORCE あり | 本番で当たるロール |
+|---|---:|---:|---|
+| BYPASSRLS の所有者 | 3 | 3 | 移行ロール `postgres`(旧 Worker の接続、migration) |
+| 所有者でない NOBYPASSRLS | 1 | 1 | `app_worker`・`app_restricted` |
+| 上の人が呼ぶ、BYPASSRLS の所有者の `SECURITY DEFINER` 関数 | 3 | 3 | `auth_*`(0028・0032、所有者は移行ロール)、`app_*_executor` の限定関数(0033・0035) |
+| NOBYPASSRLS の所有者 | 3 | 1 | なし |
+| 所有者の権限を継ぐ(INHERIT)NOBYPASSRLS | 3 | 1 | なし(`app_worker` は `app_restricted` に `INHERIT FALSE` で所属するだけ) |
+
+FORCE を付けても、所有者は `ALTER TABLE ... NO FORCE ROW LEVEL SECURITY` で外せる(同じ環境で確認)。
+
+本番の経路を当てはめると次のとおり。
+
+- 新 Worker(`app_worker` → `app_restricted`)は所有者でなく、所有者の権限も継がないため、FORCE がなくても全 11 表でポリシーが効く(§27 の結合テスト)。
+- 旧 Worker と migration は `postgres`(BYPASSRLS)で動くため、FORCE を付けても迂回する。
+  旧 Worker が残る間の全行アクセスは FORCE では防げない。防ぐには旧接続を止めるしかない(§25 の切り替えで済み)。
+- 限定関数の所有者 `app_*_executor` は BYPASSRLS で表の所有者でもないため、FORCE の有無で挙動が変わらない。
+  安全性は引数と返す列を絞ることと、`EXECUTE` を最小にすることに依る(§24〜26)。
+- 残高ビューは 0037 で `security_invoker` になり、呼び出し側のロールで RLS がかかる。FORCE とは関係しない。
+
+### 付けた場合の危険
+
+効き目がないのに、DB RLS State の `relforcerowsecurity=true` が「所有者にも効いている」と読み違えられる。
+さらに、将来 `postgres` の BYPASSRLS が外れたり、所有者が NOBYPASSRLS のロールに変わったりすると、
+FORCE が付いた表では所有者の経路がエラーなしで 0 行になり、次のものが同時に止まる。
+FORCE がなければ所有者は今までどおり全行を読むので、この変更だけでは壊れない。
+
+- `auth_*` の `SECURITY DEFINER` 関数(移行ロールが所有)によるログイン・セッション照会・ログアウト
+  (結合テストではこれを避けるため、関数の所有者を superuser に付け替えている)
+- 利用者の表を読み書きする data migration(0 行のまま成功する)
+- `pg_dump`(既定の `row_security=off` で `42501`、§22)
+
+### 代わりに守ること
+
+1. **アプリのロールを、表の所有者・所有者ロールの所属・SUPERUSER・BYPASSRLS にしない。** RLS が効く根拠はこれだけである。
+   `backend/tests/login_rls.rs` の `app_roles_cannot_bypass_user_table_rls_without_force` で、11 表の RLS が有効なこと、
+   `app_worker`・`app_restricted` が SUPERUSER でも BYPASSRLS でもなく、11 表の所有者の所属(`MEMBER`、SET と INHERIT の両方を含む)を持たないことを確かめる。
+   本番の接続ロールの属性は DB RLS State ワークフローで確かめる(§23)。
+   本番で `app_worker`・`app_restricted` が `postgres` に所属していないことは今回確かめていない。
+   Supabase の既定のロールの所属を含め、次に読み取り専用で確かめる。
+2. **BYPASSRLS の関数(限定関数、`auth_*`)を増やすときは**、引数を鍵だけにし、返す列を最小にし、
+   `search_path` を固定し、`PUBLIC` の `EXECUTE` を取り上げる(§24 の決まり)。FORCE はこれらの関数の中を守らない。
+3. **ビューは `security_invoker = true`**(§27)。
+4. **旧 `postgres` 接続を Worker に戻さない。** §25 の戻し手順は全行アクセスに戻る。
+   使うのは障害のときだけにし、使ったら Issue に残す。
+
+### 見直す条件
+
+表の所有者を NOBYPASSRLS のロールに変えるとき(移行ロールの BYPASSRLS を外す、所有専用の `NOLOGIN NOBYPASSRLS` ロールへ表を移すなど)は、
+FORCE を付けないと所有者がポリシーを迂回するので、同じ変更で FORCE を付ける。その前に次の 3 つを済ませる。
+
+1. `auth_*` の `SECURITY DEFINER` 関数(0028・0032)の所有者を `NOLOGIN BYPASSRLS` の専用ロールへ移す(0033 と同じ型)。
+2. data migration は、FORCE の下で行が見える経路(限定関数または専用ロール)で書き、件数を確かめる。
+3. `scripts/db-backup.sh` の `pg_dump` は、BYPASSRLS の別の資格情報で取る。
+
+アプリの経路が FORCE の下でも動くことは、
+`force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths` が確かめている。
+このテストは NOBYPASSRLS の所有者で 11 表に一時的に FORCE を付け、ログイン・通常認証・ログアウト・通知解除・管理者検索と閲覧監査・cron の価格対象の列挙と反映・履歴掃除・本人のログイン履歴とセッション削除を通す。
+CSV の取り込み(書き込み)と残高ビューは FORCE の下では通していない。どちらも所有者でない `app_restricted` で動くので FORCE で挙動は変わらないが、
+付けるときはこのテストに足す。付けるときは §22 の手順 4・5 に従い、1 表ずつ、戻すときは新しい migration で `NO FORCE` にする。
