@@ -6,16 +6,14 @@ pub(crate) use login_history::{ResultBadge, format_agent, format_datetime, forma
 use crate::session;
 use crate::settings;
 use crate::settings::{AmountUnit, AssetSort, Theme};
-use crate::ui::avatar::UserAvatar;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant, LinkButton, Switch};
-use crate::ui::card::Card;
-use crate::ui::card::CardVariant;
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::section_heading::{SectionHeading, SectionHeadingTone};
 use crate::ui::segmented::Segmented;
-use crate::ui::select::Select;
+use crate::ui::select::{Select, SelectVariant};
+use crate::ui::settings as settings_ui;
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
 use export::ExportKind;
 use leptos::prelude::*;
@@ -33,24 +31,20 @@ pub fn SettingsPage() -> impl IntoView {
 
     view! {
         <PageFrame title=labels::SETTINGS_TITLE>
-            <div class="flex flex-col lg:flex-row gap-7">
-                <toc::TocNav active=active locked=locked />
-
-                <div class="flex-1 min-w-0 space-y-4">
-                    <SectionNotifyLogout />
-                    {move || {
-                        user().map_or_else(|| view! { <div class="text-center py-12">{labels::LOGIN_REQUIRED_TITLE}</div> }.into_any(), |user| view! {
-                                <SectionAccount user=user />
-                                <SectionDisplay />
-                                <SectionData />
-                                <SectionSecurity />
-                                <login_history::SectionDevices />
-                                <login_history::SectionLoginHistory />
-                                <SectionDanger />
-                            }.into_any())
-                    }}
-                </div>
-            </div>
+            <settings_ui::SettingsLayout navigation=view! { <toc::TocNav active=active locked=locked /> }.into_any()>
+                <SectionNotifyLogout />
+                {move || {
+                    user().map_or_else(|| view! { <settings_ui::SettingsLoginRequired /> }.into_any(), |user| view! {
+                            <SectionAccount user=user />
+                            <SectionDisplay />
+                            <SectionData />
+                            <SectionSecurity />
+                            <login_history::SectionDevices />
+                            <login_history::SectionLoginHistory />
+                            <SectionDanger />
+                        }.into_any())
+                }}
+            </settings_ui::SettingsLayout>
         </PageFrame>
     }
 }
@@ -62,41 +56,19 @@ fn SectionAccount(user: crate::api::dto::SessionUser) -> impl IntoView {
         .clone()
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| user.email.clone());
-    let login_method_text = labels::SETTINGS_GOOGLE_LOGIN;
 
     view! {
-        <section id="account" aria-labelledby="account-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
+        <settings_ui::SettingsSection id="account" labelledby="account-heading">
+            <settings_ui::SettingsPanel>
                 <SectionHeading id="account-heading">{labels::ACCOUNT_BUTTON}</SectionHeading>
-                <div class="flex items-center gap-4">
-                    <UserAvatar
-                        picture_url=user.picture_url.clone()
-                        name=user.name.clone()
-                        email=user.email.clone()
-                        large=true
-                        alt=display_name.clone()
-                    />
-                    <div class="min-w-0">
-                        <div class="font-bold text-heading break-words">{display_name}</div>
-                        <div class="text-label text-text-muted break-all">{user.email.clone()}</div>
-                        <div class="text-label text-text-muted">{login_method_text}</div>
-                    </div>
-                </div>
-            </Card>
-        </section>
-    }
-}
-
-/// セクション内の1行。右側に操作(子要素)を置く
-#[component]
-fn SettingRow(title: &'static str, children: Children) -> impl IntoView {
-    view! {
-        <div class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-start">
-            <div class="min-w-0">
-                <div class="font-medium">{title}</div>
-            </div>
-            <div class="shrink-0 flex items-center gap-2">{children()}</div>
-        </div>
+                <settings_ui::AccountIdentity
+                    name=user.name.clone()
+                    email=user.email.clone()
+                    picture_url=user.picture_url.clone()
+                    display_name=display_name
+                />
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
 
@@ -109,13 +81,13 @@ fn SectionDisplay() -> impl IntoView {
     let theme = settings.theme;
 
     view! {
-        <section id="display" aria-labelledby="display-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
+        <settings_ui::SettingsSection id="display" labelledby="display-heading">
+            <settings_ui::SettingsPanel>
                 <SectionHeading id="display-heading">{labels::SETTINGS_DISPLAY_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title=labels::SETTINGS_THEME>
+                    <settings_ui::SettingRow title=labels::SETTINGS_THEME>
                         <Segmented
-                            options=&THEME_SEGMENTS
+                            options=&self::THEME_SEGMENTS
                             value=Signal::derive(move || theme.get().value())
                             aria_label=labels::SETTINGS_THEME
                             testid="setting-theme"
@@ -125,13 +97,13 @@ fn SectionDisplay() -> impl IntoView {
                                 }
                             }
                         />
-                    </SettingRow>
-                    <SettingRow title=labels::SETTINGS_ASSET_SORT>
+                    </settings_ui::SettingRow>
+                    <settings_ui::SettingRow title=labels::SETTINGS_ASSET_SORT>
                         <Select
                             value=Signal::derive(move || asset_sort.get().value())
                             aria_label=labels::SETTINGS_ASSET_SORT_INITIAL.to_string()
                             testid="setting-asset-sort"
-                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-label max-sm:min-h-11".to_string()
+                            variant=SelectVariant::Setting
                             on_change=move |value| {
                                 if let Some(sort) = AssetSort::parse(&value) {
                                     asset_sort.set(sort);
@@ -144,13 +116,13 @@ fn SectionDisplay() -> impl IntoView {
                                 }
                             }).collect_view()}
                         </Select>
-                    </SettingRow>
-                    <SettingRow title=labels::SETTINGS_RECEIPTS_TAB>
+                    </settings_ui::SettingRow>
+                    <settings_ui::SettingRow title=labels::SETTINGS_RECEIPTS_TAB>
                         <Select
                             value=Signal::derive(move || initial_tab.get().kind_param().to_string())
                             aria_label=labels::SETTINGS_RECEIPTS_TAB.to_string()
                             testid="setting-receipts-tab"
-                            class="min-w-44 rounded-md border border-border-strong bg-surface px-3 py-2 text-label max-sm:min-h-11".to_string()
+                            variant=SelectVariant::Setting
                             on_change=move |value| {
                                 if let Some(tab) = crate::features::receipts::ReceiptsTab::ALL
                                     .iter()
@@ -167,8 +139,8 @@ fn SectionDisplay() -> impl IntoView {
                                 }
                             }).collect_view()}
                         </Select>
-                    </SettingRow>
-                    <SettingRow title=labels::SETTINGS_AMOUNT_UNIT>
+                    </settings_ui::SettingRow>
+                    <settings_ui::SettingRow title=labels::SETTINGS_AMOUNT_UNIT>
                         <Segmented
                             options=&[
                                 ("yen", labels::YEN),
@@ -184,10 +156,10 @@ fn SectionDisplay() -> impl IntoView {
                                 }
                             }
                         />
-                    </SettingRow>
+                    </settings_ui::SettingRow>
                 </div>
-            </Card>
-        </section>
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
 
@@ -220,17 +192,16 @@ fn SectionData() -> impl IntoView {
     };
 
     view! {
-        <section id="data" aria-labelledby="data-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
+        <settings_ui::SettingsSection id="data" labelledby="data-heading">
+            <settings_ui::SettingsPanel>
                 <SectionHeading id="data-heading">{labels::SETTINGS_DATA_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title=labels::SETTINGS_EXPORT_CSV>
+                    <settings_ui::SettingRow title=labels::SETTINGS_EXPORT_CSV>
                         {ExportKind::ALL.iter().map(|kind| {
                             let kind = *kind;
                             view! {
                                 <Button
-                                    variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                                    class="whitespace-nowrap"
+                                    variant=ButtonVariant::SecondaryNoWrap(ButtonSize::Sm)
                                     disabled=Signal::derive(move || exporting.get().is_some())
                                     testid=match kind {
                                         ExportKind::Dividend => "export-dividends",
@@ -249,23 +220,18 @@ fn SectionData() -> impl IntoView {
                                 </Button>
                             }
                         }).collect_view()}
-                    </SettingRow>
+                    </settings_ui::SettingRow>
                     {move || {
                         export_message.get().map(|message| {
-                            let tone = if export_failed.get() {
-                                "text-negative"
-                            } else {
-                                "text-text-muted"
-                            };
-                            view! { <p class=format!("pb-2 text-cell {tone}")>{message}</p> }
+                            view! { <settings_ui::SettingsFeedback message=message failed=export_failed.get() /> }
                         })
                     }}
-                    <SettingRow title=labels::SETTINGS_CSV_IMPORT_DELETE>
+                    <settings_ui::SettingRow title=labels::SETTINGS_CSV_IMPORT_DELETE>
                         <MoreLink href="/csv".to_string() label=labels::SETTINGS_CSV_MANAGE_LINK.to_string() />
-                    </SettingRow>
+                    </settings_ui::SettingRow>
                 </div>
-            </Card>
-        </section>
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
 
@@ -309,13 +275,13 @@ fn SectionSecurity() -> impl IntoView {
     };
 
     view! {
-        <section id="security" aria-labelledby="security-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5">
+        <settings_ui::SettingsSection id="security" labelledby="security-heading">
+            <settings_ui::SettingsPanel>
                 <SectionHeading id="security-heading">{labels::SETTINGS_SECURITY_SECTION}</SectionHeading>
                 <div class="divide-y divide-ink/10 border-t border-ink/10">
-                    <SettingRow title=labels::SETTINGS_IDLE_LOGOUT>
+                    <settings_ui::SettingRow title=labels::SETTINGS_IDLE_LOGOUT>
                         <Segmented
-                            options=&IDLE_SEGMENTS
+                            options=&self::IDLE_SEGMENTS
                             value=Signal::derive(move || idle_minutes.get().to_string())
                             aria_label=labels::SETTINGS_IDLE_LOGOUT_TIME
                             testid="setting-idle-minutes"
@@ -327,8 +293,8 @@ fn SectionSecurity() -> impl IntoView {
                                 }
                             }
                         />
-                    </SettingRow>
-                    <SettingRow title=labels::LOGIN_NOTIFY_TITLE>
+                    </settings_ui::SettingRow>
+                    <settings_ui::SettingRow title=labels::LOGIN_NOTIFY_TITLE>
                         {move || match notify.get() {
                             None => {
                                 view! { <ListSkeleton variant=ListSkeletonVariant::Cards /> }
@@ -353,11 +319,11 @@ fn SectionSecurity() -> impl IntoView {
                                     .into_any()
                             }
                         }}
-                    </SettingRow>
+                    </settings_ui::SettingRow>
                 </div>
-                <p class="pt-2 text-cell text-text-muted">{labels::LOGIN_NOTIFY_NOTE}</p>
-            </Card>
-        </section>
+                <settings_ui::SettingsNote after=true>{labels::LOGIN_NOTIFY_NOTE}</settings_ui::SettingsNote>
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
 
@@ -386,7 +352,7 @@ fn notify_token_from_search() -> Option<String> {
 #[component]
 fn SectionNotifyLogout() -> impl IntoView {
     let session = session::use_session();
-    let token = RwSignal::new(notify_token_from_search());
+    let token = RwSignal::new(self::notify_token_from_search());
     let state = RwSignal::new(Option::<Result<bool, String>>::None);
     let running = RwSignal::new(false);
     let done = RwSignal::new(false);
@@ -450,11 +416,8 @@ fn SectionNotifyLogout() -> impl IntoView {
             token.get().map(|_| {
                 view! {
                     <section id="notify-logout" aria-labelledby="notify-logout-heading">
-                        <Card variant=CardVariant::Panel class="p-5 border-negative-border">
-                            <h2 id="notify-logout-heading" class="text-heading font-bold mb-2">
-                                {labels::NOTIFY_LOGOUT_TITLE}
-                            </h2>
-                            <p class="pb-3 text-body">{labels::NOTIFY_LOGOUT_DESCRIPTION}</p>
+                        <settings_ui::SettingsPanel tone=settings_ui::SettingsSectionTone::Notification>
+                            <settings_ui::SettingsNotificationHeading />
                             {move || {
                                 if done.get() {
                                     view! { <p role="status">{labels::NOTIFY_LOGOUT_DONE}</p> }.into_any()
@@ -472,7 +435,7 @@ fn SectionNotifyLogout() -> impl IntoView {
                                         }
                                         Some(Ok(_)) => {
                                             view! {
-                                                <div class="space-y-2">
+                                                <settings_ui::SettingsNotificationActions>
                                                     <Button
                                                         variant=ButtonVariant::DangerSolid(ButtonSize::Sm)
                                                         disabled=Signal::derive(move || running.get())
@@ -490,14 +453,14 @@ fn SectionNotifyLogout() -> impl IntoView {
                                                                 }
                                                             })
                                                     }}
-                                                </div>
+                                                </settings_ui::SettingsNotificationActions>
                                             }
                                                 .into_any()
                                         }
                                     }
                                 }
                             }}
-                        </Card>
+                        </settings_ui::SettingsPanel>
                     </section>
                 }
             })
@@ -534,82 +497,61 @@ fn SectionDanger() -> impl IntoView {
         .map_or_else(|| RwSignal::new(false), |confirm| confirm.0);
 
     view! {
-        <section id="danger" aria-labelledby="danger-heading" class="scroll-mt-18">
-            <Card variant=CardVariant::Panel class="p-5 border-negative-border bg-negative/5">
+        <settings_ui::SettingsSection id="danger" labelledby="danger-heading">
+            <settings_ui::SettingsPanel tone=settings_ui::SettingsSectionTone::Danger>
                 <SectionHeading id="danger-heading" tone=SectionHeadingTone::Danger>{labels::SETTINGS_DANGER_SECTION}</SectionHeading>
-                <div class="space-y-3 border-t border-negative-border/50">
-                    <div class="flex items-center justify-between py-3">
-                        <div>
-                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_DIVIDEND}</div>
-                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_DIVIDEND_NOTE}</div>
-                        </div>
+                <settings_ui::SettingsDangerRows>
+                    <settings_ui::SettingsDangerRow title=labels::SETTINGS_DELETE_DIVIDEND note=labels::SETTINGS_DELETE_DIVIDEND_NOTE>
                         <LinkButton
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
-                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print"
                             aria_label=labels::SETTINGS_DELETE_DIVIDEND_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
-                    </div>
-                    <div class="flex items-center justify-between py-3">
-                        <div>
-                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_STOCK}</div>
-                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_STOCK_NOTE}</div>
-                        </div>
+                    </settings_ui::SettingsDangerRow>
+                    <settings_ui::SettingsDangerRow title=labels::SETTINGS_DELETE_STOCK note=labels::SETTINGS_DELETE_STOCK_NOTE>
                         <LinkButton
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
-                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print"
                             aria_label=labels::SETTINGS_DELETE_STOCK_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
-                    </div>
-                    <div class="flex items-center justify-between py-3">
-                        <div>
-                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_FUND}</div>
-                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_FUND_NOTE}</div>
-                        </div>
+                    </settings_ui::SettingsDangerRow>
+                    <settings_ui::SettingsDangerRow title=labels::SETTINGS_DELETE_FUND note=labels::SETTINGS_DELETE_FUND_NOTE>
                         <LinkButton
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
-                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print"
                             aria_label=labels::SETTINGS_DELETE_FUND_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
-                    </div>
-                    <div class="flex items-center justify-between py-3">
-                        <div>
-                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ASSETS}</div>
-                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_ASSETS_NOTE}</div>
-                        </div>
+                    </settings_ui::SettingsDangerRow>
+                    <settings_ui::SettingsDangerRow title=labels::SETTINGS_DELETE_ASSETS note=labels::SETTINGS_DELETE_ASSETS_NOTE>
                         <LinkButton
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                            variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
-                            class="no-print shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                            class="no-print"
                             aria_label=labels::SETTINGS_DELETE_ASSETS
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
-                    </div>
-                    <div class="flex items-center justify-between py-3">
-                        <div>
-                            <div class="font-medium text-negative">{labels::SETTINGS_DELETE_ACCOUNT}</div>
-                            <div class="text-cell text-text-muted">{labels::SETTINGS_DELETE_ACCOUNT_NOTE}</div>
-                        </div>
+                    </settings_ui::SettingsDangerRow>
+                    <settings_ui::SettingsDangerRow title=labels::SETTINGS_DELETE_ACCOUNT note=labels::SETTINGS_DELETE_ACCOUNT_NOTE>
                         <Button
-                            variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                            class="shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10"
+                            variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             on_click=move |_| delete_confirm_open.set(true)
                             aria_label=labels::SETTINGS_DELETE_ACCOUNT
                         >
                             {labels::SETTINGS_DELETE}
                         </Button>
-                    </div>
-                </div>
-            </Card>
-        </section>
+                    </settings_ui::SettingsDangerRow>
+                </settings_ui::SettingsDangerRows>
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
     }
 }
