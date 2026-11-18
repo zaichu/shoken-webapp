@@ -74,7 +74,7 @@ pub fn MobileSearchEntryShell(
     }
 }
 
-/// PC の条件の行の右端。件数と「すべてクリア」を1つの段にまとめる
+/// PC の条件の行の右端。件数と「条件をクリア」を1つの段にまとめる
 #[component]
 pub fn SearchCountAndClear(
     filtered: impl Fn() -> usize + Copy + 'static + Send + Sync,

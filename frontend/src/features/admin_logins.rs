@@ -372,7 +372,13 @@ pub fn AdminLoginsPage() -> impl IntoView {
                             }
                         })}
                         <ConditionRowEnd>
-                            <span class="receipts-search-count" role="status" aria-live="polite">{move || total.get().map(|total| labels::count(usize::try_from(total.max(0)).unwrap_or(usize::MAX)))}</span>
+                            <span role="status" aria-live="polite">
+                                <SearchCount
+                                    filtered=move || entries.with(Vec::len)
+                                    total=search_count_total
+                                    testid="admin-login-search-count-pc"
+                                />
+                            </span>
                             <SearchClearButton disabled=move || query.with(|query| query.q.is_empty() && query.email.is_empty() && query.place.is_empty())
                                 on_clear=move || { query.update(|query| { query.q.clear(); query.email.clear(); query.place.clear(); query.page = 1; }); load_first(); } />
                         </ConditionRowEnd>

@@ -286,7 +286,7 @@ test.describe('資産管理と取引明細のページの骨格', () => {
     await expect(page.getByTestId('page-filtering-count')).toBeVisible();
     await expect(page.getByTestId('page-filtering-count')).toContainText('15件 / 30件');
 
-    await page.getByRole('button', { name: 'すべてクリア' }).click();
+    await page.getByRole('button', { name: '条件をクリア' }).click();
     await expect(page.getByTestId('page-filtering-count')).toHaveCount(0);
   });
 

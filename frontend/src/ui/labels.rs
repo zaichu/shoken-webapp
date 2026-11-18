@@ -1012,7 +1012,7 @@ pub fn page_frame_top_label() -> String {
 }
 
 /// 検索条件の一括解除
-pub const SEARCH_CLEAR_ALL: &str = "すべてクリア";
+pub const SEARCH_CLEAR_ALL: &str = "条件をクリア";
 /// 条件追加の行見出し
 pub const ADD_CONDITION_LABEL: &str = "条件を足す:";
 /// 条件追加ボタンの頭に付ける記号(後ろに空白あり)

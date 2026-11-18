@@ -54,7 +54,7 @@ test('管理者メニューから開き、検索・並べ替え・もっと見�
   await expect(table.locator('tbody tr')).toHaveCount(50);
   await page.getByRole('searchbox', { name: 'メール・場所で検索', exact: true }).fill('no-matching-login');
   await expect(page.getByTestId('empty-state')).toBeVisible();
-  await page.getByRole('button', { name: 'すべてクリア', exact: true }).click();
+  await page.getByRole('button', { name: '条件をクリア', exact: true }).click();
   await expect(table.locator('tbody tr')).toHaveCount(50);
 });
 
