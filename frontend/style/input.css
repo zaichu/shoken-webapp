@@ -1526,9 +1526,10 @@
     @apply text-cell font-semibold text-text-soft;
   }
 
-  /* 帯のラベルの横に出す時点・更新待ち。ラベルと同じ行で小さく出す */
+  /* 帯のラベルの横に出す時点・更新待ち。ラベルと同じ行で小さく出す。
+     期間は途中で割らず、入りきらないときは全体を次の行に送る */
   .summary-label-note {
-    @apply ml-1 text-cell font-normal text-text-muted;
+    @apply ml-1 text-cell font-normal text-text-muted whitespace-nowrap;
   }
 
   /* 数字は行の高さを1に詰め、項目の底にそろえる */
