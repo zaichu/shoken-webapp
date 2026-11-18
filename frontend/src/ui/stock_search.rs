@@ -76,7 +76,7 @@ pub fn EmptySearch(title: &'static str, description: &'static str) -> impl IntoV
             description=description
             icon=EmptyStateIcon::Search
         >
-            <ul class="mt-4 space-y-1 text-body font-medium text-text-muted">
+            <ul class="mt-4 space-y-1 text-body font-normal text-text-muted">
                 <li>{labels::STOCK_SEARCH_TIP_CODE}</li>
                 <li>{labels::STOCK_SEARCH_TIP_NAME}</li>
                 <li>{labels::STOCK_SEARCH_TIP_LINKS}</li>
@@ -97,7 +97,7 @@ pub fn StockInfoCard(
             <card::Card variant=CardVariant::Panel class="mb-6 overflow-hidden">
                 <div class="border-b border-ink/10 bg-ink px-4 py-4 text-page sm:px-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="min-w-0 flex-1 break-words text-subhero font-black leading-tight">{name}</h2>
+                        <h2 class="min-w-0 flex-1 break-words text-subhero font-bold leading-tight">{name}</h2>
                         <badge::CodeBadge>{code}</badge::CodeBadge>
                     </div>
                 </div>
@@ -113,7 +113,7 @@ pub fn StockInfoCard(
                                 };
                                 view! {
                                     <div class="flex min-h-16 flex-col justify-center bg-surface px-4 py-3">
-                                        <dt class="text-cell font-medium text-text-muted">
+                                        <dt class="text-cell font-bold text-text-muted">
                                             {label}
                                         </dt>
                                         <dd class="mt-1 break-words font-bold tabular-nums text-text-deep">{display}</dd>

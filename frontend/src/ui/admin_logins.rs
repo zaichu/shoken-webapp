@@ -14,7 +14,7 @@ pub fn AdminDialogStack(children: Children) -> impl IntoView {
 #[component]
 pub fn AdminDialogField(label: &'static str, children: Children) -> impl IntoView {
     view! {
-        <label class="mb-1 block text-label font-medium text-text-deep">
+        <label class="mb-1 block text-label font-bold text-text-deep">
             {label}
             {children()}
         </label>

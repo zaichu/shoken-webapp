@@ -38,6 +38,11 @@ strip_testids() {
     -e 's/(data-)?testid=\{[^}]*\}//g'
 }
 
+# url(...) の中身を取り除く(フォント等のパスをクラス定義と誤認しないため)
+strip_urls() {
+  sed -E -e 's/url\([^)]*\)/url()/g'
+}
+
 # Rust のコメントを取り除く。行コメント(// ...)と RSX 内の {/* ... */} が対象。
 # 通常の文字列リテラル内の // (URL など)は残す。raw string は src/ に無いため対象外
 strip_rs_comments() {
@@ -72,7 +77,7 @@ check_unused() {
   for file in "$@"; do
     strip_rs_comments <"$file" | strip_testids >>"$tmp_corpus"
   done
-  defined=$(strip_css_comments <"$css" | grep -oE '\.[a-z][a-z0-9_-]*' | sed 's/^\.//' | sort -u)
+  defined=$(strip_css_comments <"$css" | strip_urls | grep -oE '\.[a-z][a-z0-9_-]*' | sed 's/^\.//' | sort -u)
   local fail=0 class
   for class in $defined; do
     if grep -Eq "$TEST_BACKED" <<<"$class"; then

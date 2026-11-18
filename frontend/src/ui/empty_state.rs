@@ -91,7 +91,7 @@ pub fn EmptyState(
                     }}
                     {description.clone().map(|description| {
                         view! {
-                            <p class="mt-0.5 text-cell font-medium text-text-muted">{description}</p>
+                            <p class="mt-0.5 text-cell font-normal text-text-muted">{description}</p>
                         }
                     })}
                 </div>

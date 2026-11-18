@@ -18,7 +18,7 @@ pub fn DividendTotalGrid(children: Children) -> impl IntoView {
 
 #[component]
 pub fn ReceiptStatLabel(children: Children) -> impl IntoView {
-    view! { <p class="text-cell font-medium text-text-muted mb-1">{children()}</p> }
+    view! { <p class="text-cell font-bold text-text-muted mb-1">{children()}</p> }
 }
 
 #[component]
@@ -95,7 +95,7 @@ pub fn DividendSummaryBody(expanded: RwSignal<bool>, children: Children) -> impl
 
 #[component]
 pub fn ReceiptDialogLabel(children: Children) -> impl IntoView {
-    view! { <label class="mb-1 block text-label font-medium text-text-deep">{children()}</label> }
+    view! { <label class="mb-1 block text-label font-bold text-text-deep">{children()}</label> }
 }
 
 #[component]
@@ -225,7 +225,7 @@ pub fn ReceiptMobileGroupList(children: Children) -> impl IntoView {
 
 #[component]
 pub fn ReceiptGroupCount(#[prop(into)] text: String) -> impl IntoView {
-    view! { <span class="ml-2 text-cell font-medium text-text-muted">{text}</span> }
+    view! { <span class="ml-2 text-cell font-normal text-text-muted">{text}</span> }
 }
 
 #[component]

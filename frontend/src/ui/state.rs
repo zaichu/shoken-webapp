@@ -24,7 +24,7 @@ pub fn Alert(variant: AlertVariant, children: Children) -> impl IntoView {
     view! {
         <div
             class={format!(
-                "rounded-lg border px-4 py-3 text-body font-medium shadow-sm {variant_class}"
+                "rounded-lg border px-4 py-3 text-body font-normal shadow-sm {variant_class}"
             )}
             role="alert"
         >
@@ -120,7 +120,7 @@ pub fn ListLoadError(
                     {first}
                 </p>
                 {rest.map(|rest| {
-                    view! { <p class="mt-0.5 text-cell font-medium text-text-muted">{rest}</p> }
+                    view! { <p class="mt-0.5 text-cell font-normal text-text-muted">{rest}</p> }
                 })}
             </div>
             <Button variant=ButtonVariant::Retry on_click=move |_| on_retry()>

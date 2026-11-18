@@ -85,7 +85,7 @@ pub fn AccountIdentity(
 pub fn SettingRow(title: &'static str, children: Children) -> impl IntoView {
     view! {
         <div class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-start">
-            <div class="min-w-0"><div class="font-medium">{title}</div></div>
+            <div class="min-w-0"><div class="font-bold">{title}</div></div>
             <div class="shrink-0 flex items-center gap-2">{children()}</div>
         </div>
     }
@@ -105,7 +105,7 @@ pub fn SettingsDangerRow(
     view! {
         <div class="flex items-center justify-between py-3">
             <div>
-                <div class="font-medium text-negative">{title}</div>
+                <div class="font-bold text-negative">{title}</div>
                 <div class="text-cell text-text-muted">{note}</div>
             </div>
             {children()}
@@ -162,7 +162,7 @@ pub fn DeviceRow(
         <li class="flex items-center justify-between gap-3 py-3 max-sm:flex-col max-sm:items-stretch">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="tabular-nums text-cell font-medium">{datetime}</span>
+                    <span class="tabular-nums text-cell font-normal">{datetime}</span>
                     {current.then(|| view! { <Badge variant=BadgeVariant::Info>{labels::DEVICE_CURRENT}</Badge> })}
                 </div>
                 <div class="mt-1 text-body break-words">{description}</div>

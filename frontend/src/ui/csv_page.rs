@@ -413,7 +413,7 @@ fn CsvKindRow(
             data-kind=kind.kind_param()
         >
             <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-1 max-sm:pb-0">
-                <span class="text-text font-medium">{kind.label()}</span>
+                <span class="text-text font-bold">{kind.label()}</span>
             </td>
             <td
                 class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:pr-2"
@@ -472,7 +472,7 @@ fn CsvKindRow(
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger
                     >
-                        <span class="text-subhero font-mono">{labels::CSV_MANAGE_COL_MENU}</span>
+                        <span class="text-subhero">{labels::CSV_MANAGE_COL_MENU}</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {

@@ -12,12 +12,12 @@ pub fn StatRow(
 ) -> impl IntoView {
     view! {
         <div class="flex items-start justify-between gap-3">
-            <dt class="shrink-0 pt-0.5 text-cell font-medium text-text-subtle">{label}</dt>
+            <dt class="shrink-0 pt-0.5 text-cell font-bold text-text-subtle">{label}</dt>
             <dd
                 class=if numeric {
-                    "min-w-0 break-words text-right text-body font-semibold tabular-nums text-text"
+                    "min-w-0 break-words text-right text-body font-bold tabular-nums text-text"
                 } else {
-                    "min-w-0 break-words text-right text-body font-semibold text-text"
+                    "min-w-0 break-words text-right text-body font-bold text-text"
                 }
             >
                 {children()}
