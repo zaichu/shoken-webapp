@@ -157,7 +157,7 @@
   --space-row-compact: 3.25rem;
   --space-tap: 2.75rem;
 
-  --text-eyebrow: 0.6875rem;
+  --text-eyebrow: 0.75rem;
   --text-cell: 0.75rem;
   --text-body: 0.9375rem;
   --text-label: 0.8125rem;
@@ -508,19 +508,19 @@
   }
 
   .badge-positive {
-    @apply rounded bg-positive-softer px-1.5 py-0.5 font-medium text-positive;
+    @apply rounded border border-positive-border bg-positive-softer px-1.5 py-0.5 font-medium text-positive;
   }
 
   .badge-info {
-    @apply rounded bg-info-soft px-1.5 py-0.5 font-medium text-info;
+    @apply rounded border border-info-border bg-info-soft px-1.5 py-0.5 font-medium text-info;
   }
 
   .badge-accent {
-    @apply rounded bg-accent-soft px-1.5 py-0.5 font-medium text-accent-text;
+    @apply rounded border border-accent-border bg-accent-soft px-1.5 py-0.5 font-medium text-accent-text;
   }
 
   .badge-danger {
-    @apply rounded bg-negative-soft px-1.5 py-0.5 font-medium text-negative-vivid;
+    @apply rounded border border-negative-border bg-negative-soft px-1.5 py-0.5 font-medium text-negative-vivid;
   }
 
   .badge-code {
@@ -1479,6 +1479,31 @@
     @apply rounded p-0.5 text-icon opacity-100 group-hover:text-icon-hover group-hover:opacity-100 group-focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100;
   }
 
+  /* 見た目を変えずに押せる範囲だけ 44px まで広げる。
+     44px に満たない辺だけ ::after の透明な面で補う(100% が 44px 以上なら inset は 0 以上で何もしない)。
+     横だけ足りないときは hit-area-44-x、縦だけ足りないときは hit-area-44-y を使う。
+     両辺とも足りている要素には付けない */
+  .hit-area-44-x,
+  .hit-area-44-y {
+    position: relative;
+  }
+
+  .hit-area-44-x::after,
+  .hit-area-44-y::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline: 0;
+  }
+
+  .hit-area-44-x::after {
+    inset-inline: calc((100% - 44px) / 2);
+  }
+
+  .hit-area-44-y::after {
+    inset-block: calc((100% - 44px) / 2);
+  }
+
   /* 集計の帯で使う共通の項目部品(資産管理・ホーム・取引明細で同じものを使う)。
      項目はラベルを上、数字を下に置き、全項目のラベル行と数字の基準線をそろえる。
      主値の数字は紺、それ以外の数字は紺(損益は Amount の緑/赤が付く)、ラベルは灰 */
@@ -1591,6 +1616,17 @@
   /* チャートの凡例スウォッチ。塗りは呼び出し側がクラスで渡す(style 属性は本番 CSP で止まる) */
   .home-swatch {
     @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
+  }
+
+  /* 前年の凡例は当年と同じ青のため、斜線だけでなく形でも区別する。
+     中抜きの四角にし、年表記(「2025年」)と組で示す。棒側の .home-month-bar には触れない */
+  .home-swatch.home-chart-previous {
+    background-color: transparent;
+    background-image: none;
+    border-width: 2px;
+    border-style: solid;
+    border-color: var(--color-chart-1);
+    border-radius: 2px;
   }
 
   /* 月別配当の棒グラフ。棒は月の枠の 66%(2本+2px の隙間)、上端だけ 4px 丸める。
@@ -1875,6 +1911,27 @@
 
   .comp-legend-dot {
     @apply h-2.5 w-2.5 shrink-0 rounded-full;
+  }
+
+  /* 凡例の丸は色だけでなく形でも区別する。名称と率の文字と組で示す。
+     1件目=丸、2件目=四角、3件目=三角、4件目=ひし形、5件目以降=横長の印 */
+  .comp-legend-item:nth-child(2) .comp-legend-dot {
+    border-radius: 2px;
+  }
+
+  .comp-legend-item:nth-child(3) .comp-legend-dot {
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  .comp-legend-item:nth-child(4) .comp-legend-dot {
+    border-radius: 2px;
+    transform: rotate(45deg) scale(0.85);
+  }
+
+  .comp-legend-item:nth-child(n + 5) .comp-legend-dot {
+    border-radius: 9999px;
+    width: 1rem;
   }
 
   .comp-legend-name {

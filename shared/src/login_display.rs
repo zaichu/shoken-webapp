@@ -182,31 +182,30 @@ fn capitalize_first(value: &str) -> String {
     })
 }
 
-fn shorten_unknown_label(value: &str) -> String {
-    const MAX_CHARS: usize = 32;
-    let labeled = capitalize_first(value.trim());
-    if labeled.chars().count() > MAX_CHARS {
-        let kept: String = labeled.chars().take(MAX_CHARS).collect();
+fn truncate_with_ellipsis(value: &str, max_chars: usize) -> String {
+    if value.chars().count() > max_chars {
+        let kept: String = value.chars().take(max_chars).collect();
         format!("{kept}…")
     } else {
-        labeled
+        value.to_string()
+    }
+}
+
+fn mapped_label(table: &[(&str, &str)], value: &str) -> String {
+    match lookup(table, &value.to_lowercase()) {
+        Some(name) => name.to_string(),
+        None => capitalize_first(value.trim()),
     }
 }
 
 #[must_use]
 pub fn browser_label(browser: &str) -> String {
-    match lookup(BROWSER_TABLE, &browser.to_lowercase()) {
-        Some(name) => name.to_string(),
-        None => shorten_unknown_label(browser),
-    }
+    truncate_with_ellipsis(&mapped_label(BROWSER_TABLE, browser), 32)
 }
 
 #[must_use]
 pub fn os_label(os: &str) -> String {
-    match lookup(OS_TABLE, &os.to_lowercase()) {
-        Some(name) => name.to_string(),
-        None => shorten_unknown_label(os),
-    }
+    truncate_with_ellipsis(&mapped_label(OS_TABLE, os), 32)
 }
 
 fn present(value: Option<&str>) -> Option<&str> {
@@ -235,11 +234,18 @@ pub fn format_place(country: Option<&str>, region: Option<&str>) -> String {
 
 #[must_use]
 pub fn format_agent(browser: Option<&str>, os: Option<&str>) -> String {
-    join_with(
-        present(browser).map(browser_label),
-        present(os).map(os_label),
+    // 個別ではなく結合してから省略する。個別に省略すると長い端末名で
+    // 「… / …」と省略記号が2つ並ぶため
+    const MAX_CHARS: usize = 64;
+    let combined = join_with(
+        present(browser).map(|value| mapped_label(BROWSER_TABLE, value)),
+        present(os).map(|value| mapped_label(OS_TABLE, value)),
         " / ",
-    )
+    );
+    if combined == UNKNOWN_LABEL {
+        return combined;
+    }
+    truncate_with_ellipsis(&combined, MAX_CHARS)
 }
 
 const JST_OFFSET_HOURS: u32 = 9;
@@ -402,6 +408,49 @@ mod tests {
         assert!(agent.ends_with('…'));
         assert!(agent.chars().count() < raw.chars().count() * 2);
         assert_eq!(format_place(Some("JP"), Some("Tokyo")), "東京都, 日本");
+    }
+
+    #[test]
+    fn long_agent_uses_single_ellipsis() {
+        let raw = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        let agent = format_agent(Some(raw), Some(raw));
+        assert!(agent.ends_with('…'));
+        assert_eq!(agent.chars().filter(|c| *c == '…').count(), 1);
+    }
+
+    #[test]
+    fn single_labels_truncate_at_boundary() {
+        let exact: String = "A".repeat(32);
+        assert_eq!(browser_label(&exact), exact);
+        assert_eq!(os_label(&exact), exact);
+        let over: String = "A".repeat(33);
+        assert_eq!(browser_label(&over), format!("{}…", "A".repeat(32)));
+        assert_eq!(os_label(&over), format!("{}…", "A".repeat(32)));
+    }
+
+    #[test]
+    fn single_labels_keep_known_names() {
+        assert_eq!(browser_label("chrome"), "Chrome");
+        assert_eq!(browser_label("Vivaldi"), "Vivaldi");
+        assert_eq!(os_label("Mac OS"), "macOS");
+        assert_eq!(os_label("macosx"), "macOS");
+        assert_eq!(os_label("plan9"), "Plan9");
+    }
+
+    #[test]
+    fn combined_agent_truncates_at_boundary() {
+        // 64文字ちょうどは省略しない
+        let browser = "B".repeat(30);
+        let os = "C".repeat(31);
+        assert_eq!(browser.len() + " / ".len() + os.len(), 64);
+        assert_eq!(
+            format_agent(Some(&browser), Some(&os)),
+            format!("{browser} / {os}")
+        );
+        let long_os = "C".repeat(32);
+        let agent = format_agent(Some(&browser), Some(&long_os));
+        assert!(agent.ends_with('…'));
+        assert_eq!(agent.chars().filter(|c| *c == '…').count(), 1);
     }
 
     #[test]

@@ -462,7 +462,7 @@ fn UserMenu(
                                 <div class="min-w-0">
                                     <div class="font-semibold text-body truncate">{display_name.get()}</div>
                                     <div class="text-cell text-text-muted truncate">{user_email.clone()}</div>
-                                    <div class="text-[11px] text-text-muted">{login_method_text}</div>
+                                    <div class="text-cell text-text-muted">{login_method_text}</div>
                                 </div>
                             </div>
                         </li>
