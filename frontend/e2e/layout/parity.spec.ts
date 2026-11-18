@@ -495,7 +495,7 @@ test.describe('資産管理と取引明細の上部 parity', () => {
       await other.getByTestId('receipt-summary-strip').first().waitFor();
       // 資産管理の上バーは構成比リンクを出すため取引明細より背が高く、
       // タブの絶対位置は一致しない。骨組みの間隔が同じなのを確かめる。
-      // タブは集計の上に置く(#2028)ため、タブの下端から集計の上端までを比べる
+      // タブは集計の上に置くため、タブの下端から集計の上端までを比べる
       const assetTabs = await skeletonBox(page, '.page-skeleton-tabs');
       const receiptTabs = await skeletonBox(other, '.page-skeleton-tabs');
       expect(Math.abs(assetTabs.height - receiptTabs.height), 'タブの高さ').toBeLessThanOrEqual(1);
