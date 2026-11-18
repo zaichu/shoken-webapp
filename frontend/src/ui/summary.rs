@@ -91,7 +91,7 @@ pub fn SummaryItem(
     view! {
         <div class=format!("summary-item {extra_class}")>
             <dt class="summary-label">
-                {label}
+                <span class="summary-label-text">{label}</span>
                 {(!label_note.is_empty())
                     .then(|| view! { <span class="summary-label-note">{label_note.clone()}</span> })}
             </dt>
