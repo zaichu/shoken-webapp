@@ -683,10 +683,11 @@
     }
   }
 
-  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す */
+  /* スマホは枠・塗りなしの下線タブ。選択中は文字の明るさ・太さ・下線で示す。
+     帯自体はページの地色で塗り、横滑り中に隣の面の中身が透けないようにする */
   @media (width < 64rem) {
     .page-tab-list {
-      @apply gap-0 border-b border-border-strong;
+      @apply gap-0 border-b border-border-strong bg-page;
     }
 
     .page-tab {
