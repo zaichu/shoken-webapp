@@ -160,6 +160,14 @@ pub fn swipe_lock_allowed(
     viewport.is_some_and(|width| !is_edge_start(start_x, width))
 }
 
+/// スライドの中で指の動きから外す帯。タブの帯は中身と一緒に流さず、その場に残す
+pub const TAB_STRIP_SELECTOR: &str = ".page-tab-list";
+
+/// 帯の打ち消し量。面の移動量と逆向きに同じだけ動かし、帯だけその場に残す
+pub fn tab_strip_counter_offset(slide_offset: f64) -> f64 {
+    -slide_offset
+}
+
 /// 指の移動量を面の動きに変える。端では抵抗をつけて少しだけ伸びる
 pub fn clamp_drag_offset(dx: f64, count: usize, current: usize, width: f64) -> f64 {
     if dx == 0.0 || count == 0 || width <= 0.0 {
@@ -332,15 +340,31 @@ fn slide_position(element: &web_sys::HtmlElement) -> f64 {
 fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, width: f64) {
     for element in slide_elements(track) {
         let base = (slide_position(&element) - current.to_f64().unwrap_or(f64::MAX)) * width;
+        let offset = base + drag;
         let _ = element
             .style()
-            .set_property("transform", &format!("translateX({}px)", base + drag));
+            .set_property("transform", &format!("translateX({offset}px)"));
+        // タブの帯は面と一緒に流さず残す。内側を逆向きに同じ量だけ動かして打ち消す
+        // (指への追従と下線の滑りは帯の中のまま保つ)
+        if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
+            && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
+        {
+            let _ = strip.style().set_property(
+                "transform",
+                &format!("translateX({}px)", tab_strip_counter_offset(offset)),
+            );
+        }
     }
 }
 
 fn clear_slides(track: &web_sys::HtmlDivElement) {
     for element in slide_elements(track) {
         let _ = element.style().remove_property("transform");
+        if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
+            && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
+        {
+            let _ = strip.style().remove_property("transform");
+        }
     }
 }
 
