@@ -51,7 +51,7 @@ mkdir -m 700 .db-migration
 python3 -B scripts/db_migration.py prepare
 ```
 
-`prepare` は `public` にテーブルがない場合だけ実行できる。0000〜0017 を順に1トランザクションで適用し、
+`prepare` は `public` にテーブルがない場合だけ実行できる。0100〜0106 を順に1トランザクションで適用し、
 backend と互換の SHA-384 チェックサムを `_sqlx_migrations` に記録する。
 既存の `citext` / `pg_trgm` / `pgcrypto` は、マイグレーションが参照する `public` に配置する。
 アプリのテーブルは空になるが、`fund_codes` と `market_data_provider_rate_control` にはマイグレーションの初期行が入る。
@@ -78,13 +78,13 @@ python3 -B scripts/db_migration.py verify .db-migration/neon-data.sql
 
 | 対象 | 扱い |
 | --- | --- |
-| `public` の全15テーブル | `pg_dump --data-only --schema=public --no-owner --no-privileges` で単一スナップショットを書き出す。所有者・権限・DDL は持ち込まない |
+| `public` の全18テーブル | `pg_dump --data-only --schema=public --no-owner --no-privileges` で単一スナップショットを書き出す。所有者・権限・DDL は持ち込まない |
 | 外部キー | `pg_dump` の依存順序で親の `users` から子を読み込む。制約・トリガーの無効化や superuser 権限を使わない |
 | `fund_codes`、`market_data_provider_rate_control` | 移行先の初期行を移行元の全行で置き換える。キャッシュ、価格、レート制御状態も保持する |
-| `_sqlx_migrations` | 18件の履歴を含めて移す。読み込み前に両 DB の version / checksum / success とテーブル・主キー一覧が一致することを確認する。不一致なら中止し、統合担当が履歴の互換性を調査する。履歴を偽装して続行しない |
+| `_sqlx_migrations` | 7件の履歴を含めて移す。読み込み前に両 DB の version / checksum / success とテーブル・主キー一覧が一致することを確認する。不一致なら中止し、統合担当が履歴の互換性を調査する。履歴を偽装して続行しない |
 | `csv_import_history` | `(user_id, kind)` の複合主キーと最終取り込み日時をそのまま保持する |
 | `sessions` | ダンプには全行を含めるが、読み込みと同じトランザクションで期限切れを削除する。読み込み開始時点の移行先 DB 時刻を基準とし、その時点で有効な行だけをコミットする。トークンハッシュ・ID・期限を再生成しない |
-| シーケンス | 現行0000〜0017にはアプリ用シーケンスはない。存在する場合は `pg_dump` の `setval` で現在値と `is_called` を保持し、照合する。Docker テストでは専用シーケンスでも確認する |
+| シーケンス | 現行0100〜0106にはアプリ用シーケンスはない。存在する場合は `pg_dump` の `setval` で現在値と `is_called` を保持し、照合する。Docker テストでは専用シーケンスでも確認する |
 | ビュー・生成列 | ビューと関数はマイグレーションで作る。`asset_balances_view` / `fund_balances_view` はデータを持ち込まず、元テーブルを読み込んで再計算する。生成列も移行先で計算する |
 
 読み込みは全テーブルをロックし、業務データが空であることを確認してから、初期行を含めて全行を置き換える。
@@ -166,7 +166,7 @@ python3 -B -m unittest discover -s scripts/tests -p test_db_migration.py -v
 ```
 
 `backend/tests/db_integration.rs` と同じ `postgres:16-alpine` を起動し、ランダムポートと別名の2 DB を使う。
-両 DB に0000〜0017を適用し、全15テーブルに架空データを入れ、書き出し → 読み込み → 全テーブルの件数・主キー・全列一致を確認する。
+両 DB に0100〜0106を適用し、全17テーブルに架空データを入れ、書き出し → 読み込み → 全テーブルの件数・主キー・全列一致を確認する。
 期限切れセッションの除外、複合主キー、生成列と2つのビュー、シーケンスの次の値、既存データへの再読み込み拒否、
 途中失敗時のロールバック、履歴不一致の拒否、同じ件数でも主キー・値が違う場合の検出、接続エラーの出力抑止、既存ファイル保護も確かめる。
 実在のユーザーデータ、本番 DB、手元の E2E は使わない。コンテナと一時データはテスト終了時に削除する。

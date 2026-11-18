@@ -117,15 +117,15 @@ def prepare(target):
     ]
     metadata = []
     files = sorted((ROOT / "backend/migrations").glob("[0-9][0-9][0-9][0-9]_*.sql"))
-    if [int(path.name[:4]) for path in files] != list(range(18)):
-        raise MigrationError("0000〜0017 のマイグレーションを確認してください。")
+    if [int(path.name[:4]) for path in files] != list(range(100, 107)):
+        raise MigrationError("0100〜0106 のマイグレーションを確認してください。")
     for path in files:
         content = path.read_bytes()
         version = int(path.name[:4])
         description = path.stem[5:].replace("_", " ")
         checksum = hashlib.sha384(content).hexdigest()
         statements.append(content.decode())
-        if version == 0:
+        if version == 100:
             statements.append("""
                 ALTER EXTENSION citext SET SCHEMA public;
                 ALTER EXTENSION pg_trgm SET SCHEMA public;
