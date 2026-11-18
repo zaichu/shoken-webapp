@@ -382,6 +382,12 @@ async function inkGeometry(page: Page, testid: string) {
         : null;
     return {
       tabs: tabElements.map(box),
+      // 開始時に選ばれているタブ。資産管理は Stock(1)、取引明細は先頭(0)から始まる
+      selectedIndex: tabElements.findIndex(
+        (element) =>
+          element instanceof HTMLElement &&
+          element.getAttribute('aria-selected') === 'true',
+      ),
       ink: box(ink),
       inkVisible:
         ink instanceof HTMLElement &&
@@ -771,10 +777,12 @@ test.describe('下線タブの横スワイプ', () => {
     await waitForDragUnderline(page, 'assetbalance-main-stage');
     const during = await inkGeometry(page, 'assetbalance-main-stage');
     expect(during.inkVisible).toBe(true);
-    expect(during.tabs[0]).not.toBeNull();
+    expect(during.selectedIndex).toBeGreaterThanOrEqual(0);
+    const origin = during.tabs[during.selectedIndex];
+    expect(origin).not.toBeNull();
     expect(during.ink).not.toBeNull();
     // 左スワイプ(次へ)では下線が今のタブから右へ進む
-    expect(during.ink?.x ?? 0).toBeGreaterThan(during.tabs[0]?.x ?? 0);
+    expect(during.ink?.x ?? 0).toBeGreaterThan(origin?.x ?? 0);
 
     await touchEnd(page, 'assetbalance-main-stage', 190, 400);
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
@@ -804,11 +812,13 @@ test.describe('下線タブの横スワイプ', () => {
       mid.tabAfterDisplay === 'none' || mid.tabAfterContent === 'none',
       '選択中タブ側の下線は出ない',
     ).toBe(true);
-    // 下線は今のタブから隣のタブへ補間された位置・幅にある(±1px)
+    // 下線は今のタブから隣のタブへ補間された位置・幅にある(±1px)。
+    // 開始時に選ばれているタブを起点にする(資産管理は Stock から始まる)
     const shape = await inkGeometry(page, 'assetbalance-main-stage');
     const frac = Math.min(Math.max(-(shape.slideDx ?? 0) / (shape.trackWidth ?? 1), 0), 1);
-    const from = shape.tabs[0];
-    const to = shape.tabs[1];
+    expect(shape.selectedIndex).toBeGreaterThanOrEqual(0);
+    const from = shape.tabs[shape.selectedIndex];
+    const to = shape.tabs[shape.selectedIndex + 1];
     expect(from).not.toBeNull();
     expect(to).not.toBeNull();
     expect(shape.ink).not.toBeNull();
@@ -866,8 +876,9 @@ test.describe('下線タブの横スワイプ', () => {
     // 下線は今のタブから隣のタブへ補間された位置・幅にある(±1px)
     const shape = await inkGeometry(page, 'receipts-workspace');
     const frac = Math.min(Math.max(-(shape.slideDx ?? 0) / (shape.trackWidth ?? 1), 0), 1);
-    const from = shape.tabs[0];
-    const to = shape.tabs[1];
+    expect(shape.selectedIndex).toBeGreaterThanOrEqual(0);
+    const from = shape.tabs[shape.selectedIndex];
+    const to = shape.tabs[shape.selectedIndex + 1];
     expect(from).not.toBeNull();
     expect(to).not.toBeNull();
     expect(shape.ink).not.toBeNull();
