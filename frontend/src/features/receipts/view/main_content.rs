@@ -3,19 +3,15 @@ use crate::features::receipts::dividend_info;
 use crate::features::receipts::dividend_info::{DividendInfoStore, DividendSummarySection};
 use crate::features::receipts::filter;
 use crate::features::receipts::kind;
-use crate::features::receipts::view::ReceiptsSearchBar;
 use crate::features::receipts::view::{ReceiptTable, SummaryStrip};
-use crate::features::receipts::view::{ReceiptsMobileSearchEntry, ReceiptsTabNav};
+use crate::features::receipts::view::{ReceiptsMobileSearchEntry, ReceiptsSearchBar};
 use crate::features::receipts::{ReceiptRow, ReceiptTabData, ReceiptsStore, ReceiptsTab, TabState};
 use crate::session;
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels;
-use crate::ui::page_skeleton::{
-    FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary, SkeletonTabs,
-};
+use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::underline_tabs::SwipeMotion;
 use leptos::ev;
 use leptos::prelude::*;
 
@@ -42,11 +38,7 @@ pub(crate) fn derive_filtered_count(
 }
 
 #[component]
-pub fn ReceiptsMainContent(
-    store: ReceiptsStore,
-    tab: ReceiptsTab,
-    motion: SwipeMotion,
-) -> impl IntoView {
+pub fn ReceiptsMainContent(store: ReceiptsStore, tab: ReceiptsTab) -> impl IntoView {
     let search = store.search;
     let summary_expanded = RwSignal::new(true);
 
@@ -240,13 +232,6 @@ pub fn ReceiptsMainContent(
             }
                 .into_any()
         }}
-        {move || (store.active_tab.get() == tab).then(|| view! {
-            <div class="lg:hidden">
-                <SkeletonTabs>
-                    <ReceiptsTabNav store=store motion=motion suffix="-mobile" />
-                </SkeletonTabs>
-            </div>
-        })}
         {move || {
             let ready = tab_state.with(|state| matches!(state, TabState::Ready(_))) && !is_empty.get();
             ready.then(|| view! { <SkeletonNote filtered=filtered_count.into() /> })

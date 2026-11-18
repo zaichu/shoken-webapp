@@ -160,15 +160,7 @@ pub fn swipe_lock_allowed(
     viewport.is_some_and(|width| !is_edge_start(start_x, width))
 }
 
-/// スライドの中で指の動きから外す帯。タブの帯は中身と一緒に流さず、その場に残す
-pub const TAB_STRIP_SELECTOR: &str = ".page-tab-list";
-
-/// 帯の打ち消し量。面の移動量と逆向きに同じだけ動かし、帯だけその場に残す
-pub fn tab_strip_counter_offset(slide_offset: f64) -> f64 {
-    -slide_offset
-}
-
-/// 指の移動量を面の動きに変える。端では抵抗をつけて少しだけ伸びる
+/// スライドの中で指の動きを面の動きに変える。端では抵抗をつけて少しだけ伸びる
 pub fn clamp_drag_offset(dx: f64, count: usize, current: usize, width: f64) -> f64 {
     if dx == 0.0 || count == 0 || width <= 0.0 {
         return 0.0;
@@ -344,37 +336,12 @@ fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, widt
         let _ = element
             .style()
             .set_property("transform", &format!("translateX({offset}px)"));
-        // 帯を持つ前面を隣より上に置く。打ち消しても隣に覆われると見えないため
-        if element
-            .get_attribute("data-index")
-            .and_then(|value| value.parse::<usize>().ok())
-            .is_some_and(|index| index == current)
-        {
-            let _ = element.style().set_property("z-index", "1");
-        } else {
-            let _ = element.style().remove_property("z-index");
-        }
-        // タブの帯は面と一緒に流さず、内側を逆向きに同じ量だけ動かして残す
-        if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
-            && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
-        {
-            let _ = strip.style().set_property(
-                "transform",
-                &format!("translateX({}px)", tab_strip_counter_offset(offset)),
-            );
-        }
     }
 }
 
 fn clear_slides(track: &web_sys::HtmlDivElement) {
     for element in slide_elements(track) {
         let _ = element.style().remove_property("transform");
-        let _ = element.style().remove_property("z-index");
-        if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
-            && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
-        {
-            let _ = strip.style().remove_property("transform");
-        }
     }
 }
 
@@ -655,7 +622,8 @@ pub fn SwipeSlide(
 }
 
 /// 下線タブの中身を包む器。スマホ幅で横スワイプだけ拾い、縦スクロール・端からの接触・
-/// ダイアログや開閉ボタンの操作中は切り替えない。PC幅では何もしない
+/// ダイアログや開閉ボタンの操作中は切り替えない。PC幅では何もしない。
+/// 帯(`tabs`)は面の外に1つだけ置き、集計から一覧までを1枚の面として滑らせる
 #[component]
 pub fn SwipeArea(
     /// 中身のスクロール面の data-testid(資産管理・取引明細で既存の値をそのまま渡す)
@@ -665,6 +633,8 @@ pub fn SwipeArea(
     #[prop(into)] current: Signal<usize>,
     on_select: Callback<usize>,
     motion: SwipeMotion,
+    /// 帯(資産管理・取引明細のタブ行)。PCでは呼び出し側の行を使い、ここはスマホだけ出す
+    tabs: Children,
     children: Children,
 ) -> impl IntoView {
     let track = NodeRef::<leptos::html::Div>::new();
@@ -842,6 +812,7 @@ pub fn SwipeArea(
             on:touchend=on_touchend
             on:touchcancel=on_touchcancel
         >
+            <div class="tab-swipe-tabs lg:hidden">{tabs()}</div>
             <div class="tab-swipe-track" node_ref=track>
                 {children()}
             </div>

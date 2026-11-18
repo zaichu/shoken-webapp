@@ -699,8 +699,15 @@
     }
   }
 
-  /* 下線タブの横スワイプ(スマホ幅だけ)。縦スクロールは残し、指に追従する面は transform だけで動かす */
+  /* 帯は面の外に1つだけ置く。隣の面が帯より上にはみ出さないよう、
+     帯側を不透明の地色と面より上の重ね順で受ける */
   @media (width < 64rem) {
+    .tab-swipe-tabs {
+      position: relative;
+      z-index: 2;
+      background: var(--color-page);
+    }
+
     .tab-swipe-area {
       touch-action: pan-y;
       overflow-x: clip;

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test, json, mockSession } from '../support/test';
+import { expect, test, json, paginated, MOCK_USER, mockSession } from '../support/test';
 
 const STOCK_ROWS = [
   {
@@ -68,6 +68,91 @@ async function setupAssetMocks(page: Page) {
   );
   await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
     route.fulfill(json({ items: [] })),
+  );
+}
+
+const RICH_DIVIDENDS = Array.from({ length: 35 }, (_, i) => ({
+  id: `00000000-0000-0000-0000-00000000${String(1000 + i).slice(1)}`,
+  user_id: '00000000-0000-0000-0000-000000000002',
+  settlement_date: `2024-03-${String((i % 28) + 1).padStart(2, '0')}`,
+  product: '特定口座',
+  account: ['SBI証券', '楽天証券', '松井証券'][i % 3],
+  security_code: `${9900 + (i % 90)}`,
+  security_name: `架空全世界半導体スーパーグロース高配当ブルーチップホールディングス${i}号`,
+  unit_price: '30.0',
+  shares: '100',
+  dividends_before_tax: '3000',
+  taxes: '609',
+  net_amount_received: '2391',
+  created_at: '2024-03-01T00:00:00Z',
+  updated_at: '2024-03-01T00:00:00Z',
+}));
+
+async function setupReceiptRichMocks(page: Page) {
+  await mockSession(page);
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(paginated(RICH_DIVIDENDS)),
+    }),
+  );
+  await page.route(/\/api\/v1\/domestic-stock-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginated(
+          RICH_DIVIDENDS.map((row, i) => ({
+            id: `domestic-rich-${i}`,
+            user_id: MOCK_USER.id,
+            trade_date: '2024-03-01',
+            settlement_date: row.settlement_date,
+            security_code: row.security_code,
+            security_name: row.security_name,
+            account: ['特定口座', 'NISA口座', '一般口座'][i % 3],
+            shares: 100 + i,
+            asked_price: 2500,
+            proceeds: 260000,
+            purchase_price: 2400,
+            realized_profit_and_loss: 20000,
+            taxes: 4058,
+            realized_profit_and_loss_after_tax: 15942,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+          })),
+        ),
+      ),
+    }),
+  );
+  await page.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        paginated(
+          Array.from({ length: 12 }, (_, i) => ({
+            id: `mutual-rich-${i}`,
+            user_id: MOCK_USER.id,
+            trade_date: '2024-03-01',
+            settlement_date: `2024-03-${String((i % 28) + 1).padStart(2, '0')}`,
+            fund_name: `架空インデックス 全世界株式（オール・ワールド）長期積立専用${i}号ファンド`,
+            account: ['特定口座', 'NISA口座', '一般口座'][i % 3],
+            shares: '123456',
+            exchange_rate: '1',
+            cancellation_unit_price_yen: '12345',
+            cancellation_amount_yen: '123456789',
+            average_acquisition_price_yen: '22345',
+            dividends: '0',
+            realized_profit_and_loss: '123456',
+            taxes: '0',
+            realized_profit_and_loss_after_tax: '123456',
+            created_at: '2024-03-01T00:00:00Z',
+            updated_at: '2024-03-01T00:00:00Z',
+          })),
+        ),
+      ),
+    }),
   );
 }
 
@@ -246,9 +331,7 @@ async function slideX(page: Page, testid: string): Promise<number | null> {
 async function mobileTabStrip(page: Page, testid: string) {
   return page.evaluate((stageId: string) => {
     const stage = document.querySelector(`[data-testid="${stageId}"]`);
-    const list = stage?.querySelector(
-      '.tab-swipe-slide[data-active="true"] [role="tablist"]',
-    );
+    const list = stage?.querySelector('.tab-swipe-tabs [role="tablist"]');
     if (!(list instanceof HTMLElement) || list.offsetParent === null) {
       return null;
     }
@@ -280,12 +363,56 @@ async function mobileTabStrip(page: Page, testid: string) {
   }, testid);
 }
 
-async function inkPercent(page: Page): Promise<number | null> {
+async function inkPercent(page: Page, testid: string): Promise<number | null> {
   // PC 用とスマホ用の下線が両方あるため、見えている側を読む
   const transform = await page
-    .locator('.asset-mobile-tabs-links .tab-swipe-ink')
+    .locator(`[data-testid="${testid}"] .tab-swipe-tabs .tab-swipe-ink`)
     .evaluate((element) => (element as HTMLElement).style.transform);
   return parseTranslateXPercent(transform);
+}
+
+async function swipePanelGeometry(
+  page: Page,
+  testid: string,
+  summarySelector: string,
+  listSelector: string,
+) {
+  return page.evaluate(
+    ({
+      stageId,
+      summary,
+      list,
+    }: {
+      stageId: string;
+      summary: string;
+      list: string;
+    }) => {
+      const stage = document.querySelector(`[data-testid="${stageId}"]`);
+      const strip = stage?.querySelector('.tab-swipe-tabs [role="tablist"]');
+      // 指で引いている間は隣の面も載るため、前面に絞って測る
+      const scope = '.tab-swipe-slide[data-active="true"]';
+      const summaryElement = stage?.querySelector(`${scope} ${summary}`);
+      const listElement = stage?.querySelector(`${scope} ${list}`);
+      if (
+        !(strip instanceof HTMLElement) ||
+        !(summaryElement instanceof HTMLElement) ||
+        !(listElement instanceof HTMLElement)
+      ) {
+        return null;
+      }
+      const stripRect = strip.getBoundingClientRect();
+      const summaryRect = summaryElement.getBoundingClientRect();
+      const listRect = listElement.getBoundingClientRect();
+      return {
+        stripX: stripRect.x,
+        stripBottom: stripRect.bottom,
+        summaryLeft: summaryRect.left,
+        summaryTop: summaryRect.top,
+        listLeft: listRect.left,
+      };
+    },
+    { stageId: testid, summary: summarySelector, list: listSelector },
+  );
 }
 
 test.describe('下線タブの横スワイプ', () => {
@@ -560,7 +687,7 @@ test.describe('下線タブの横スワイプ', () => {
     await setupAssetMocks(page);
     await page.goto('/assetbalance');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
-    const before = await inkPercent(page);
+    const before = await inkPercent(page, 'assetbalance-main-stage');
 
     await touchStart(page, 'assetbalance-main-stage', 300, 400);
     await touchMove(page, 'assetbalance-main-stage', 190, 400);
@@ -570,7 +697,7 @@ test.describe('下線タブの横スワイプ', () => {
         ink instanceof HTMLElement && ink.dataset.on === 'true'
       );
     });
-    const during = await inkPercent(page);
+    const during = await inkPercent(page, 'assetbalance-main-stage');
     expect(during).not.toBeNull();
     expect(before).not.toBeNull();
     expect(during as number).toBeGreaterThan(before as number);
@@ -778,5 +905,146 @@ test.describe('下線タブの横スワイプ', () => {
     expect(after?.opacity).toBe('1');
     expect(after?.covered).toBe(false);
     expect(Math.abs((after?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
+  });
+
+  test('スワイプ中は帯より下が1枚で動き帯より上にはみ出さない(資産管理)', async ({
+    page,
+  }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const summarySelector = '[data-testid="asset-portfolio-summary"]';
+    const rest = await swipePanelGeometry(
+      page,
+      'assetbalance-main-stage',
+      summarySelector,
+      '#assetbalance-stock-list',
+    );
+    expect(rest).not.toBeNull();
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await waitForDrag(page, 'assetbalance-main-stage');
+    const mid = await swipePanelGeometry(
+      page,
+      'assetbalance-main-stage',
+      summarySelector,
+      '#assetbalance-stock-list',
+    );
+    expect(mid).not.toBeNull();
+    expect(Math.abs((mid?.stripX ?? 0) - (rest?.stripX ?? 0))).toBeLessThanOrEqual(2);
+    const summaryDx = (mid?.summaryLeft ?? 0) - (rest?.summaryLeft ?? 0);
+    const listDx = (mid?.listLeft ?? 0) - (rest?.listLeft ?? 0);
+    expect(summaryDx).toBeLessThan(-10);
+    expect(listDx).toBeLessThan(-10);
+    expect(Math.abs(summaryDx - listDx)).toBeLessThanOrEqual(4);
+    expect(mid?.summaryTop ?? 0).toBeGreaterThanOrEqual((mid?.stripBottom ?? 0) - 1);
+
+    await touchMove(page, 'assetbalance-main-stage', 90, 400);
+    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('スワイプ中は帯より下が1枚で動き帯より上にはみ出さない(取引明細)', async ({
+    page,
+  }) => {
+    await setupReceiptRichMocks(page);
+    await page.goto('/receipts');
+    await expect(page.locator('#receipts-summary')).toBeVisible();
+    const rest = await swipePanelGeometry(
+      page,
+      'receipts-workspace',
+      '#receipts-summary',
+      '#receipts-list',
+    );
+    expect(rest).not.toBeNull();
+
+    await touchStart(page, 'receipts-workspace', 300, 400);
+    await touchMove(page, 'receipts-workspace', 190, 400);
+    await waitForDrag(page, 'receipts-workspace');
+    const mid = await swipePanelGeometry(
+      page,
+      'receipts-workspace',
+      '#receipts-summary',
+      '#receipts-list',
+    );
+    expect(mid).not.toBeNull();
+    expect(Math.abs((mid?.stripX ?? 0) - (rest?.stripX ?? 0))).toBeLessThanOrEqual(2);
+    const summaryDx = (mid?.summaryLeft ?? 0) - (rest?.summaryLeft ?? 0);
+    const listDx = (mid?.listLeft ?? 0) - (rest?.listLeft ?? 0);
+    expect(summaryDx).toBeLessThan(-10);
+    expect(listDx).toBeLessThan(-10);
+    expect(Math.abs(summaryDx - listDx)).toBeLessThanOrEqual(4);
+    expect(mid?.summaryTop ?? 0).toBeGreaterThanOrEqual((mid?.stripBottom ?? 0) - 1);
+
+    await touchMove(page, 'receipts-workspace', 90, 400);
+    await touchEnd(page, 'receipts-workspace', 90, 400);
+    await expect(page.locator('#tab-domesticstock-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('タップ切替でも帯は同じ位置に残り帯の下に集計が来る(資産管理)', async ({
+    page,
+  }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const rest = await swipePanelGeometry(
+      page,
+      'assetbalance-main-stage',
+      '[data-testid="asset-portfolio-summary"]',
+      '#assetbalance-stock-list',
+    );
+    expect(rest).not.toBeNull();
+
+    await page.getByTestId('asset-kind-tab-fund-mobile').click();
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const after = await swipePanelGeometry(
+      page,
+      'assetbalance-main-stage',
+      '[data-testid="asset-portfolio-summary"]',
+      '#assetbalance-fund-list',
+    );
+    expect(after).not.toBeNull();
+    expect(Math.abs((after?.stripX ?? 0) - (rest?.stripX ?? 0))).toBeLessThanOrEqual(2);
+    expect(after?.stripBottom ?? 0).toBeLessThanOrEqual((after?.summaryTop ?? 0) + 1);
+  });
+
+  test('タップ切替でも帯は同じ位置に残り帯の下に集計が来る(取引明細)', async ({
+    page,
+  }) => {
+    await setupReceiptRichMocks(page);
+    await page.goto('/receipts');
+    await expect(page.locator('#receipts-summary')).toBeVisible();
+    const rest = await swipePanelGeometry(
+      page,
+      'receipts-workspace',
+      '#receipts-summary',
+      '#receipts-list',
+    );
+    expect(rest).not.toBeNull();
+
+    await page.locator('#tab-domesticstock-mobile').click();
+    await expect(page.locator('#tab-domesticstock-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const after = await swipePanelGeometry(
+      page,
+      'receipts-workspace',
+      '#receipts-summary',
+      '#receipts-list',
+    );
+    expect(after).not.toBeNull();
+    expect(Math.abs((after?.stripX ?? 0) - (rest?.stripX ?? 0))).toBeLessThanOrEqual(2);
+    expect(after?.stripBottom ?? 0).toBeLessThanOrEqual((after?.summaryTop ?? 0) + 1);
   });
 });

@@ -42,6 +42,13 @@ pub fn ReceiptsPage() -> impl IntoView {
     let tabs_loading = Memo::new(move |_| {
         store.auth_loading() || matches!(store.tab_state(active_tab.get()), TabState::Loading)
     });
+    // 帯は面の外に1つだけ置く(全タブで同じ部品・同じ押せる高さ)
+    let tabs: Children = Box::new(move || {
+        view! {
+            <SkeletonTabs><ReceiptsTabNav store=store motion=motion suffix="-mobile" /></SkeletonTabs>
+        }
+            .into_any()
+    });
 
     let csv_link: Children = Box::new(move || {
         view! {
@@ -73,6 +80,7 @@ pub fn ReceiptsPage() -> impl IntoView {
                         store.select_tab(ReceiptsTab::ALL[next]);
                     })
                     motion=motion
+                    tabs=tabs
                 >
                     {move || {
                         let loading = tabs_loading.get();

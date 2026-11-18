@@ -2,7 +2,7 @@ use super::{
     SWIPE_EDGE_GUARD_PX, SWIPE_SETTLE_GUARD_MS, SWIPE_SETTLE_MS, clamp_drag_offset, is_edge_start,
     next_swipe_index, next_tab_index, swipe_can_advance, swipe_commit_index, swipe_lock_allowed,
     swipe_progress, swipe_settle_offset, swipe_should_ignore_input, swipe_should_ignore_touchstart,
-    swipe_step, swipe_velocity, tab_ink_offset, tab_strip_counter_offset,
+    swipe_step, swipe_velocity, tab_ink_offset,
 };
 
 #[test]
@@ -23,13 +23,6 @@ fn swipe_needs_horizontal_distance_twice_the_vertical() {
     assert_eq!(swipe_step(-59.0, 0.0), None);
     assert_eq!(swipe_step(-80.0, 50.0), None);
     assert_eq!(swipe_step(0.0, -100.0), None);
-}
-
-#[test]
-fn tab_strip_stays_where_slides_move() {
-    assert_eq!(tab_strip_counter_offset(-110.0), 110.0);
-    assert_eq!(tab_strip_counter_offset(195.0), -195.0);
-    assert_eq!(tab_strip_counter_offset(0.0), 0.0);
 }
 
 #[test]

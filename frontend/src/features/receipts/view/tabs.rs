@@ -150,7 +150,7 @@ pub fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
-                view! { <ReceiptsMainContent store=store tab=tab motion=motion /> }.into_any()
+                view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
             }}
         </div>
     }
