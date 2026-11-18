@@ -474,7 +474,7 @@ pub const SORT_BY: &str = "並べ替え";
 /// 税引前の金額の頭に付ける短い表記(行の補助の金額用)
 pub const BEFORE_TAX: &str = "税引前";
 /// 取引明細の帯の主役(配当金タブ)
-pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "配当金";
+pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "配当金(税引後)";
 /// 取引明細の帯の主役(国内株式・投資信託タブ)
 pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
 /// 月見出しの右に出す短い受取表記(配当金タブ)
