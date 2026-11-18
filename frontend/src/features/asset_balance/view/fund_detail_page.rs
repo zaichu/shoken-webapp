@@ -97,8 +97,12 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 let view = fund::fund_view(row);
                                 let shares_text =
                                     labels::fund_units_label(&format::format_number_value(view.shares));
-                                let average_price_text =
-                                    format::format_currency(view.average_purchase_price);
+                                let average_price_text = format::format_unit_price(
+                                    view.average_purchase_price,
+                                    format::unit_price_decimals(
+                                        std::iter::once(view.average_purchase_price),
+                                    ),
+                                );
                                 let purchase_text = format::format_currency(view.purchase);
                                 let base_price_text = format::format_currency(view.base_price);
                                 let market_text =
@@ -201,7 +205,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                 <HoldingTile label=labels::FUND_SHARES.to_string()>
                                                     <span class="tabular-nums">{shares_text}</span>
                                                 </HoldingTile>
-                                                <HoldingTile label=labels::AVERAGE_ACQUISITION_PRICE.to_string()>
+                                                <HoldingTile label=labels::AVERAGE_PRICE.to_string()>
                                                     <Amount text=average_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>

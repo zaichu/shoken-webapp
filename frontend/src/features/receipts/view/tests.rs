@@ -1011,11 +1011,11 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::DomesticStock => {
-                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得価額"]);
+                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::MutualFund => {
-                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得価額"]);
+                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
         }

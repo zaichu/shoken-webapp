@@ -46,9 +46,14 @@ fn per_share_display(per_share: Option<f64>, loading: bool) -> String {
     if loading {
         labels::CSV_MANAGE_FETCH_RUNNING.to_string()
     } else {
-        per_share
-            .and_then(|value| value.to_string().parse::<Decimal>().ok())
-            .map_or_else(|| labels::MISSING.to_string(), format_currency)
+        per_share.map_or_else(
+            || labels::MISSING.to_string(),
+            |value| {
+                // 1株配当は列ごとに桁をそろえる決まり(整数のみなら0桁、最大2桁)
+                let decimals = format::unit_price_decimals(std::iter::once(value));
+                format::format_unit_price(value, decimals)
+            },
+        )
     }
 }
 
@@ -257,21 +262,21 @@ pub(crate) fn DividendInfo(store: DividendInfoStore, totals: DividendTotals) -> 
         <div>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <StatCard
-                    label=labels::AVERAGE_PURCHASE_PRICE
+                    label=labels::AVERAGE_PRICE
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     <Amount text=Signal::derive(average_price_text) />
                 </StatCard>
                 <StatCard
-                    label=labels::HOLDING_QUANTITY_CARD
+                    label=labels::QUANTITY
                     title_hint=true
                     hint=Some(Signal::derive(move || asset().is_none().then_some(labels::DIVIDEND_BALANCE_HINT)))
                 >
                     {shares_text}
                 </StatCard>
                 <StatCard
-                    label=labels::PER_SHARE_DIVIDEND_CARD
+                    label=labels::PER_SHARE_DIVIDEND
                     hint=Some(Signal::derive(move || {
                         (!loading() && per_share().is_none()).then_some(labels::DIVIDEND_AUTO_HINT)
                     }))

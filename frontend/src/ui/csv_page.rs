@@ -664,12 +664,7 @@ fn dated_status(
         )
     } else {
         (
-            format!(
-                "{}{}{}",
-                labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED,
-                labels::TAG_SEPARATOR,
-                labels::csv_manage_status_updated_days_ago(days_ago, date, time),
-            ),
+            labels::csv_manage_status_stale(days_ago, date, time),
             "text-warn-ink",
             "stale",
         )

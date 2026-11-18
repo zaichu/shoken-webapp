@@ -162,7 +162,7 @@ pub fn AssetMergedTable(
                         <th scope="col" class="col-text">{labels::SECURITY_AND_FUND}</th>
                         <th scope="col" class="col-text">{labels::KIND}</th>
                         <th scope="col" class="col-text">{labels::ACCOUNT}</th>
-                        <th scope="col" class="col-text">{labels::DISTRIBUTION}</th>
+                        <th scope="col" class="col-text">{labels::DISTRIBUTION_COURSE}</th>
                         <th scope="col" class="col-num">{labels::PER_SHARE_DIVIDEND}</th>
                         <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
                         {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
@@ -327,7 +327,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     ];
     if is_fund {
         left.push(DetailCell::plain(
-            labels::DISTRIBUTION.to_string(),
+            labels::DISTRIBUTION_COURSE.to_string(),
             row.course.clone().unwrap_or_else(|| "—".to_string()),
         ));
     } else {
@@ -342,7 +342,10 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
         let per_share = row.dividend.as_ref().map_or_else(
             || "—".to_string(),
             |dividend| {
-                crate::features::asset_balance::holdings::format_dividend_per_share(dividend, 0)
+                crate::features::asset_balance::holdings::format_dividend_per_share(
+                    dividend,
+                    format::unit_price_decimals(dividend.per_share.into_iter()),
+                )
             },
         );
         let yield_text = row.dividend.as_ref().map_or_else(
@@ -582,7 +585,7 @@ mod tests {
         let fund = unified_from_fund(&sample_fund());
         let (left, right) = unified_detail_cells(&fund);
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
-        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金"]);
+        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金コース"]);
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,

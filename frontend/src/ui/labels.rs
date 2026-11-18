@@ -26,12 +26,6 @@ pub const ACQUISITION_YIELD: &str = "取得額利回り";
 pub const ACQUISITION_BASIS_YIELD: &str = "取得額基準利回り";
 /// 1株配当
 pub const PER_SHARE_DIVIDEND: &str = "1株配当";
-/// 一株配当(取引明細の配当情報カード)
-pub const PER_SHARE_DIVIDEND_CARD: &str = "一株配当";
-/// 平均取得価格(取引明細の配当情報カード)
-pub const AVERAGE_PURCHASE_PRICE: &str = "平均取得価格";
-/// 保有数量(取引明細の配当情報カード)
-pub const HOLDING_QUANTITY_CARD: &str = "保有数量(株)";
 /// 配当金額と配当利回り(取引明細の配当情報カード)
 pub const DIVIDEND_AMOUNT_AND_YIELD: &str = "配当金額 (配当利回り)";
 /// 税引後と累積利回り(取引明細の配当情報カード)
@@ -50,8 +44,10 @@ pub const FUND_NAME: &str = "ファンド名";
 pub const SELLING_UNIT_PRICE: &str = "売却単価";
 /// 売却額
 pub const SELLING_AMOUNT: &str = "売却額";
-/// 取得価額
-pub const ACQUISITION_PRICE: &str = "取得価額";
+/// 取得価額(取引明細・保存ファイルの列名。資産の取得単価と同じ意味で、
+/// 画面の表示は取得単価に統一したため値は AVERAGE_PRICE と同じ。新規コードは
+/// AVERAGE_PRICE を使う)
+pub const ACQUISITION_PRICE: &str = "取得単価";
 /// 解約単価
 pub const REDEMPTION_UNIT_PRICE: &str = "解約単価";
 /// 解約額
@@ -127,10 +123,9 @@ pub const ACCOUNT: &str = "口座";
 pub const PRODUCT: &str = "商品";
 /// 期間
 pub const PERIOD: &str = "期間";
-/// 分配金コース(投資信託の分配金の受取方法)
+/// 分配金コース(投資信託の分配金の受取方法。金額の分配金と紛らわしいため
+/// 列見出し・絞り込み条件ともこの語に統一する)
 pub const DISTRIBUTION_COURSE: &str = "分配金コース";
-/// 分配金(投資信託の分配金コースの列見出し)
-pub const DISTRIBUTION: &str = "分配金";
 /// ファンド名の列見出し
 pub const FUND: &str = "ファンド";
 /// 保有口数(投資信託の口数の列見出し)
@@ -139,13 +134,14 @@ pub const FUND_SHARES: &str = "保有口数";
 pub const CURRENT_PRICE: &str = "現在値";
 /// 価格基準日(株価の基準日)
 pub const PRICE_AS_OF: &str = "価格基準日";
-/// 取得単価
+/// 取得単価(1株・1口あたりの平均取得コスト。資産・取引明細・配当情報・
+/// エクスポートの列名で共通。楽天証券の取込形式の「平均取得価額」と同じ意味)
 pub const AVERAGE_PRICE: &str = "取得単価";
-/// 平均取得単価(CSV エクスポート)
+/// 平均取得単価(保存ファイルの列名。画面では AVERAGE_PRICE を使う)
 pub const AVERAGE_UNIT_PRICE: &str = "平均取得単価";
-/// 取得額(CSV エクスポートの列)
+/// 取得額(保存ファイルの列名。画面では TOTAL_ACQUISITION を使う)
 pub const ACQUISITION_AMOUNT: &str = "取得額";
-/// 保有数(CSV エクスポートの列)
+/// 保有数(保存ファイルの列名。画面では QUANTITY を使う)
 pub const HOLDING_COUNT: &str = "保有数";
 /// 単価(CSV エクスポートの列)
 pub const UNIT_PRICE: &str = "単価";
@@ -163,8 +159,6 @@ pub const BASE_PRICE_MONTH_CHANGE: &str = "基準価額(前月比)";
 pub const BASE_PRICE_AS_OF: &str = "基準価額の基準日";
 /// CSV を取り込んだ日
 pub const CSV_IMPORTED_AT: &str = "CSV 取込日";
-/// 平均取得価額(投資信託)
-pub const AVERAGE_ACQUISITION_PRICE: &str = "平均取得価額";
 /// トータルリターン(投資信託の累積の損益)
 pub const TOTAL_RETURN: &str = "トータルリターン";
 /// 値が無いときの表示
@@ -292,6 +286,12 @@ pub const FORBIDDEN_TERMS: &[(&str, &str)] = &[
     ("含み損益", VALUATION_PROFIT_LOSS),
     ("評価額(投資信託)", MARKET_VALUE),
     ("絞り込み", "検索"),
+    ("取得価額", AVERAGE_PRICE),
+    ("平均取得価格", AVERAGE_PRICE),
+    ("平均取得価額", AVERAGE_PRICE),
+    ("一株配当", PER_SHARE_DIVIDEND),
+    ("資産残高", ASSET_BALANCE_TITLE),
+    ("保有数量(株)", QUANTITY),
 ];
 
 /// 件数の書き方
@@ -361,9 +361,13 @@ pub const CSV_MANAGE_COL_MENU: &str = "⋯";
 pub fn csv_manage_status_updated_today(time: &str) -> String {
     format!("今日 {time} に更新")
 }
-/// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色)
+/// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色。新規・更新とも日時は括弧のみ)
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{days}日前({date} {time})に更新")
+}
+/// CSV管理: 状態「要更新 N日前(M/D HH:MM)」(黄。動詞を省いて短くする)
+pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
+    format!("{CSV_MANAGE_STATUS_UPDATE_REQUIRED} {days}日前({date} {time})")
 }
 pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
 /// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください」(赤)
@@ -672,8 +676,8 @@ pub const SETTINGS_DELETE_ASSETS_NOTE: &str =
 pub const SETTINGS_DELETE_ACCOUNT: &str = "アカウントを削除";
 /// 設定: アカウント削除の説明
 pub const SETTINGS_DELETE_ACCOUNT_NOTE: &str = "データもすべて消えます。取り消せません";
-/// CSV エクスポート: 種類名(資産残高)
-pub const EXPORT_ASSET_BALANCE: &str = "資産残高";
+/// CSV エクスポート: 種類名(資産管理)
+pub const EXPORT_ASSET_BALANCE: &str = "資産管理";
 /// CSV エクスポート: 種類名(売買履歴)
 pub const EXPORT_TRANSACTIONS: &str = "売買履歴";
 /// CSV エクスポート: 件数超過の失敗文
@@ -1055,8 +1059,8 @@ pub const CSV_PAGE_DIVIDEND: &str = "取引明細(配当金)";
 pub const CSV_PAGE_DOMESTIC_STOCK: &str = "取引明細(国内株式)";
 /// CSV管理: 種類名(取引明細・投資信託)
 pub const CSV_PAGE_MUTUAL_FUND: &str = "取引明細(投資信託)";
-/// 必須列なしの失敗理由に添える対応形式(資産残高)
-pub const CSV_FORMAT_ASSET_BALANCE: &str = "対応形式: 資産残高CSV(見出し行の先頭は「銘柄コード」)";
+/// 必須列なしの失敗理由に添える対応形式(資産管理)
+pub const CSV_FORMAT_ASSET_BALANCE: &str = "対応形式: 資産管理CSV(見出し行の先頭は「銘柄コード」)";
 /// 必須列なしの失敗理由に添える対応形式(投資信託の保有残高)
 pub const CSV_FORMAT_FUND_BALANCE: &str =
     "対応形式: 投資信託の保有残高CSV(見出し行の先頭は「投資信託種別」)";

@@ -1,6 +1,16 @@
 //! 画面に出す金額・率・日付の書式。書式は1か所に集める。
 //! 金額(円マーク・桁区切り・符号)、小数桁、率、日付の関数をここに置き、
 //! 画面ごとの独自の書式関数はここへ寄せる( docs/ui-design.md の「用語と書式」)
+//!
+//! 率の小数桁の決まり(全画面共通):
+//! - 利回り(取得額利回り・配当利回り)は小数2桁(`format_percentage_value`)
+//! - 損益率(評価損益の率)は小数1桁+符号(`format_fixed_percent(_, 1)` に符号付き整形)
+//! - 達成率(ホーム配当進捗)は整数%・符号なし(`format_integer_percent`)
+//!
+//! 欠測とゼロの使い分け: 対象外・取得不能・未取得は `labels::MISSING`(—)、
+//! 金額ゼロ・率ゼロは `¥0` / `0.00%` などを出す(ゼロを — にしない)。
+//! 1株・1口あたりの金額は列ごとに `unit_price_decimals` で桁をそろえ、
+//! `format_unit_price` で出す(整数のみの列は0桁、最大2桁)。
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
