@@ -92,9 +92,12 @@ LEFT JOIN pg_catalog.pg_class c
     ON c.relname = t.name AND c.relnamespace = 'public'::pg_catalog.regnamespace
 LEFT JOIN pg_catalog.pg_roles o ON o.oid = c.relowner
 UNION ALL
-SELECT pg_catalog.format('role_owner %s member=%s can_set=%s', 'postgres',
-           pg_catalog.pg_has_role(current_user, 'postgres', 'MEMBER')::text,
-           pg_catalog.pg_has_role(current_user, 'postgres', 'SET')::text)
+SELECT CASE WHEN o.oid IS NULL THEN 'role_owner postgres member=- can_set=-'
+       ELSE pg_catalog.format('role_owner %s member=%s can_set=%s', 'postgres',
+           pg_catalog.pg_has_role(current_user, o.oid, 'MEMBER')::text,
+           pg_catalog.pg_has_role(current_user, o.oid, 'SET')::text) END
+FROM (SELECT 1) AS dummy
+LEFT JOIN pg_catalog.pg_roles o ON o.rolname = 'postgres'
 ";
 
 /// BulkTimer と同じ方式の計測。wasm では Instant が未対応のため epoch ミリ秒で保持する
@@ -234,5 +237,13 @@ mod tests {
     fn timer_elapsed_is_bounded() {
         let timer = CronTimer::start();
         assert!(timer.elapsed_ms() < 60_000);
+    }
+
+    #[test]
+    fn db_access_state_tolerates_missing_postgres_role() {
+        assert!(
+            !DB_ACCESS_STATE_SQL.contains("pg_has_role(current_user, 'postgres'"),
+            "名前指定の pg_has_role はロール不在で例外になるため pg_roles 経由で解決する"
+        );
     }
 }
