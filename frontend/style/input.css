@@ -1382,7 +1382,7 @@
   }
 
   .page-frame-title {
-    @apply font-extrabold leading-tight tracking-normal text-subhero;
+    @apply font-black leading-tight tracking-normal text-subhero;
     color: var(--color-design-page-title);
   }
 
@@ -1581,6 +1581,41 @@
     margin-top: var(--space-card);
   }
 
+  /* 列の包み。狭い幅では透過して4枚をそのまま並べ、1920 以上でのみ
+     左右の独立した縦列になる(行を共有しないため片列の空きが出ない) */
+  .home-card-col {
+    display: contents;
+  }
+
+  /* 120rem 未満は透過した包みの中で DOM 順(D,R,C,P)ではなく
+     従来の並び(D,C,R,P)に戻す。1920 以上の縦2列は DOM 順のまま */
+  @media (width < 120rem) {
+    [data-testid="home-dividend-card"] {
+      order: 1;
+    }
+
+    [data-testid="home-composition-card"] {
+      order: 2;
+    }
+
+    [data-testid="home-recent-card"] {
+      order: 3;
+    }
+
+    [data-testid="home-pnl-card"] {
+      order: 4;
+    }
+  }
+
+  @media (width >= 120rem) {
+    .home-card-col {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-card);
+      min-width: 0;
+    }
+  }
+
   @media (width < 64rem) {
     .home-card-grid {
       @apply px-0;
@@ -1588,7 +1623,7 @@
       gap: var(--space-table);
     }
 
-    .home-card-grid > * {
+    .home-card-grid .home-card-col > * {
       @apply rounded-xl border border-border-subtle bg-surface;
     }
 
