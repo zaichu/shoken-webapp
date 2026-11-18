@@ -26,6 +26,7 @@ pub(crate) mod section_heading;
 pub(crate) mod security_link;
 pub(crate) mod segmented;
 pub(crate) mod select;
+pub(crate) mod settings;
 pub(crate) mod site;
 pub(crate) mod stat_row;
 pub(crate) mod state;

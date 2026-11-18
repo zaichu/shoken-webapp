@@ -12,6 +12,8 @@ pub enum ButtonVariant {
     Primary(ButtonSize),
     /// 枠線の通常ボタン
     Secondary(ButtonSize),
+    SecondaryNoWrap(ButtonSize),
+    SecondaryDanger(ButtonSize),
     /// ヘッダー上の操作ボタン(PC・スマホの上部帯)
     Header(ButtonSize),
     /// 白地に赤の線と赤文字の危険ボタン(確認モーダル)
@@ -79,6 +81,8 @@ impl ButtonVariant {
                 "border border-border-strong bg-surface text-text hover:border-border-bold hover:bg-surface-sunken",
                 size,
             ),
+            Self::SecondaryNoWrap(size) => format!("{} whitespace-nowrap", Self::Secondary(size).classes()),
+            Self::SecondaryDanger(size) => format!("{} shrink-0 whitespace-nowrap text-negative border-negative-border hover:bg-negative/10", Self::Secondary(size).classes()),
             Self::DangerSolid(size) => sized(
                 // 危険は白地に赤の線と赤文字(見本の削除ボタン)。塗りは使わない
                 "border border-negative bg-surface text-negative-vivid hover:bg-negative-soft",
