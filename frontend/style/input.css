@@ -607,7 +607,7 @@
      PCもスマホも枠・塗りなしの下線タブ。選択中は文字の太さと
      帯の下の青い1本で示す。切り替えは1本が横に滑る) */
   .page-tab-list {
-    @apply grid grid-cols-3 gap-0 max-w-full border-b border-border-strong bg-page lg:flex;
+    @apply grid grid-cols-3 gap-0 max-w-full border-b border-border-strong bg-page lg:flex lg:gap-2;
     position: relative;
   }
 
@@ -620,7 +620,7 @@
   .page-tab {
     /* 選択の色差が大きいため transition を付けると遷移途中が
        コントラスト不足になる(a11y の計測が落ちる)ので付けない */
-    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-none border-0 bg-transparent px-1 text-sm text-text-soft hover:text-text-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+    @apply flex min-h-11 items-center justify-center gap-1.5 rounded-none border-0 bg-transparent px-1 text-sm text-text-soft hover:text-text-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:min-w-22 lg:px-4 lg:text-body;
     position: relative;
   }
 
