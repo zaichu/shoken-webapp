@@ -27,7 +27,7 @@ use crate::support::pagination;
 use crate::support::pagination::ListEndpoint;
 use crate::ui::format;
 use crate::ui::labels;
-use shared::format::{format_currency, format_number};
+use shared::format::{format_currency, format_currency_with_options, format_number};
 
 /// 取引明細の一覧行。保存済み(DB の行)を包む。
 pub type ReceiptRow = ReceiptItem;
@@ -234,7 +234,7 @@ impl DividendView<'_> {
             },
             ReceiptCell::Text(self.account.to_string()),
             ReceiptCell::Text(self.product.to_string()),
-            ReceiptCell::Text(format_currency(self.unit_price)),
+            ReceiptCell::Text(format_currency_with_options(self.unit_price, "¥", 0, 2)),
             ReceiptCell::Text(format_number(self.shares, 2)),
             // 明細の行は1円単位。表示単位は合計欄だけに使う
             ReceiptCell::Text(format_currency(self.dividends_before_tax)),
@@ -319,10 +319,10 @@ impl DomesticStockView<'_> {
                 code: Some(self.code.to_string()),
             },
             ReceiptCell::Text(self.account.to_string()),
-            ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.asked_price)),
+            ReceiptCell::Text(labels::stock_shares_label(&format_number(self.shares, 2))),
+            ReceiptCell::Text(format_currency_with_options(self.asked_price, "¥", 0, 2)),
             ReceiptCell::Text(format_currency(self.proceeds)),
-            ReceiptCell::Text(format_currency(self.purchase_price)),
+            ReceiptCell::Text(format_currency_with_options(self.purchase_price, "¥", 0, 2)),
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
             ReceiptCell::Text(format_currency(self.taxes)),
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),
@@ -406,10 +406,20 @@ impl MutualfundView<'_> {
                 code: None,
             },
             ReceiptCell::Text(self.account.to_string()),
-            ReceiptCell::Text(format_number(self.shares, 2)),
-            ReceiptCell::Text(format_currency(self.cancellation_unit_price_yen)),
+            ReceiptCell::Text(labels::fund_units_label(&format_number(self.shares, 2))),
+            ReceiptCell::Text(format_currency_with_options(
+                self.cancellation_unit_price_yen,
+                "¥",
+                0,
+                2,
+            )),
             ReceiptCell::Text(format_currency(self.cancellation_amount_yen)),
-            ReceiptCell::Text(format_currency(self.average_acquisition_price_yen)),
+            ReceiptCell::Text(format_currency_with_options(
+                self.average_acquisition_price_yen,
+                "¥",
+                0,
+                2,
+            )),
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss)),
             ReceiptCell::Text(format_currency(self.taxes)),
             ReceiptCell::Text(format_currency(self.realized_profit_and_loss_after_tax)),

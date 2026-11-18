@@ -28,7 +28,7 @@ pub fn FundHoldingsTable(
                     <tr>
                         <th scope="col" class="col-text">{labels::FUND}</th>
                         <th scope="col" class="col-text">{labels::ACCOUNT}</th>
-                        <th scope="col" class="col-text">{labels::DISTRIBUTION}</th>
+                        <th scope="col" class="col-text">{labels::DISTRIBUTION_COURSE}</th>
                         {sort_header(labels::FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
                         {sort_header(labels::BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
                         <th
@@ -136,7 +136,10 @@ pub fn FundHoldingsTable(
 }
 
 pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let base_text = format::format_currency(view.base_price);
+    let base_text = format::format_unit_price(
+        view.base_price,
+        format::unit_price_decimals(std::iter::once(view.base_price)),
+    );
     let day_text = if view.nav_pending() {
         labels::PENDING_UPDATE.to_string()
     } else {
@@ -151,7 +154,10 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     };
     let month_negative = balance_format::is_negative_valuation(view.base_price_month_change);
     let month_positive = balance_format::is_positive_valuation(view.base_price_month_change);
-    let average_text = format::format_currency(view.average_purchase_price);
+    let average_text = format::format_unit_price(
+        view.average_purchase_price,
+        format::unit_price_decimals(std::iter::once(view.average_purchase_price)),
+    );
     let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
     let shares_text = labels::fund_units_label(&format::format_number_value(view.shares));
     let purchase_text = format::format_currency(view.purchase);
@@ -187,7 +193,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             kind: AmountKind::Delta,
         },
         DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
-        DetailCell::plain(labels::DISTRIBUTION.to_string(), course_text),
+        DetailCell::plain(labels::DISTRIBUTION_COURSE.to_string(), course_text),
     ];
     let mut pnl_cell = DetailCell::strong_sub(
         labels::MARKET_VALUE.to_string(),
@@ -323,7 +329,7 @@ mod tests {
                 labels::BASE_PRICE,
                 labels::BASE_PRICE_MONTH_CHANGE,
                 labels::AVERAGE_PRICE,
-                labels::DISTRIBUTION
+                labels::DISTRIBUTION_COURSE
             ]
         );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();

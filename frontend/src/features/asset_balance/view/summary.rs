@@ -147,6 +147,10 @@ pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
 
 /// 資産管理の集計帯。国内株式・投資信託・すべての3タブで同じ部品を使う
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
 pub(crate) fn AssetSummaryBand(
     market: Option<f64>,
     profit: Option<f64>,
@@ -193,10 +197,24 @@ pub(crate) fn AssetSummaryBand(
             note_positive: false,
             extra_class: String::new(),
         }];
-        for tag in tags.into_iter().take(2) {
+        for tag in &tags {
             items.push(SummarySubItem {
                 label: tag.label.to_string(),
-                value: tag.value,
+                value: tag.value.clone(),
+                note: String::new(),
+                tone: SummaryTone::Neutral,
+                note_negative: false,
+                note_positive: false,
+                extra_class: String::new(),
+            });
+        }
+        if !tags
+            .iter()
+            .any(|tag| tag.label == labels::TOTAL_ACQUISITION)
+        {
+            items.push(SummarySubItem {
+                label: labels::TOTAL_ACQUISITION.to_string(),
+                value: purchase_text.clone(),
                 note: String::new(),
                 tone: SummaryTone::Neutral,
                 note_negative: false,
@@ -206,6 +224,42 @@ pub(crate) fn AssetSummaryBand(
         }
         items
     };
+    let mut breakdown_entries = vec![SummaryBreakdownEntry {
+        label: labels::DAY_CHANGE.to_string(),
+        value: daily_text,
+        negative: daily_negative,
+        positive: daily_positive,
+        rate: daily_rate_text,
+        rate_negative: daily_rate_value
+            .is_some_and(|rate| balance_format::is_negative_rate(Some(rate))),
+        rate_positive: daily_rate_value
+            .is_some_and(|rate| balance_format::is_positive_rate(Some(rate))),
+    }];
+    for tag in &tags {
+        breakdown_entries.push(SummaryBreakdownEntry {
+            label: tag.label.to_string(),
+            value: tag.value.clone(),
+            negative: false,
+            positive: false,
+            rate: String::new(),
+            rate_negative: false,
+            rate_positive: false,
+        });
+    }
+    if !tags
+        .iter()
+        .any(|tag| tag.label == labels::TOTAL_ACQUISITION)
+    {
+        breakdown_entries.push(SummaryBreakdownEntry {
+            label: labels::TOTAL_ACQUISITION.to_string(),
+            value: purchase_text,
+            negative: false,
+            positive: false,
+            rate: String::new(),
+            rate_negative: false,
+            rate_positive: false,
+        });
+    }
     view! {
         <section
             id="assetbalance-summary"
@@ -227,26 +281,7 @@ pub(crate) fn AssetSummaryBand(
                 aux_negative=profit_negative
                 aux_positive=profit_positive
                 pc_items=pc_items
-                breakdown=vec![
-                    SummaryBreakdownEntry {
-                        label: labels::DAY_CHANGE.to_string(),
-                        value: daily_text,
-                        negative: daily_negative,
-                        positive: daily_positive,
-                        rate: daily_rate_text,
-                        rate_negative: daily_rate_value.is_some_and(|rate| balance_format::is_negative_rate(Some(rate))),
-                        rate_positive: daily_rate_value.is_some_and(|rate| balance_format::is_positive_rate(Some(rate))),
-                    },
-                    SummaryBreakdownEntry {
-                        label: labels::TOTAL_ACQUISITION.to_string(),
-                        value: purchase_text,
-                        negative: false,
-                        positive: false,
-                        rate: String::new(),
-                        rate_negative: false,
-                        rate_positive: false,
-                    },
-                ]
+                breakdown=breakdown_entries
                 testid_band="portfolio-kpi-grid"
             />
         </section>

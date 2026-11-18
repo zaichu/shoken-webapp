@@ -773,15 +773,18 @@ fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
             "+¥900"
         };
         assert_eq!(
-            before_tax_subtext(tab, &card.details).as_deref(),
+            before_tax_subtext(tab, &card.details)
+                .map(|(text, _, _)| text)
+                .as_deref(),
             Some(expected)
         );
+        // プラスは Amount(Delta)で緑になるよう正の符号を渡す
+        let (_, negative, positive) = before_tax_subtext(tab, &card.details).expect("税引前がある");
+        assert!(!negative);
+        assert!(positive);
     }
     let dividend = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
-    assert_eq!(
-        before_tax_subtext(ReceiptsTab::Dividend, &dividend.details),
-        None
-    );
+    assert!(before_tax_subtext(ReceiptsTab::Dividend, &dividend.details).is_none());
 }
 
 #[test]
@@ -1011,11 +1014,11 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::DomesticStock => {
-                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得価額"]);
+                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::MutualFund => {
-                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得価額"]);
+                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
         }

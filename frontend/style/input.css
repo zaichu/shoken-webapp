@@ -1089,7 +1089,7 @@
     }
 
     .summary-band-rows .summary-label-note {
-      @apply ml-0 block;
+      @apply ml-1 inline;
     }
 
     .summary-band-rows .summary-value {
