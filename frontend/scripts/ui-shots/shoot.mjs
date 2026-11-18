@@ -3,7 +3,7 @@
 // 配信の起動・停止は ui-shots.sh が担う。
 //
 // 使い:
-//   node scripts/ui-shots/shoot.mjs --port 8160 --out test-results/shots [--only home,asset-stock]
+//   node scripts/ui-shots/shoot.mjs --port 8160 --out test-results/shots [--only home,asset-stock] [--viewports 390,1280,1920]
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { SCREENS, THEMES, VIEWPORTS, prepareContext } from './screens.mjs';
 
 function parseArgs(argv) {
-  const options = { only: null };
+  const options = { only: null, viewportWidths: null };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--port') {
@@ -20,6 +20,8 @@ function parseArgs(argv) {
       options.out = argv[(index += 1)];
     } else if (arg === '--only') {
       options.only = argv[(index += 1)];
+    } else if (arg === '--viewports') {
+      options.viewportWidths = argv[(index += 1)].split(',').map((width) => Number(width.trim()));
     } else {
       throw new Error(`不明な引数: ${arg}`);
     }
@@ -57,6 +59,13 @@ const screens = only ? SCREENS.filter((screen) => only.has(screen.key)) : SCREEN
 if (screens.length === 0) {
   throw new Error('--only に一致する画面がありません');
 }
+// latest/ は 390・1280・1920 だけに絞って軽くする。PR 確認用は既定の全幅のまま
+const viewports = options.viewportWidths
+  ? VIEWPORTS.filter((viewport) => options.viewportWidths.includes(viewport.width))
+  : VIEWPORTS;
+if (viewports.length === 0) {
+  throw new Error('--viewports に一致する幅がありません');
+}
 
 mkdirSync(options.out, { recursive: true });
 const baseUrl = `http://127.0.0.1:${options.port}`;
@@ -66,7 +75,7 @@ const unexpected = [];
 
 try {
   for (const screen of screens) {
-    for (const viewport of VIEWPORTS) {
+    for (const viewport of viewports) {
       for (const theme of THEMES) {
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
