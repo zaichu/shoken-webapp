@@ -632,22 +632,34 @@
     inset-inline: 0;
   }
 
+  /* PC は選ばれたタブをピル塗りつぶしで示し、下線は出さない。
+     塗りはアクセント、文字はライト白・ダークはページ色で
+     どちらもコントラスト 4.5:1 以上を保つ */
   .page-tab[aria-selected="true"] {
-    @apply border-transparent bg-accent-soft font-bold text-accent-text;
+    @apply border-accent bg-accent font-bold text-text-inverse hover:text-text-inverse focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
     anchor-name: --selected-page-tab;
   }
 
-  .page-tab-list::after {
-    content: "";
-    position: absolute;
-    position-anchor: --selected-page-tab;
-    inset-block-end: 0;
-    inset-inline: anchor(left) anchor(right);
-    border-block-end: 2px solid var(--color-accent);
-    pointer-events: none;
+  @media screen {
+    :root[data-theme="dark"] .page-tab[aria-selected="true"] {
+      @apply border-accent bg-accent text-page hover:text-page;
+    }
   }
 
-  @media (prefers-reduced-motion: no-preference) {
+  /* スマホの下線(位置合わせの錨つき)。PC では出さない */
+  @media (width < 64rem) {
+    .page-tab-list::after {
+      content: "";
+      position: absolute;
+      position-anchor: --selected-page-tab;
+      inset-block-end: 0;
+      inset-inline: anchor(left) anchor(right);
+      border-block-end: 2px solid var(--color-accent);
+      pointer-events: none;
+    }
+  }
+
+  @media (width < 64rem) and (prefers-reduced-motion: no-preference) {
     @supports (position-anchor: --selected-page-tab) {
       .page-tab-list::after {
         transition: inset-inline-start 180ms ease, inset-inline-end 180ms ease;
@@ -656,26 +668,14 @@
   }
 
   @supports not (position-anchor: --selected-page-tab) {
-    .page-tab {
-      position: relative;
-    }
-
-    .page-tab[aria-selected="true"]::after {
-      content: "";
-      position: absolute;
-      inset-inline: 0;
-      inset-block-end: -1px;
-      border-block-end: 3px solid var(--color-accent);
-    }
-
-    .page-tab-list::after {
-      display: none;
-    }
-  }
-
-  @media screen {
-    :root[data-theme="dark"] .page-tab[aria-selected="true"] {
-      @apply text-accent-text;
+    @media (width < 64rem) {
+      .page-tab[aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        inset-block-end: -1px;
+        border-block-end: 3px solid var(--color-accent);
+      }
     }
   }
 
@@ -697,7 +697,7 @@
     }
 
     .page-tab[aria-selected="true"] {
-      @apply bg-transparent font-bold text-text-deep;
+      @apply bg-transparent font-bold text-text-deep hover:text-text-deep;
     }
   }
 
