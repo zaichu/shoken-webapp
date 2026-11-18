@@ -1,23 +1,20 @@
-use super::{sync_code_param, use_stock_search};
 use crate::api::dto::Stock;
 use crate::features::asset_balance;
 use crate::features::asset_balance::{HoldingGroup, HoldingView, ValuationInput};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::badge::{AccountBadge, CodeBadge};
-use crate::ui::card::{Card, CardVariant};
-use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
+use crate::ui::badge::AccountBadge;
 use crate::ui::format;
 use crate::ui::holding_tiles::{
     HoldingDetailItem, HoldingDetails, HoldingSummary, HoldingSummaryItem,
 };
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::search_controls::{SearchBox, SearchSubmitButton, SearchTextInput};
 use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::stock_search;
 use leptos::prelude::*;
-use shared::normalize::normalize_display_name;
+use shared::normalize;
 
 const STOCK_LINKS: &[(&str, &str)] = &[
     (
@@ -59,7 +56,7 @@ const STOCK_LINKS: &[(&str, &str)] = &[
 
 #[component]
 pub(crate) fn StockSearchPage() -> impl IntoView {
-    let stock_search = use_stock_search();
+    let stock_search = super::use_stock_search();
     let session = session::use_session();
     let balance_state = asset_balance::use_asset_balance_state(session);
     let balances = balance_state.balances();
@@ -87,7 +84,7 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
             return;
         }
         let code = stock_search.stock_code.get_untracked();
-        if !sync_code_param(&code) {
+        if !super::sync_code_param(&code) {
             stock_search.search.dispatch(code);
         }
     };
@@ -157,14 +154,12 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                     <PageFrame
                         title=labels::STOCK_SEARCH_TITLE
                         action_bar=view! {
-                            <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
-                                <SearchForm
-                                    stock_code=stock_search.stock_code
-                                    loading=loading.into()
-                                    icon_size="h-5 w-5"
-                                    on_submit=on_submit
-                                />
-                            </div>
+                            <stock_search::SearchBar
+                                stock_code=stock_search.stock_code
+                                loading=loading.into()
+                                mobile=true
+                                on_submit=on_submit
+                            />
                         }
                             .into_any()
                         action_bar_mobile_only=true
@@ -190,14 +185,12 @@ pub(crate) fn StockSearchPage() -> impl IntoView {
                     <PageFrame
                         title=labels::STOCK_SEARCH_TITLE
                         action_bar=view! {
-                            <div class="py-2" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
-                                <SearchForm
-                                    stock_code=stock_search.stock_code
-                                    loading=loading.into()
-                                    icon_size="h-5 w-5"
-                                    on_submit=on_submit
-                                />
-                            </div>
+                            <stock_search::SearchBar
+                                stock_code=stock_search.stock_code
+                                loading=loading.into()
+                                mobile=true
+                                on_submit=on_submit
+                            />
                         }
                             .into_any()
                         action_bar_mobile_only=true
@@ -279,12 +272,10 @@ fn SearchPageBody(
         {
             return;
         }
-        sync_code_param(&code);
+        super::sync_code_param(&code);
     });
     view! {
-        <div class="hidden lg:block lg:pb-4" role="search" aria-label=labels::STOCK_SEARCH_TITLE>
-            <SearchForm stock_code=stock_search.stock_code loading=loading.into() on_submit=on_submit />
-        </div>
+        <stock_search::SearchBar stock_code=stock_search.stock_code loading=loading.into() on_submit=on_submit />
         <Show when=move || has_invalid>
             <Alert variant=AlertVariant::Warning>{labels::STOCK_SEARCH_INVALID}</Alert>
         </Show>
@@ -293,13 +284,7 @@ fn SearchPageBody(
                 .get()
                 .map(|message| {
                     view! {
-                        <div class="no-print mb-3">
-                            <Alert variant=AlertVariant::Danger>
-                                <strong>{labels::ERROR_PREFIX}</strong>
-                                " "
-                                {message}
-                            </Alert>
-                        </div>
+                        <stock_search::RefreshError message=message />
                     }
                 })
         }}
@@ -388,9 +373,7 @@ fn BalanceFailedBody(
     on_retry_balances: impl Fn() + Send + Sync + Copy + 'static,
 ) -> impl IntoView {
     view! {
-        <div class="mb-3">
-            <ListLoadError message=message on_retry=on_retry_balances />
-        </div>
+        <stock_search::BalanceError message=message on_retry=on_retry_balances />
         {stock.map(|stock| view! { <StockInfo stock=stock /> })}
     }
 }
@@ -415,35 +398,6 @@ fn NotFoundBody(holding: Option<HoldingGroup>, dividends: RwSignal<DividendMaps>
     }
 }
 
-#[component]
-fn SearchForm(
-    stock_code: RwSignal<String>,
-    loading: Signal<bool>,
-    /// 虫眼鏡アイコンのサイズ。PC は h-4、スマホは h-5
-    #[prop(optional, default = "h-4 w-4")]
-    icon_size: &'static str,
-    on_submit: impl Fn(web_sys::SubmitEvent) + Send + Sync + 'static,
-) -> impl IntoView {
-    view! {
-        <form on:submit=on_submit class="w-full">
-            <SearchBox icon_size=icon_size>
-                <SearchTextInput
-                    placeholder=labels::search_placeholder(labels::STOCK_SEARCH_TARGET)
-                    disabled=Signal::derive(move || loading.get())
-                    value=move || stock_code.get()
-                    on_input=move |value| stock_code.set(value)
-                />
-                <SearchSubmitButton
-                    disabled=move || loading.get() || stock_code.get().is_empty()
-                    loading=move || loading.get()
-                    label=labels::STOCK_SEARCH_ACTION
-                    loading_label=labels::SEARCH_LOADING
-                />
-            </SearchBox>
-        </form>
-    }
-}
-
 fn empty_search_description(title: &str) -> &'static str {
     if title == labels::STOCK_SEARCH_INITIAL_TITLE {
         labels::STOCK_SEARCH_INITIAL_HINT
@@ -456,18 +410,7 @@ fn empty_search_description(title: &str) -> &'static str {
 fn EmptySearch(title: &'static str) -> impl IntoView {
     let description = empty_search_description(title);
     view! {
-        <EmptyState
-            class="py-10"
-            title=title
-            description=description
-            icon=EmptyStateIcon::Search
-        >
-            <ul class="mt-4 space-y-1 text-body font-medium text-text-muted">
-                <li>{labels::STOCK_SEARCH_TIP_CODE}</li>
-                <li>{labels::STOCK_SEARCH_TIP_NAME}</li>
-                <li>{labels::STOCK_SEARCH_TIP_LINKS}</li>
-            </ul>
-        </EmptyState>
+        <stock_search::EmptySearch title=title description=description />
     }
 }
 
@@ -491,84 +434,18 @@ fn StockInfo(stock: Stock) -> impl IntoView {
             stock.size_category.clone().unwrap_or_default(),
         ),
     ];
-    let code = stock.code.clone();
-    let code_badge = code.clone();
-    let name = normalize_display_name(&stock.name);
+    let name = normalize::normalize_display_name(&stock.name);
+    let links = self::STOCK_LINKS
+        .iter()
+        .map(|(name, template)| {
+            (
+                *name,
+                template.replace(&format!("{{{}}}", "code"), stock.code.as_str()),
+            )
+        })
+        .collect();
     view! {
-        <div>
-            <Card variant=CardVariant::Panel class="mb-6 overflow-hidden">
-                <div class="border-b border-ink/10 bg-ink px-4 py-4 text-page sm:px-5">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="min-w-0 flex-1 break-words text-subhero font-black leading-tight">{name}</h2>
-                        <CodeBadge>{code_badge}</CodeBadge>
-                    </div>
-                </div>
-                <div>
-                    <dl class="grid grid-cols-2 gap-px bg-fill text-body lg:grid-cols-4">
-                        {meta
-                            .into_iter()
-                            .map(|(label, value)| {
-                                let display = if value.is_empty() {
-                                    "—".to_string()
-                                } else {
-                                    value
-                                };
-                                view! {
-                                    <div class="flex min-h-16 flex-col justify-center bg-surface px-4 py-3">
-                                        <dt class="text-cell font-medium text-text-muted">
-                                            {label}
-                                        </dt>
-                                        <dd class="mt-1 break-words font-bold tabular-nums text-text-deep">{display}</dd>
-                                    </div>
-                                }
-                            })
-                            .collect_view()}
-                    </dl>
-                    <div class="px-4 py-4">
-                        <StockInfoLinks code=code />
-                    </div>
-                </div>
-            </Card>
-        </div>
-    }
-}
-
-#[component]
-fn StockInfoLinks(code: String) -> impl IntoView {
-    view! {
-        <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {STOCK_LINKS
-                .iter()
-                .map(|(name, template)| {
-                    let href = template.replace(&format!("{{{}}}", "code"), code.as_str());
-                    view! {
-                        <a
-                            class="stock-link-button"
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label=labels::stock_search_new_tab(name)
-                        >
-                            {*name}
-                            <svg
-                                class="h-3.5 w-3.5 shrink-0 text-text-faint"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                />
-                            </svg>
-                        </a>
-                    }
-                })
-                .collect_view()}
-        </div>
+        <stock_search::StockInfoCard name=name code=stock.code meta=meta links=links />
     }
 }
 
@@ -579,47 +456,38 @@ fn HoldingSection(group: HoldingGroup, dividends: RwSignal<DividendMaps>) -> imp
     let multi = group.rows.len() > 1;
     let badges: Vec<Option<String>> = group.rows.iter().map(|row| row.account.clone()).collect();
     view! {
-        <section aria-label=labels::STOCK_HOLDING_SECTION class="mb-6">
-            <h2 class="mb-3 text-heading font-bold text-text-deep">
-                {labels::STOCK_HOLDING_SECTION}
-            </h2>
+        <stock_search::HoldingSection>
             {move || {
                 // 配当は保有一覧より遅れて届くため、ここで読み直してタイルを作り直す
                 let maps = dividends.get();
                 let total = HoldingTilesData::total(&group, &maps);
                 if multi {
+                    let accounts = group
+                        .rows
+                        .iter()
+                        .map(|row| HoldingTilesData::account(row, &group, &maps))
+                        .zip(badges.clone())
+                        .map(|(data, badge)| {
+                            view! {
+                                <stock_search::HoldingAccount account=badge>
+                                    <HoldingTilesView data=data />
+                                </stock_search::HoldingAccount>
+                            }
+                        })
+                        .collect_view();
                     view! {
-                        <h3 class="mb-2 text-label font-bold text-text-muted">
-                            {labels::STOCK_HOLDING_TOTAL}
-                        </h3>
+                        <stock_search::HoldingTotalHeading />
                         <HoldingTilesView data=total />
-                        <div class="mt-4 space-y-4">
-                            {group
-                                .rows
-                                .iter()
-                                .map(|row| HoldingTilesData::account(row, &group, &maps))
-                                .zip(badges.clone())
-                                .map(|(data, badge)| {
-                                    view! {
-                                        <div>
-                                            <p class="mb-2">
-                                                {badge.map_or_else(|| labels::MISSING.into_any(), |label| {
-                                                        view! { <AccountBadge label=label /> }.into_any()
-                                                    })}
-                                            </p>
-                                            <HoldingTilesView data=data />
-                                        </div>
-                                    }
-                                })
-                                .collect_view()}
-                        </div>
+                        <stock_search::HoldingAccounts>
+                            {accounts}
+                        </stock_search::HoldingAccounts>
                     }
                         .into_any()
                 } else {
                     view! { <HoldingTilesView data=total /> }.into_any()
                 }
             }}
-        </section>
+        </stock_search::HoldingSection>
     }
 }
 
@@ -779,19 +647,13 @@ fn HoldingSummaryTiles(data: HoldingTilesData) -> impl IntoView {
                 <Amount text=data.market />
             </HoldingSummaryItem>
             <HoldingSummaryItem label=labels::VALUATION_PROFIT_LOSS.to_string()>
-                <Amount
-                    kind=AmountKind::Delta
-                    class="tabular-nums"
+                <stock_search::HoldingProfitLoss
                     text=data.pnl
                     negative=data.pnl_negative
                     positive=data.pnl_positive
-                />
-                <Amount
-                    kind=AmountKind::Delta
-                    class="ml-1 text-cell"
-                    text=data.pnl_rate
-                    negative=data.pnl_rate_negative
-                    positive=data.pnl_rate_positive
+                    rate=data.pnl_rate
+                    rate_negative=data.pnl_rate_negative
+                    rate_positive=data.pnl_rate_positive
                 />
             </HoldingSummaryItem>
         </HoldingSummary>
