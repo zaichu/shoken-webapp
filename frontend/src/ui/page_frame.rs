@@ -10,7 +10,7 @@ fn PcHeader() -> impl IntoView {
     view! {
         <header class="pc-header no-print hidden lg:flex">
             <div class="page-gutter flex items-center gap-8 h-14">
-                <a href="/" class="flex items-center gap-2.5 no-underline" aria-label=labels::page_frame_top_label()>
+                <a href="/" class="flex hit-area-44-y items-center gap-2.5 no-underline" aria-label=labels::page_frame_top_label()>
                     <div class="header-logo" aria-hidden="true">
                         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect width="28" height="28" rx="7" fill="var(--color-design-header-logo)"/>

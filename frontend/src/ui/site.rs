@@ -564,7 +564,7 @@ pub fn SiteFooter() -> impl IntoView {
                                 href={*href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="inline-flex min-h-6 items-center hover:text-text-soft hover:underline max-sm:min-h-11"
+                                class="inline-flex hit-area-44-y min-h-6 items-center hover:text-text-soft hover:underline max-sm:min-h-11"
                                 aria-label=labels::stock_search_new_tab(label)
                             >
                                 {*label}
