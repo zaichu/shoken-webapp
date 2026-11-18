@@ -10,8 +10,9 @@ use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
 use crate::ui::receipts::{
-    ReceiptGroupBreakdown, ReceiptGroupCount, ReceiptGroupDetails, ReceiptGroupSummaryMeta,
-    ReceiptItemDetails, ReceiptItemHead, ReceiptItemMeta, ReceiptItemTitleRow,
+    ReceiptGroupBreakdown, ReceiptGroupCount, ReceiptGroupDetails, ReceiptGroupHeadLabel,
+    ReceiptGroupLabel, ReceiptGroupSummaryMeta, ReceiptGroupSummaryValue, ReceiptItemDetails,
+    ReceiptItemHead, ReceiptItemMeta, ReceiptItemTitleName, ReceiptItemTitleRow,
     ReceiptMobileGroupList,
 };
 use crate::ui::security_link;
@@ -247,7 +248,6 @@ pub(crate) fn card_detail_view(value: &CardDetailValue) -> (AnyView, Option<Stri
                     text=text.clone()
                     negative=*negative
                     positive=*positive
-                    class="font-semibold"
                 />
             }
             .into_any(),
@@ -659,17 +659,14 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                             <CodeBadge flush=true testid="receipt-card-code">
                                 <SecurityCodeLink
                                     value=code
-                                    class="min-h-11 min-w-11 items-center justify-center font-semibold no-underline hover:underline".to_string()
+                                    class="min-h-11 min-w-11 items-center justify-center no-underline hover:underline".to_string()
                                 />
                             </CodeBadge>
                         }
                     })}
-                    <div
-                        class="min-w-0 break-words text-body font-semibold text-ink"
-                        title=name_title
-                    >
+                    <ReceiptItemTitleName title=name_title>
                         {name_view}
-                    </div>
+                    </ReceiptItemTitleName>
                 </ReceiptItemTitleRow>
                 <ReceiptItemMeta>
                     <span class="shrink-0">{date}</span>
@@ -725,7 +722,7 @@ pub(crate) fn MobileCardGroup(
         return view! {
             <section data-testid="receipt-card-group">
                 <Card variant=CardVariant::GroupLabel>
-                    <span class="text-label font-semibold text-text-soft">{label}</span>
+                    <ReceiptGroupLabel>{label}</ReceiptGroupLabel>
                     <ReceiptGroupCount text=labels::count(count) />
                 </Card>
                 {card_list}
@@ -762,18 +759,17 @@ pub(crate) fn MobileCardGroup(
                         });
                     }
                 >
-                    <span class="min-w-0 flex-1 truncate text-label font-semibold text-text-soft">
+                    <ReceiptGroupHeadLabel>
                         {label}
                         <ReceiptGroupCount text=labels::count(count) />
-                    </span>
+                    </ReceiptGroupHeadLabel>
                     <ReceiptGroupSummaryMeta>
                         <span class="text-cell text-text-muted">{primary_label}</span>
-                        <Amount
+                        <ReceiptGroupSummaryValue
                             kind=primary_kind
                             text=primary_value.clone()
                             negative=primary_negative
                             positive=primary_positive
-                            class="text-body font-semibold"
                         />
                         <ChevronIcon
                             expanded=Signal::derive(move || expanded.get())

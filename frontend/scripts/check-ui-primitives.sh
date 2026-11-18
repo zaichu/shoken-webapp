@@ -15,6 +15,9 @@ RAW_ELEMENT='<button|<select'
 PRIMITIVE_CLASS='(panel-card|login-card|table-card|collapsible-card|empty-state|collapsible-trigger|group-card-trigger|search-submit|login-button|copyable-name|badge-account|badge-code|badge-count|skeleton-table-row)'
 # 開閉トリガーは DisclosureToggle(または Button/FieldTrigger の aria_expanded)を使う
 RAW_DISCLOSURE='aria-expanded'
+# features/ ではウェイトを直書きしない(本文・補足は 400=font-normal、ラベル・見出し・金額は
+# 700=font-bold の2段に寄せ、見た目は ui/ の部品の中だけで決める)。font-normal/font-bold は可
+WEIGHT_CLASS='(^|[^A-Za-z0-9_-])([a-z][a-z0-9-]*:)*font-(thin|extralight|light|medium|semibold|extrabold|black)([^A-Za-z0-9_-]|$)'
 # 状態表示は ui/ の部品(Alert/ListLoadError/ListSkeleton/Skeleton 等)を使う。
 # role="alert"・animate-pulse は部品が持つ属性なので features/ では直書きしない
 STATE_MARKUP='role="alert"|animate-pulse'
@@ -230,6 +233,7 @@ if [ "$#" -gt 0 ]; then
   check "部品クラスの直書き(自己テスト)" "$PRIMITIVE_CLASS" "" "$@"
   check_card_like "カード相当のクラス組み合わせ(自己テスト)" "$@"
   check "開閉属性の直書き(自己テスト)" "$RAW_DISCLOSURE" strip "$@"
+  check "ウェイトの直書き(自己テスト)" "$WEIGHT_CLASS" "" "$@"
   check "状態表示の直書き(自己テスト)" "$STATE_MARKUP" "" "$@"
   check_inline_style "インラインスタイル(自己テスト)" "$@"
   [ "$fail" -ne 0 ] && exit 1
@@ -240,6 +244,7 @@ check "要素の直書き(src/features/**/*.rs)" "$RAW_ELEMENT" strip "${FEATURE
 check "部品クラスの直書き(src/features/**/*.rs)" "$PRIMITIVE_CLASS" "" "${FEATURE_FILES[@]}"
 check_card_like "カード相当のクラス組み合わせ(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 check "開閉属性の直書き(src/features/**/*.rs)" "$RAW_DISCLOSURE" strip "${FEATURE_FILES[@]}"
+check "ウェイトの直書き(src/features/**/*.rs)" "$WEIGHT_CLASS" "" "${FEATURE_FILES[@]}"
 check "状態表示の直書き(src/features/**/*.rs)" "$STATE_MARKUP" "" "${FEATURE_FILES[@]}"
 check_inline_style "インラインスタイル(src/features/**/*.rs)" "${FEATURE_FILES[@]}"
 
@@ -258,7 +263,7 @@ if [ "$self_test_status" -ne 1 ]; then
   exit 1
 fi
 
-for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'badge-code' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'role="alert"' 'animate-pulse' 'style=format!' 'style="' 'style=bar_width' 'style = "width: 10%"' 'style=STYLE' 'attr:style="'; do
+for expected in '<button' '<select' 'panel-card' 'collapsible-trigger' 'search-submit' 'empty-state' 'badge-code' 'bg-surface' 'class:bg-surface' 'mb-7' 'string-chevron' 'event-chevron' 'dynamic-card' 'char-lit-open' 'char-lit-close' 'raw-string-card' 'aria-expanded' 'font-medium' 'font-black' 'role="alert"' 'animate-pulse' 'style=format!' 'style="' 'style=bar_width' 'style = "width: 10%"' 'style=STYLE' 'attr:style="'; do
   if ! grep -Fq -- "$expected" <<<"$self_test_output"; then
     echo "ERROR: 基本部品検査の自己テストが $expected を検出しません" >&2
     exit 1

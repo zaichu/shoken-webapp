@@ -108,6 +108,32 @@ pub fn HomeCompositionAccounts(children: Children) -> impl IntoView {
     view! { <div class="px-4 pt-4">{children()}</div> }
 }
 
+/// 構成比カードの補足文。補足は 400 のままにする
+#[component]
+pub fn HomeCompositionNote(children: Children) -> impl IntoView {
+    view! { <p class="text-label font-normal text-text-muted">{children()}</p> }
+}
+
+/// ヘッダー脇の取り込み日表示。補足は 400 のままにする
+#[component]
+pub fn HomeImportLabel(children: Children) -> impl IntoView {
+    view! {
+        <span class="hidden text-label font-normal text-text-muted lg:inline">
+            {children()}
+        </span>
+    }
+}
+
+/// 一部取得失敗の注意書き。補足は 400 のままにする
+#[component]
+pub fn HomeStatusNote(children: Children) -> impl IntoView {
+    view! {
+        <p class="text-label font-normal text-text-muted" role="status" aria-live="polite">
+            {children()}
+        </p>
+    }
+}
+
 #[component]
 pub fn HomeStackedBar(#[prop(optional)] secondary: bool, children: Children) -> impl IntoView {
     let class = if secondary {

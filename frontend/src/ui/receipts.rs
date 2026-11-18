@@ -84,6 +84,12 @@ pub fn DividendSummaryTitle(children: Children) -> impl IntoView {
     view! { <div class="flex items-center gap-2">{children()}</div> }
 }
 
+/// 配当サマリーの見出し。見出しは 700 に寄せる
+#[component]
+pub fn DividendSummaryHeading(#[prop(into)] title: String) -> impl IntoView {
+    view! { <h2 class="text-heading font-bold text-ink">{title}</h2> }
+}
+
 #[component]
 pub fn DividendSummaryBody(expanded: RwSignal<bool>, children: Children) -> impl IntoView {
     view! {
@@ -208,6 +214,16 @@ pub fn ReceiptItemTitleRow(children: Children) -> impl IntoView {
     view! { <div class="flex min-w-0 items-center gap-2">{children()}</div> }
 }
 
+/// 明細カードの銘柄名行。銘柄名は見出しとして 700 に寄せる
+#[component]
+pub fn ReceiptItemTitleName(title: Option<String>, children: Children) -> impl IntoView {
+    view! {
+        <div class="min-w-0 break-words text-body font-bold text-ink" title=title>
+            {children()}
+        </div>
+    }
+}
+
 #[component]
 pub fn ReceiptItemMeta(children: Children) -> impl IntoView {
     view! { <div class="flex items-center gap-2 text-cell text-text-muted">{children()}</div> }
@@ -226,6 +242,41 @@ pub fn ReceiptMobileGroupList(children: Children) -> impl IntoView {
 #[component]
 pub fn ReceiptGroupCount(#[prop(into)] text: String) -> impl IntoView {
     view! { <span class="ml-2 text-cell font-normal text-text-muted">{text}</span> }
+}
+
+/// カード群ラベルの銘柄区分名。区分名は 700 に寄せる
+#[component]
+pub fn ReceiptGroupLabel(children: Children) -> impl IntoView {
+    view! { <span class="text-label font-bold text-text-soft">{children()}</span> }
+}
+
+/// 開閉ヘッダーの銘柄区分名。区分名は 700 に寄せる
+#[component]
+pub fn ReceiptGroupHeadLabel(children: Children) -> impl IntoView {
+    view! {
+        <span class="min-w-0 flex-1 truncate text-label font-bold text-text-soft">
+            {children()}
+        </span>
+    }
+}
+
+/// 開閉ヘッダーの集計値。金額は 700 に寄せる
+#[component]
+pub fn ReceiptGroupSummaryValue(
+    kind: AmountKind,
+    #[prop(into)] text: String,
+    negative: bool,
+    positive: bool,
+) -> impl IntoView {
+    view! {
+        <Amount
+            kind=kind
+            text=text
+            negative=negative
+            positive=positive
+            class="text-body font-bold"
+        />
+    }
 }
 
 #[component]
