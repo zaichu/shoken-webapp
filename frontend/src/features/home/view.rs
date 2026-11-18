@@ -19,7 +19,9 @@ use crate::features::asset_balance;
 use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
 use crate::session;
 use crate::ui::format;
-use crate::ui::home::{HomeLogin, HomeMain, HomePartialError, HomeSummarySection};
+use crate::ui::home::{
+    HomeImportLabel, HomeLogin, HomeMain, HomePartialError, HomeStatusNote, HomeSummarySection,
+};
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
@@ -92,9 +94,9 @@ pub fn HomePage() -> impl IntoView {
             {move || {
                 import_label.get().map(|label| {
                     view! {
-                        <span class="hidden text-label font-medium text-text-muted lg:inline">
+                        <HomeImportLabel>
                             {labels::home_import_label(&label)}
-                        </span>
+                        </HomeImportLabel>
                     }
                 })
             }}
@@ -145,11 +147,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
             }
         >
             <div class="page-gutter">
-                <p
-                    class="text-label font-medium text-text-muted"
-                    role="status"
-                    aria-live="polite"
-                >
+                <HomeStatusNote>
                     {move || {
                         let (_, _, _, _, _, _, generation) = snapshot();
                         let any_failed = data.fetch_state.with(|map| {
@@ -159,7 +157,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                             view! { <HomePartialError /> }
                         })
                     }}
-                </p>
+                </HomeStatusNote>
             </div>
             <HomeSummarySection>
                 <SkeletonSummary>

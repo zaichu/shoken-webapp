@@ -8,7 +8,7 @@ use crate::ui::badge;
 use crate::ui::format;
 use crate::ui::home::{
     HomeCardEmpty, HomeCardError, HomeCardHead, HomeCardSkeleton, HomeCompositionAccounts,
-    HomeCompositionRows, HomeCompositionTop, HomeDetailCard, HomeStackedBar,
+    HomeCompositionNote, HomeCompositionRows, HomeCompositionTop, HomeDetailCard, HomeStackedBar,
 };
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
@@ -202,9 +202,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
         .collect_view();
     view! {
         <HomeCompositionAccounts>
-            <p class="text-label font-medium text-text-muted">
-                {labels::HOME_ACCOUNT_FUND_LABEL}
-            </p>
+            <HomeCompositionNote>{labels::HOME_ACCOUNT_FUND_LABEL}</HomeCompositionNote>
             <HomeStackedBar secondary=true>{bars}</HomeStackedBar>
             <HomeCompositionRows>{rows}</HomeCompositionRows>
         </HomeCompositionAccounts>

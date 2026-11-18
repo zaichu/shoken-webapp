@@ -15,8 +15,8 @@ use crate::ui::disclosure::{DisclosureStyle, DisclosureToggle};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::receipts::{
-    DividendStatCard, DividendStatGrid, DividendSummaryBody, DividendSummaryTitle,
-    DividendTotalCard, DividendTotalGrid,
+    DividendStatCard, DividendStatGrid, DividendSummaryBody, DividendSummaryHeading,
+    DividendSummaryTitle, DividendTotalCard, DividendTotalGrid,
 };
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -337,7 +337,7 @@ pub(crate) fn DividendSummarySection(
                     on_toggle=move || expanded.update(bool::toggle)
                 >
                     <DividendSummaryTitle>
-                        <h2 class="text-heading font-black text-ink">{title}</h2>
+                        <DividendSummaryHeading title=title />
                         {move || store.asset_balance.get().is_some().then(AssetBadge)}
                     </DividendSummaryTitle>
                 </DisclosureToggle>
