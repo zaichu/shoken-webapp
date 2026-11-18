@@ -4,6 +4,9 @@
 use crate::features::asset_balance::fund::AssetSearch;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::support::list_search::SearchOption;
+use crate::ui::asset_balance::{
+    AssetDialogField, AssetDialogStack, AssetSearchLinks, AssetSearchMetaRow,
+};
 use crate::ui::badge;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::labels;
@@ -328,13 +331,13 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                 value=courses_tag
                 on_clear=move || search.update(|s| s.courses.clear())
             />
-            <div class="flex w-full items-center justify-between gap-2">
+            <AssetSearchMetaRow>
                 <SearchCount
                     filtered=move || search_count.get().0
                     total=move || search_count.get().1
                     testid="asset-search-count-mobile"
                 />
-                <span class="flex items-center gap-4">
+                <AssetSearchLinks>
                     {composition.then(|| {
                         view! {
                             <MoreLink
@@ -349,8 +352,8 @@ pub(crate) fn AssetMobileSearchEntry<K: Copy + PartialEq + Send + Sync + 'static
                         label=labels::CSV_MANAGE_TITLE.to_string()
                         testid="asset-csv-link".to_string()
                     />
-                </span>
-            </div>
+                </AssetSearchLinks>
+            </AssetSearchMetaRow>
         </MobileSearchEntryShell>
         {move || {
             let sheet_text = sheet_placeholder.clone();
@@ -416,7 +419,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
     let search_callback = Callback::new(move |()| on_search());
     let hint = placeholder.clone();
     view! {
-        <div class="flex flex-col gap-4">
+        <AssetDialogStack>
             <section aria-label=labels::SEARCH>
                 <p class="search-dialog-section-title">{labels::SEARCH}</p>
                 <div class="search-dialog-field">
@@ -462,8 +465,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                     };
                                     view! {
                                         <div class="search-dialog-field">
-                                            <label class="mb-1 block text-label font-medium text-text-deep">
-                                                {label}
+                                            <AssetDialogField label=label>
                                                 <Select
                                                     value=Signal::derive(move || value.get())
                                                     aria_label=label.to_string()
@@ -495,7 +497,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                                             .collect_view()
                                                     }}
                                                 </Select>
-                                            </label>
+                                            </AssetDialogField>
                                         </div>
                                     }
                                 })
@@ -507,8 +509,7 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                 <p class="search-dialog-section-title">{labels::SORT_BY}</p>
                 <div class="search-dialog-sort-row">
                     <div>
-                        <label class="mb-1 block text-label font-medium text-text-deep">
-                            {labels::SORT_TARGET}
+                        <AssetDialogField label=labels::SORT_TARGET>
                             <Select
                                 value=Signal::derive(move || key_value(draft_key.get()).to_string())
                                 aria_label=labels::SORT_TARGET.to_string()
@@ -529,11 +530,10 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                     })
                                     .collect_view()}
                             </Select>
-                        </label>
+                        </AssetDialogField>
                     </div>
                     <div>
-                        <label class="mb-1 block text-label font-medium text-text-deep">
-                            {labels::SORT_ORDER_LABEL}
+                        <AssetDialogField label=labels::SORT_ORDER_LABEL>
                             <Select
                                 value=Signal::derive(move || draft_order.get().value().to_string())
                                 aria_label=labels::SORT_ORDER_LABEL.to_string()
@@ -548,10 +548,10 @@ fn AssetDialogFields<K: Copy + PartialEq + Send + Sync + 'static>(
                                 <option value="desc">{labels::SORT_HIGH_TO_LOW}</option>
                                 <option value="asc">{labels::SORT_LOW_TO_HIGH}</option>
                             </Select>
-                        </label>
+                        </AssetDialogField>
                     </div>
                 </div>
             </section>
-        </div>
+        </AssetDialogStack>
     }
 }

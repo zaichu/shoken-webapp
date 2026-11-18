@@ -4,13 +4,16 @@ use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund;
 use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::asset_balance::{
+    AssetPageEmpty, AssetPageError, AssetRateAmount, FundDetailBody, FundDetailCard,
+    FundDetailHeader, FundDetailMeta,
+};
 use crate::ui::badge::AccountBadge;
-use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
 use crate::ui::holding_tiles::{HoldingTile, HoldingTiles};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 
 #[component]
@@ -56,15 +59,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
                         .map(|message| {
-                            view! {
-                                <div class="no-print mb-3">
-                                    <Alert variant=AlertVariant::Danger>
-                                        <strong>{labels::ERROR_PREFIX}</strong>
-                                        " "
-                                        {message}
-                                    </Alert>
-                                </div>
-                            }
+                            view! { <AssetPageError message=message /> }
                         })
                 }}
                 {move || {
@@ -88,9 +83,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                             });
                             let Some(row) = found else {
                                 return view! {
-                                    <div class="px-4 py-4">
-                                        <EmptyState title=labels::ASSET_FUND_NOT_FOUND />
-                                    </div>
+                                    <AssetPageEmpty title=labels::ASSET_FUND_NOT_FOUND />
                                 }
                                     .into_any();
                             };
@@ -146,20 +139,20 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                     FundPriceSource::Csv => labels::CSV_IMPORTED_AT,
                                 };
                                 view! {
-                                    <div class="asset-panel">
-                                        <div class="border-b border-border p-4">
+                                    <FundDetailCard>
+                                        <FundDetailHeader>
                                             <h2 class="text-heading font-bold text-text">
                                                 {view.name.clone()}
                                             </h2>
-                                            <p class="mt-1 flex items-center gap-1 text-label text-text-muted">
+                                            <FundDetailMeta>
                                                 <AccountBadge label=view.account.clone() />
                                                 {view
                                                     .course
                                                     .clone()
                                                     .map(|course| labels::course_with_dot(&course))}
-                                            </p>
-                                        </div>
-                                        <div class="p-4">
+                                            </FundDetailMeta>
+                                        </FundDetailHeader>
+                                        <FundDetailBody>
                                             <HoldingTiles>
                                                 <HoldingTile label=labels::MARKET_VALUE.to_string() wide=true>
                                                     <Amount text=market_text />
@@ -172,9 +165,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                         negative=pnl_negative
                                                         positive=pnl_positive
                                                     />
-                                                    <Amount
-                                                        kind=AmountKind::Delta
-                                                        class="ml-1 text-cell"
+                                                    <AssetRateAmount
                                                         text=pnl_rate_text
                                                         negative=pnl_rate_negative
                                                         positive=pnl_rate_positive
@@ -221,8 +212,8 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                     />
                                                 </HoldingTile>
                                             </HoldingTiles>
-                                        </div>
-                                    </div>
+                                        </FundDetailBody>
+                                    </FundDetailCard>
                                 }
                                     .into_any()
                         }

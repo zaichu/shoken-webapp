@@ -1,5 +1,6 @@
 use crate::features::asset_balance::format as balance_format;
 use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::asset_balance::DayChangeNote;
 use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -20,11 +21,7 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
             class="font-bold"
         />
         {date_text.map(|date| {
-            view! {
-                <span class="ml-1 whitespace-nowrap text-cell text-text-muted tabular-nums">
-                    {format!("({date})")}
-                </span>
-            }
+            view! { <DayChangeNote text=format!("({date})") /> }
         })}
     }
 }
@@ -34,8 +31,6 @@ pub(crate) fn day_change_cell(change: Option<f64>, date: Option<String>) -> impl
 pub(crate) fn pending_day_change_cell() -> impl IntoView {
     view! {
         <span class="font-bold tabular-nums whitespace-nowrap text-text-soft">{labels::MISSING}</span>
-        <span class="ml-1 whitespace-nowrap text-cell text-text-muted tabular-nums">
-            {labels::PENDING_UPDATE}
-        </span>
+        <DayChangeNote text=labels::PENDING_UPDATE.to_string() />
     }
 }

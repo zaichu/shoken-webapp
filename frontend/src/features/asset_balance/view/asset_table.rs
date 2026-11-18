@@ -8,6 +8,7 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::asset_balance::AssetRateAmount;
 use crate::ui::badge::AccountBadge;
 use crate::ui::format;
 use crate::ui::labels;
@@ -162,12 +163,10 @@ pub fn AssetHoldingsTable(
                                                 {valuation.profit_loss.rate.is_some().then(|| {
                                                     view! {
                                                         " "
-                                                        <Amount
-                                                            kind=AmountKind::Delta
+                                                        <AssetRateAmount
                                                             text=pnl_rate_text.clone()
                                                             negative=rate_negative
                                                             positive=rate_positive
-                                                            class="ml-1 text-cell"
                                                         />
                                                     }
                                                 })}

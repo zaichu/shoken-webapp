@@ -11,6 +11,7 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::asset_balance::AssetRateAmount;
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
@@ -257,12 +258,10 @@ pub fn AssetMergedTable(
                                                     />
                                                     {row.rate.is_some().then(|| {
                                                         view! {
-                                                            <Amount
-                                                                kind=AmountKind::Delta
+                                                            <AssetRateAmount
                                                                 text=rate_text.clone()
                                                                 negative=rate_negative
                                                                 positive=rate_positive
-                                                                class="ml-1 text-cell"
                                                             />
                                                         }
                                                     })}

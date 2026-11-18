@@ -30,8 +30,7 @@ use crate::features::asset_balance::store;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
-use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::asset_balance::{AssetEmptyPanel, AssetFilteredEmpty};
 use crate::ui::labels;
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
@@ -140,45 +139,6 @@ fn fund_summary(
     )
 }
 
-#[component]
-fn EmptyAssetPanel() -> impl IntoView {
-    view! {
-        <div class="px-4 py-4 lg:px-0">
-            <EmptyState
-                title=labels::ASSET_EMPTY_TITLE
-                description=labels::ASSET_EMPTY_DESCRIPTION
-            >
-                <a
-                    href="/csv"
-                    class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-body font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
-                >
-                    {labels::CSV_IMPORT}
-                </a>
-            </EmptyState>
-        </div>
-    }
-}
-
-/// 検索で全行が消えたときの表示
-#[component]
-fn EmptyFilteredPanel(
-    title: &'static str,
-    on_clear: impl Fn() + Copy + Send + 'static,
-) -> impl IntoView {
-    view! {
-        <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
-            <div>
-                <EmptyState title=title />
-                <div class="mt-3">
-                    <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
-                        {labels::CLEAR_SEARCH_CONDITIONS}
-                    </Button>
-                </div>
-            </div>
-        </div>
-    }
-}
-
 /// 検索で全行が消えたときの文面。3タブで同じ文言を使う
 const EMPTY_FILTERED_TITLE: &str = labels::NO_MATCH_TITLE;
 
@@ -186,7 +146,7 @@ const EMPTY_FILTERED_TITLE: &str = labels::NO_MATCH_TITLE;
 #[component]
 fn EmptyFilteredSearch(search: RwSignal<AssetSearch>) -> impl IntoView {
     view! {
-        <EmptyFilteredPanel
+        <AssetFilteredEmpty
             title=EMPTY_FILTERED_TITLE
             on_clear=move || {
                 search.update(|search| *search = AssetSearch::default());
@@ -249,7 +209,7 @@ fn StockContent(
         (values, tags, purchase)
     });
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-stock-list">
             {move || {
                 (!empty).then(|| {
@@ -381,7 +341,7 @@ fn FundContent(
     let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
     let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-fund-list">
             {(!empty).then(|| view! {
                 <>
@@ -565,7 +525,7 @@ fn AllContent(
     let account_options = Memo::new(|_| Vec::<String>::new());
     let course_options = Memo::new(|_| Vec::<String>::new());
     view! {
-        {empty.then(|| view! { <EmptyAssetPanel /> }.into_any())}
+        {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
         <section id="assetbalance-all-list">
             {(!empty).then(|| view! {
                 <>
