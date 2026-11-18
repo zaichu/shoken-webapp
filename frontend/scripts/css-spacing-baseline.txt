@@ -13,4 +13,3 @@ spacing-features	src/features/receipts/view/action_bar/dialog.rs	5
 spacing-features	src/features/receipts/view/action_bar/period.rs	17
 spacing-features	src/features/receipts/view/cards.rs	16
 spacing-features	src/features/receipts/view/table.rs	4
-spacing-features	src/features/stock_search/view.rs	27
