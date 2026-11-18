@@ -136,7 +136,7 @@ async function setupHomeMocks(page: Page) {
   );
 }
 
-test('帯は3項目で株式と投信を合算し、カード群が埋まる', async ({ page }) => {
+test('帯は5項目で株式と投信を合算し、カード群が埋まる', async ({ page }) => {
   await setupHomeMocks(page);
 
   await page.goto('/');
@@ -148,9 +148,9 @@ test('帯は3項目で株式と投信を合算し、カード群が埋まる', a
   await expect(band).toContainText('+¥10,000');
   // 年間予想配当 = 9904 の 100株 × ¥50
   await expect(band).toContainText('¥5,000');
-  // 帯に置くのは3項目だけ。「今年の税引後配当金」は置かない
+  // 帯に置くのは5項目だけ(評価額・評価損益・前日比・年間予想配当・取得総額)。「今年の税引後配当金」は置かない
   // スマホ用の内訳は閉じたまま DOM にあるため、見えている項目だけ数える
-  await expect(band.locator('dt:visible')).toHaveCount(3);
+  await expect(band.locator('dt:visible')).toHaveCount(5);
   await expect(band).not.toContainText('税引後');
 
   // 今年の配当金カード: 税引後の受取と予想への進捗

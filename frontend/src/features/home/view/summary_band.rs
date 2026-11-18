@@ -187,8 +187,32 @@ fn BandTiles(
             aux_positive=pnl_positive
             pc_items=vec![
                 SummarySubItem {
+                    label: labels::DAY_CHANGE.to_string(),
+                    value: daily_text.clone(),
+                    note: String::new(),
+                    tone: if daily_negative {
+                        SummaryTone::Loss
+                    } else if daily_positive {
+                        SummaryTone::Gain
+                    } else {
+                        SummaryTone::Neutral
+                    },
+                    note_negative: false,
+                    note_positive: false,
+                    extra_class: String::new(),
+                },
+                SummarySubItem {
                     label: labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
                     value: dividend_text.clone(),
+                    note: String::new(),
+                    tone: SummaryTone::Neutral,
+                    note_negative: false,
+                    note_positive: false,
+                    extra_class: String::new(),
+                },
+                SummarySubItem {
+                    label: labels::TOTAL_ACQUISITION.to_string(),
+                    value: purchase_text.clone(),
                     note: String::new(),
                     tone: SummaryTone::Neutral,
                     note_negative: false,
