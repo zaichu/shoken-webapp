@@ -3,6 +3,7 @@
 
 use backend::db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations};
 use chrono::NaiveDate;
+use shared::value::UserId;
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
@@ -91,7 +92,7 @@ async fn connect_with_retry(database_url: &str) -> Db {
     panic!("Postgres に接続できませんでした");
 }
 
-async fn seed_dummy(pool: &Db) {
+async fn seed_dummy(pool: &Db) -> Uuid {
     run_migrations(pool).await.expect("マイグレーションに失敗");
     db::query("CREATE SCHEMA backup_probe", vec![])
         .execute(pool)
@@ -140,6 +141,7 @@ async fn seed_dummy(pool: &Db) {
         .await
         .expect("ダミー銘柄の投入に失敗");
     }
+    user_id
 }
 
 async fn table_counts(pool: &Db) -> Vec<(String, i64)> {
@@ -169,21 +171,78 @@ fn count_for(counts: &[(String, i64)], table: &str) -> i64 {
         .unwrap_or(0)
 }
 
+fn docker_tool_wrapper(parent: &Path, tool: &str) -> PathBuf {
+    let bin_dir = parent.join("bin");
+    fs::create_dir_all(&bin_dir).expect("pg_dump wrapper のディレクトリ作成に失敗");
+    let wrapper = bin_dir.join(tool);
+    fs::write(
+        &wrapper,
+        format!(
+            "#!/bin/bash\nargs=()\nfor arg in \"$@\"; do args+=(\"${{arg/127.0.0.1:/host.docker.internal:}}\"); done\nexec docker run --rm --add-host=host.docker.internal:host-gateway postgres:17 {tool} \"${{args[@]}}\"\n"
+        ),
+    )
+    .expect("pg_dump wrapper の作成に失敗");
+    let mut permissions = fs::metadata(&wrapper).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&wrapper, permissions).expect("pg_dump wrapper の実行権限設定に失敗");
+    wrapper
+}
+
+fn dump_roles(admin_pgurl: &str, workdir: &Workdir) -> String {
+    let wrapper = docker_tool_wrapper(&workdir.path, "pg_dumpall");
+    let out = Command::new(&wrapper)
+        .arg("--roles-only")
+        .arg("-d")
+        .arg(admin_pgurl)
+        .output()
+        .expect("pg_dumpall の起動に失敗");
+    assert!(
+        out.status.success(),
+        "ロール書き出しに失敗: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter(|line| {
+            !line.starts_with("CREATE ROLE postgres;") && !line.starts_with("ALTER ROLE postgres ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn apply_sql(dest_url: &str, sql: &str, context: &str) {
+    let mut psql = Command::new("psql")
+        .arg(dest_url)
+        .arg("-v")
+        .arg("ON_ERROR_STOP=1")
+        .arg("-q")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("psql の起動に失敗");
+    let write_result = psql.stdin.as_mut().unwrap().write_all(sql.as_bytes());
+    let restored = psql.wait_with_output().expect("適用の完了待機に失敗");
+    if let Err(error) = write_result {
+        assert!(
+            restored.status.success(),
+            "{context}の書き込みに失敗: {error}; {}",
+            String::from_utf8_lossy(&restored.stderr)
+        );
+    }
+    assert!(
+        restored.status.success(),
+        "{context}に失敗しました: {}",
+        String::from_utf8_lossy(&restored.stderr)
+    );
+}
+
 fn run_backup(pgurl: &str, recipient: &Path, out: &Path) -> std::process::Output {
     let workdir = recipient
         .parent()
         .expect("公開鍵の親ディレクトリがありません");
-    let bin_dir = workdir.join("bin");
-    fs::create_dir_all(&bin_dir).expect("pg_dump wrapper のディレクトリ作成に失敗");
-    let pg_dump = bin_dir.join("pg_dump");
-    fs::write(
-        &pg_dump,
-        "#!/bin/bash\nargs=()\nfor arg in \"$@\"; do args+=(\"${arg/127.0.0.1:/host.docker.internal:}\"); done\nexec docker run --rm --add-host=host.docker.internal:host-gateway postgres:17 pg_dump \"${args[@]}\"\n",
-    )
-    .expect("pg_dump wrapper の作成に失敗");
-    let mut permissions = fs::metadata(&pg_dump).unwrap().permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(&pg_dump, permissions).expect("pg_dump wrapper の実行権限設定に失敗");
+    let pg_dump = docker_tool_wrapper(workdir, "pg_dump");
+    let bin_dir = pg_dump.parent().unwrap();
     let path = format!(
         "{}:{}",
         bin_dir.display(),
@@ -237,30 +296,7 @@ fn restore_to(dest_url: &str, encrypted: &Path, identity: &Path) {
         .replace("dump_owner", "postgres")
         .replace("backup_operator", "postgres")
         .replace("pg_database_owner", "postgres");
-    let mut psql = Command::new("psql")
-        .arg(dest_url)
-        .arg("-v")
-        .arg("ON_ERROR_STOP=1")
-        .arg("-q")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("psql の起動に失敗");
-    let write_result = psql.stdin.as_mut().unwrap().write_all(sql.as_bytes());
-    let restored = psql.wait_with_output().expect("リストアの完了待機に失敗");
-    if let Err(error) = write_result {
-        assert!(
-            restored.status.success(),
-            "リストア入力の書き込みに失敗: {error}; {}",
-            String::from_utf8_lossy(&restored.stderr)
-        );
-    }
-    assert!(
-        restored.status.success(),
-        "リストアに失敗しました: {}",
-        String::from_utf8_lossy(&restored.stderr)
-    );
+    apply_sql(dest_url, &sql, "リストア");
 }
 
 fn decrypted_plaintext(encrypted: &Path, identity: &Path, workdir: &Workdir) -> String {
@@ -304,7 +340,7 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let source_url = format!("postgres://postgres:postgres@127.0.0.1:{source_port}/postgres");
     let source_pool = connect_with_retry(&source_url).await;
     let source_admin = connect_with_retry(&source_url).await;
-    seed_dummy(&source_pool).await;
+    let user_id = seed_dummy(&source_pool).await;
     source_pool
         .batch_execute(
             "CREATE ROLE backup_operator LOGIN PASSWORD 'backup-test' NOSUPERUSER BYPASSRLS; \
@@ -376,10 +412,6 @@ async fn backup_roundtrip_keeps_all_table_counts() {
     let dest_port = dest.get_host_port_ipv4(5432).await.unwrap();
     let dest_url = format!("postgres://postgres:postgres@127.0.0.1:{dest_port}/postgres");
     let dest_prep = connect_with_retry(&dest_url).await;
-    dest_prep
-        .batch_execute("CREATE ROLE backup_operator LOGIN NOSUPERUSER BYPASSRLS; CREATE ROLE app_restricted NOLOGIN; GRANT backup_operator TO postgres WITH INHERIT FALSE, SET TRUE")
-        .await
-        .unwrap();
     for stmt in [
         "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public",
         "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public",
@@ -390,9 +422,32 @@ async fn backup_roundtrip_keeps_all_table_counts() {
             .await
             .expect("復元前の拡張作成に失敗");
     }
+    // dump はロールの定義を含まないため、先に書き出し元のロールだけを作る
+    // (復元手順 docs/db-backup.md と同じ。土台の 0100 全体は app_enter が dump と重複するため使わない)。
+    apply_sql(
+        &dest_url,
+        &dump_roles(&source_url, &workdir),
+        "復元先のロール作成",
+    );
     restore_to(&dest_url, &encrypted, &identity);
     let dest_pool = connect_with_retry(&dest_url).await;
     assert_eq!(table_counts(&dest_pool).await, expected);
+    let worker_url = format!("postgres://app_worker:restore-test@127.0.0.1:{dest_port}/postgres");
+    dest_prep
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'restore-test'")
+        .await
+        .expect("app_worker のパスワード設定に失敗");
+    let worker = connect_with_retry(&worker_url).await;
+    let mut tx = worker
+        .begin_with_user(UserId::from(user_id))
+        .await
+        .expect("利用者 Tx の開始に失敗");
+    let mine: i64 = db::query_scalar("SELECT COUNT(*) FROM users", vec![])
+        .fetch_one(&mut tx)
+        .await
+        .expect("利用者の行の読み取りに失敗");
+    assert_eq!(mine, 1, "復元した DB で利用者の行が読める");
+    tx.rollback().await.expect("利用者 Tx の破棄に失敗");
     let probe_tables = db::query_scalar::<i64>(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'backup_probe'"
             .to_string(),
@@ -413,9 +468,11 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     let admin = connect_with_retry(&admin_url).await;
     admin
         .batch_execute(
-            "CREATE ROLE migration_admin LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
+            // 土台 0100 が BYPASSRLS の限定関数所有ロールを作るため、本番の移行ロールと
+            // 同じ条件にする(parity の owner モードと同一。NOBYPASSRLS ではロールを作れない)
+            "CREATE ROLE migration_admin LOGIN PASSWORD 'test' NOSUPERUSER BYPASSRLS CREATEROLE; \
              GRANT CREATE ON DATABASE postgres TO migration_admin; \
-             GRANT CREATE ON SCHEMA public TO migration_admin; \
+             GRANT CREATE ON SCHEMA public TO migration_admin WITH GRANT OPTION; \
              CREATE ROLE app_restricted NOLOGIN; \
              GRANT app_restricted TO migration_admin WITH ADMIN TRUE, SET TRUE;",
         )
@@ -457,22 +514,46 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     .execute(&role_pool)
     .await
     .unwrap();
+    // FORCE RLS の検証は BYPASSRLS を持たない別ロールで行う。移行ロール自体は
+    // 限定関数の所有ロールを作るため BYPASSRLS が要り、FORCE の影響を受けない。
+    admin
+        .batch_execute(
+            "CREATE ROLE force_probe LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
+             GRANT USAGE ON SCHEMA public TO force_probe; \
+             GRANT SELECT, INSERT ON users TO force_probe;",
+        )
+        .await
+        .unwrap();
+    let probe_pool = connect_with_retry(&format!(
+        "postgres://force_probe:test@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+    role_pool
+        .batch_execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
+        .await
+        .unwrap();
     db::query(
-        "ALTER TABLE users FORCE ROW LEVEL SECURITY; \
-         INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
         vec![
             Bind::from(Uuid::new_v4()),
             Bind::from("admin-migration-probe"),
             Bind::from("admin-migration-probe@example.invalid"),
         ],
     )
+    .execute(&probe_pool)
+    .await
+    .expect_err("RLS を FORCE した表への通常ロールの INSERT は拒否される");
+    db::query(
+        "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+        vec![
+            Bind::from(Uuid::new_v4()),
+            Bind::from("owner-force-probe"),
+            Bind::from("owner-force-probe@example.invalid"),
+        ],
+    )
     .execute(&role_pool)
     .await
-    .expect_err("RLS を FORCE した通常 migration role の INSERT は拒否される");
-    role_pool
-        .batch_execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
-        .await
-        .unwrap();
+    .expect("BYPASSRLS の移行ロールは FORCE 下でも書ける");
     let force_enabled: bool = db::query_scalar(
         "SELECT relforcerowsecurity FROM pg_class WHERE relname = 'users'",
         vec![],
@@ -488,10 +569,10 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     let owner_admin = connect_with_retry(&owner_admin_url).await;
     owner_admin
         .batch_execute(
-            "CREATE ROLE dump_owner LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
+            "CREATE ROLE dump_owner LOGIN PASSWORD 'test' NOSUPERUSER BYPASSRLS CREATEROLE; \
              CREATE ROLE backup_operator LOGIN PASSWORD 'backup-test' NOSUPERUSER BYPASSRLS; \
              GRANT CREATE ON DATABASE postgres TO dump_owner; \
-             GRANT CREATE ON SCHEMA public TO dump_owner; \
+             GRANT CREATE ON SCHEMA public TO dump_owner WITH GRANT OPTION; \
              CREATE ROLE app_restricted NOLOGIN; \
              GRANT app_restricted TO dump_owner WITH ADMIN TRUE, SET TRUE; \
              GRANT USAGE ON SCHEMA public TO backup_operator; \
@@ -551,10 +632,6 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     let target_admin_url = format!("postgres://postgres:postgres@127.0.0.1:{target_port}/postgres");
     let target_url = target_admin_url.clone();
     let target_pool = connect_with_retry(&target_admin_url).await;
-    target_pool
-        .batch_execute("CREATE ROLE app_restricted NOLOGIN")
-        .await
-        .unwrap();
     for stmt in [
         "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public",
         "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public",
@@ -562,6 +639,11 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     ] {
         db::query(stmt, vec![]).execute(&target_pool).await.unwrap();
     }
+    apply_sql(
+        &target_url,
+        &dump_roles(&owner_admin_url, &workdir),
+        "復元先のロール作成",
+    );
     restore_to(&target_url, &encrypted, &workdir.file("test-backup.key"));
     let restored: i64 = db::query_scalar("SELECT COUNT(*) FROM users", vec![])
         .fetch_one(&target_pool)

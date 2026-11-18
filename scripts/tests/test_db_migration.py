@@ -126,7 +126,7 @@ class MigrationTest(unittest.TestCase):
             SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1;
         """,
         ).splitlines()
-        self.assertEqual(len(tables), 15)
+        self.assertEqual(len(tables), 18)
         for table in tables:
             where = (
                 " WHERE expires_at > '" + checkpoint + "'"
@@ -210,7 +210,7 @@ class MigrationTest(unittest.TestCase):
         self.migration.export_data(self.source, self.archive)
         self.sql(
             self.source,
-            "UPDATE _sqlx_migrations SET checksum = decode('00', 'hex') WHERE version = 17",
+            "UPDATE _sqlx_migrations SET checksum = decode('00', 'hex') WHERE version = 100",
         )
         with self.assertRaises(self.migration.MigrationError):
             self.migration.import_data(self.source, self.target, self.archive)

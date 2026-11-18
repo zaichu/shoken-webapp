@@ -4,6 +4,12 @@ INSERT INTO users (id, google_id, email, name) VALUES
 INSERT INTO sessions (user_id, expires_at, token_hash) VALUES
 ('00000000-0000-0000-0000-000000000001', now() + interval '7 days', decode('01', 'hex')),
 ('00000000-0000-0000-0000-000000000001', now() - interval '1 day', decode('02', 'hex'));
+INSERT INTO login_events (user_id, result, device_hash) VALUES
+('00000000-0000-0000-0000-000000000001', 'success', decode('03', 'hex'));
+INSERT INTO admin_login_views (user_id) VALUES
+('00000000-0000-0000-0000-000000000001');
+INSERT INTO login_notify_tokens (user_id, token_hash) VALUES
+('00000000-0000-0000-0000-000000000001', decode('04', 'hex'));
 INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name,
 unit_price, shares, dividends_before_tax, taxes, net_amount_received) VALUES
 ('00000000-0000-0000-0000-000000000001', '2026-10-01', '株式', '特定', '9999', '架空株式会社', 10.5, 200, 2100, 420, 1680);

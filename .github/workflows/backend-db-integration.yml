@@ -46,6 +46,8 @@ jobs:
               - '.github/workflows/backend.yml'
               - '.github/workflows/backend-db-integration.yml'
               - 'scripts/check-migration-baseline.sh'
+              - 'scripts/db-backup.sh'
+              - 'scripts/db_migration.py'
               - '.github/actions/rust-cache/**'
               - '!**/*.md'
 
@@ -77,6 +79,16 @@ jobs:
           # backend 系と鍵を共有する。保存は main(schedule)時のみにし、PR 側の重複保存を抑止する
           shared-key: backend
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install pg_dump/psql and age for backup tests
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -sSfL -o /tmp/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo mv /tmp/pgdg.asc /etc/apt/trusted.gpg.d/pgdg.asc
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17 age
+          pg_dump --version
 
       - name: Run ignored DB integration tests
         run: make test-ignored
@@ -150,6 +162,6 @@ jobs:
                 `- sha: ${context.sha}`,
                 `- workflow: Backend DB Integration`,
                 ``,
-                `直近の db_integration.rs の失敗を確認し、原因の修正またはテスト期待値の見直しを検討してください。`,
+                `直近の db_integration.rs / db_backup.rs の失敗を確認し、原因の修正またはテスト期待値の見直しを検討してください。`,
               ].join('\n'),
             });
