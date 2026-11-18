@@ -2,6 +2,9 @@
 //! 互換（version/description/checksum=SHA-384/success/execution_time）で、
 //! `-- no-transaction` ディレクティブと dirty 検知も同じ意味で処理する。
 //!
+//! 旧 migration(`migrations/archive`)を全て適用済みの DB では、土台を SQL を流さずに
+//! 適用済みとして記録する(`migrations/README.md` の「_sqlx_migrations の履歴と土台」)。
+//!
 //! advisory lock は接続（セッション）単位なので、プールから取り出した同一接続上で
 //! lock → 適用 → unlock を行う。
 
@@ -14,158 +17,44 @@ use tokio_postgres::error::ErrorPosition;
 
 const MIGRATION_FILES: &[(&str, &str)] = &[
     (
-        "0000_extensions",
-        include_str!("../../migrations/0000_extensions.sql"),
+        "0100_common",
+        include_str!("../../migrations/0100_common.sql"),
     ),
     (
-        "0001_users",
-        include_str!("../../migrations/0001_users.sql"),
+        "0101_users_and_auth",
+        include_str!("../../migrations/0101_users_and_auth.sql"),
     ),
     (
-        "0002_sessions",
-        include_str!("../../migrations/0002_sessions.sql"),
+        "0102_transactions",
+        include_str!("../../migrations/0102_transactions.sql"),
     ),
     (
-        "0003_dividends",
-        include_str!("../../migrations/0003_dividends.sql"),
+        "0103_shared_masters_and_caches",
+        include_str!("../../migrations/0103_shared_masters_and_caches.sql"),
     ),
     (
-        "0004_domestic_stocks",
-        include_str!("../../migrations/0004_domestic_stocks.sql"),
+        "0104_holdings",
+        include_str!("../../migrations/0104_holdings.sql"),
     ),
     (
-        "0005_mutualfunds",
-        include_str!("../../migrations/0005_mutualfunds.sql"),
+        "0105_grants",
+        include_str!("../../migrations/0105_grants.sql"),
     ),
     (
-        "0006_asset_balances",
-        include_str!("../../migrations/0006_asset_balances.sql"),
-    ),
-    (
-        "0007_stock",
-        include_str!("../../migrations/0007_stock.sql"),
-    ),
-    (
-        "0008_dividend_per_share_cache",
-        include_str!("../../migrations/0008_dividend_per_share_cache.sql"),
-    ),
-    (
-        "0009_market_data_provider_rate_control",
-        include_str!("../../migrations/0009_market_data_provider_rate_control.sql"),
-    ),
-    (
-        "0010_security_prices",
-        include_str!("../../migrations/0010_security_prices.sql"),
-    ),
-    (
-        "0011_fund_balances",
-        include_str!("../../migrations/0011_fund_balances.sql"),
-    ),
-    (
-        "0012_asset_balances_view_prev_close",
-        include_str!("../../migrations/0012_asset_balances_view_prev_close.sql"),
-    ),
-    (
-        "0013_fund_nav",
-        include_str!("../../migrations/0013_fund_nav.sql"),
-    ),
-    (
-        "0014_asset_balances_account",
-        include_str!("../../migrations/0014_asset_balances_account.sql"),
-    ),
-    (
-        "0015_fund_nav_fetch_status",
-        include_str!("../../migrations/0015_fund_nav_fetch_status.sql"),
-    ),
-    (
-        "0016_comments",
-        include_str!("../../migrations/0016_comments.sql"),
-    ),
-    (
-        "0017_csv_import_history",
-        include_str!("../../migrations/0017_csv_import_history.sql"),
-    ),
-    (
-        "0018_login_events",
-        include_str!("../../migrations/0018_login_events.sql"),
-    ),
-    (
-        "0019_sessions_device_hash",
-        include_str!("../../migrations/0019_sessions_device_hash.sql"),
-    ),
-    (
-        "0020_admin_login_views",
-        include_str!("../../migrations/0020_admin_login_views.sql"),
-    ),
-    (
-        "0021_login_notify",
-        include_str!("../../migrations/0021_login_notify.sql"),
-    ),
-    (
-        "0022_users_picture_url",
-        include_str!("../../migrations/0022_users_picture_url.sql"),
-    ),
-    (
-        "0023_csv_import_history_rls",
-        include_str!("../../migrations/0023_csv_import_history_rls.sql"),
-    ),
-    (
-        "0024_audit_tables_rls",
-        include_str!("../../migrations/0024_audit_tables_rls.sql"),
-    ),
-    (
-        "0025_trading_tables_rls",
-        include_str!("../../migrations/0025_trading_tables_rls.sql"),
-    ),
-    (
-        "0026_sessions_users_rls",
-        include_str!("../../migrations/0026_sessions_users_rls.sql"),
-    ),
-    (
-        "0027_app_restricted_role",
-        include_str!("../../migrations/0027_app_restricted_role.sql"),
-    ),
-    (
-        "0028_app_enter_and_auth_functions",
-        include_str!("../../migrations/0028_app_enter_and_auth_functions.sql"),
-    ),
-    (
-        "0029_app_restricted_set_option",
-        include_str!("../../migrations/0029_app_restricted_set_option.sql"),
-    ),
-    (
-        "0030_auth_rotate_session_skip_locked",
-        include_str!("../../migrations/0030_auth_rotate_session_skip_locked.sql"),
-    ),
-    (
-        "0031_dividend_cache_error_stale_at",
-        include_str!("../../migrations/0031_dividend_cache_error_stale_at.sql"),
-    ),
-    (
-        "0032_auth_session_user_function",
-        include_str!("../../migrations/0032_auth_session_user_function.sql"),
-    ),
-    (
-        "0033_force_limited_maintenance_paths",
-        include_str!("../../migrations/0033_force_limited_maintenance_paths.sql"),
-    ),
-    (
-        "0034_app_worker_role",
-        include_str!("../../migrations/0034_app_worker_role.sql"),
-    ),
-    (
-        "0035_shared_cache_worker_paths",
-        include_str!("../../migrations/0035_shared_cache_worker_paths.sql"),
-    ),
-    (
-        "0036_shared_table_worker_rls",
-        include_str!("../../migrations/0036_shared_table_worker_rls.sql"),
-    ),
-    (
-        "0037_rls_views_invoker_and_indexable_policies",
-        include_str!("../../migrations/0037_rls_views_invoker_and_indexable_policies.sql"),
+        "0106_limited_functions",
+        include_str!("../../migrations/0106_limited_functions.sql"),
     ),
 ];
+
+/// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版
+const LEGACY_LAST_VERSION: i64 = 37;
+
+/// 旧 migration の (版, checksum) を版の順に連結した SHA-384(`legacy_history_digest`)。
+/// 本番の履歴がこれと一致するときだけ、土台を適用済みとして記録する
+const LEGACY_HISTORY_SHA384: &str = "16ddad330354063dc4b02f6094a3a638c95702125ef42d4549da817eb2059e010f98a0ddbac3678b7090abf31a070d57";
+
+/// 旧 migration の最終状態を表す土台(0100〜0106)の最後の版
+const BASELINE_LAST_VERSION: i64 = 106;
 
 struct Migration {
     version: i64,
@@ -308,9 +197,64 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         .collect();
 
     let local = migrations()?;
+    let plan = plan(&applied, &local)?;
+
+    if !plan.record_only.is_empty() {
+        tracing::info!(
+            "旧マイグレーション 0000〜{LEGACY_LAST_VERSION:04} の適用済み DB のため、土台を適用済みとして記録する"
+        );
+        record_only(client, &plan.record_only).await?;
+    }
+
+    for m in plan.pending {
+        tracing::info!(
+            version = m.version,
+            description = %m.description,
+            "マイグレーション適用中"
+        );
+        apply(client, m)
+            .await
+            .map_err(|e| format!("マイグレーション {} の適用に失敗: {e}", m.version))?;
+    }
+    Ok(())
+}
+
+struct Plan<'a> {
+    /// 旧マイグレーションを全て適用済みの DB で、SQL を流さず履歴だけ足す土台
+    record_only: Vec<&'a Migration>,
+    pending: Vec<&'a Migration>,
+}
+
+fn plan<'a>(applied: &HashMap<i64, Vec<u8>>, local: &'a [Migration]) -> Result<Plan<'a>, String> {
+    let baseline: Vec<&Migration> = local
+        .iter()
+        .filter(|m| m.version <= BASELINE_LAST_VERSION)
+        .collect();
+    let mut record_only = Vec::new();
+    if applied
+        .keys()
+        .any(|version| *version <= LEGACY_LAST_VERSION)
+    {
+        check_legacy_history(applied)?;
+        let recorded = baseline
+            .iter()
+            .filter(|m| applied.contains_key(&m.version))
+            .count();
+        if recorded == 0 {
+            record_only.clone_from(&baseline);
+        } else if recorded != baseline.len() {
+            return Err(format!(
+                "旧マイグレーションの履歴がある DB で、土台の記録が {recorded}/{} 件しかありません\n\
+                 _sqlx_migrations を確認して手動で修復してください",
+                baseline.len()
+            ));
+        }
+    }
 
     for applied_version in applied.keys() {
-        if !local.iter().any(|m| m.version == *applied_version) {
+        if *applied_version > LEGACY_LAST_VERSION
+            && !local.iter().any(|m| m.version == *applied_version)
+        {
             return Err(format!(
                 "適用済みマイグレーション {applied_version} に対応するファイルがありません\n\
                  `make db-reset` で DB を作り直してください"
@@ -318,7 +262,8 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
         }
     }
 
-    for m in &local {
+    let mut pending = Vec::new();
+    for m in local {
         match applied.get(&m.version) {
             Some(sum) if *sum != checksum(m.sql) => {
                 return Err(format!(
@@ -327,20 +272,68 @@ async fn run_all(client: &mut tokio_postgres::Client) -> Result<(), String> {
                     m.version
                 ));
             }
-            Some(_) => continue,
-            None => {
-                tracing::info!(
-                    version = m.version,
-                    description = %m.description,
-                    "マイグレーション適用中"
-                );
-                apply(client, m)
-                    .await
-                    .map_err(|e| format!("マイグレーション {} の適用に失敗: {e}", m.version))?;
-            }
+            Some(_) => {}
+            None if record_only.iter().any(|r| r.version == m.version) => {}
+            None => pending.push(m),
         }
     }
+    Ok(Plan {
+        record_only,
+        pending,
+    })
+}
+
+/// 旧マイグレーションの履歴(版と checksum)が archive と同じかを確かめる。
+/// 途中までの DB は旧ファイルの続きを当てられないため止める
+fn check_legacy_history(applied: &HashMap<i64, Vec<u8>>) -> Result<(), String> {
+    let mut legacy: Vec<(i64, &Vec<u8>)> = applied
+        .iter()
+        .filter(|(version, _)| **version <= LEGACY_LAST_VERSION)
+        .map(|(version, sum)| (*version, sum))
+        .collect();
+    legacy.sort_unstable_by_key(|(version, _)| *version);
+    if let Some((last, _)) = legacy.last()
+        && *last < LEGACY_LAST_VERSION
+    {
+        return Err(format!(
+            "旧マイグレーションが {last:04} までしか適用されていません(最後は {LEGACY_LAST_VERSION:04})。\
+             旧マイグレーションは土台に畳んだため、途中まで適用された DB は続きを当てられません\n\
+             `make db-reset` で DB を作り直してください"
+        ));
+    }
+    if legacy_history_digest(&legacy) != LEGACY_HISTORY_SHA384 {
+        return Err(
+            "旧マイグレーションの適用済み履歴が migrations/archive と一致しません。土台を記録せずに止めます\n\
+             _sqlx_migrations の版・checksum と archive の差を確認してください(ローカルなら `make db-reset`)"
+                .to_string(),
+        );
+    }
     Ok(())
+}
+
+fn legacy_history_digest(legacy: &[(i64, &Vec<u8>)]) -> String {
+    let mut hasher = Sha384::new();
+    for (version, sum) in legacy {
+        hasher.update(version.to_be_bytes());
+        hasher.update(sum);
+    }
+    hex::encode(hasher.finalize())
+}
+
+async fn record_only(
+    client: &mut tokio_postgres::Client,
+    baseline: &[&Migration],
+) -> Result<(), String> {
+    let tx = client
+        .transaction()
+        .await
+        .map_err(|e| format!("トランザクション開始に失敗: {e}"))?;
+    for m in baseline {
+        insert_migration_tx(&tx, m, &checksum(m.sql), 0).await?;
+    }
+    tx.commit()
+        .await
+        .map_err(|e| format!("土台の記録のコミットに失敗: {e}"))
 }
 
 async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(), String> {
@@ -433,8 +426,137 @@ async fn insert_migration_tx(
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::MIGRATION_FILES;
-    use super::sql_line_at_position;
+    use std::collections::HashMap;
+
+    fn archive_checksums() -> Vec<(i64, Vec<u8>)> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/archive");
+        let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+            .expect("archive の読み取りに失敗")
+            .map(|entry| entry.expect("archive の要素の取得に失敗").path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "sql"))
+            .collect();
+        files.sort();
+        files
+            .iter()
+            .map(|path| {
+                let name = path.file_name().unwrap().to_string_lossy();
+                let version: i64 = name[..4].parse().expect("版は数値");
+                let sql = std::fs::read_to_string(path).expect("archive の読み取りに失敗");
+                (version, super::checksum(&sql))
+            })
+            .collect()
+    }
+
+    fn legacy_applied() -> HashMap<i64, Vec<u8>> {
+        archive_checksums().into_iter().collect()
+    }
+
+    fn versions(migrations: &[&super::Migration]) -> Vec<i64> {
+        migrations.iter().map(|m| m.version).collect()
+    }
+
+    fn baseline_versions() -> Vec<i64> {
+        super::migrations()
+            .unwrap()
+            .iter()
+            .map(|m| m.version)
+            .filter(|version| *version <= super::BASELINE_LAST_VERSION)
+            .collect()
+    }
+
+    #[test]
+    fn legacy_history_digest_matches_archive() {
+        let checksums = archive_checksums();
+        assert_eq!(
+            checksums.last().map(|(version, _)| *version),
+            Some(super::LEGACY_LAST_VERSION)
+        );
+        let legacy: Vec<(i64, &Vec<u8>)> = checksums.iter().map(|(v, sum)| (*v, sum)).collect();
+        assert_eq!(
+            super::legacy_history_digest(&legacy),
+            super::LEGACY_HISTORY_SHA384
+        );
+    }
+
+    #[test]
+    fn baseline_follows_legacy_and_ends_at_last_version() {
+        let baseline = baseline_versions();
+        assert!(baseline.iter().all(|v| *v > super::LEGACY_LAST_VERSION));
+        assert_eq!(baseline.last(), Some(&super::BASELINE_LAST_VERSION));
+    }
+
+    #[test]
+    fn empty_database_applies_baseline() {
+        let local = super::migrations().unwrap();
+        let plan = super::plan(&HashMap::new(), &local).unwrap();
+        assert!(plan.record_only.is_empty());
+        assert_eq!(versions(&plan.pending), baseline_versions());
+    }
+
+    #[test]
+    fn full_legacy_history_records_baseline_without_applying() {
+        let local = super::migrations().unwrap();
+        let plan = super::plan(&legacy_applied(), &local).unwrap();
+        assert_eq!(versions(&plan.record_only), baseline_versions());
+        assert!(plan.pending.is_empty());
+    }
+
+    #[test]
+    fn recorded_baseline_on_legacy_database_is_not_recorded_again() {
+        let local = super::migrations().unwrap();
+        let mut applied = legacy_applied();
+        for m in &local {
+            applied.insert(m.version, super::checksum(m.sql));
+        }
+        let plan = super::plan(&applied, &local).unwrap();
+        assert!(plan.record_only.is_empty());
+        assert!(plan.pending.is_empty());
+    }
+
+    #[test]
+    fn partially_applied_legacy_history_stops() {
+        let local = super::migrations().unwrap();
+        let mut applied = legacy_applied();
+        applied.retain(|version, _| *version <= 20);
+        let err = super::plan(&applied, &local).err().unwrap();
+        assert!(err.contains("0020 までしか適用されていません"), "{err}");
+    }
+
+    #[test]
+    fn legacy_history_with_other_content_stops() {
+        let local = super::migrations().unwrap();
+        let mut applied = legacy_applied();
+        applied.insert(5, vec![0]);
+        let err = super::plan(&applied, &local).err().unwrap();
+        assert!(err.contains("archive と一致しません"), "{err}");
+    }
+
+    #[test]
+    fn legacy_history_with_missing_version_stops() {
+        let local = super::migrations().unwrap();
+        let mut applied = legacy_applied();
+        applied.remove(&5);
+        let err = super::plan(&applied, &local).err().unwrap();
+        assert!(err.contains("archive と一致しません"), "{err}");
+    }
+
+    #[test]
+    fn partially_recorded_baseline_on_legacy_database_stops() {
+        let local = super::migrations().unwrap();
+        let mut applied = legacy_applied();
+        let first = &local[0];
+        applied.insert(first.version, super::checksum(first.sql));
+        let err = super::plan(&applied, &local).err().unwrap();
+        assert!(err.contains("土台の記録が 1/"), "{err}");
+    }
+
+    #[test]
+    fn unknown_version_stops() {
+        let local = super::migrations().unwrap();
+        let applied = HashMap::from([(99, vec![0])]);
+        let err = super::plan(&applied, &local).err().unwrap();
+        assert!(err.contains("対応するファイルがありません"), "{err}");
+    }
 
     #[test]
     fn all_migration_files_are_registered() {
@@ -451,7 +573,7 @@ mod tests {
             .filter(|name| name.ends_with(".sql"))
             .collect();
         files.sort();
-        let registered: Vec<String> = MIGRATION_FILES
+        let registered: Vec<String> = super::MIGRATION_FILES
             .iter()
             .map(|(name, _)| format!("{name}.sql"))
             .collect();
@@ -473,7 +595,7 @@ mod tests {
             + 1;
 
         assert_eq!(
-            sql_line_at_position(sql, position),
+            super::sql_line_at_position(sql, position),
             Some("CREATE INDEX broken")
         );
     }
