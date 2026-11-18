@@ -54,8 +54,19 @@ migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` �
 4. 未適用の migration は無いので終わり、続けて `wrangler deploy` に進む(Worker のコードは変わらない)。
 
 一致しなかった場合は何も記録せずにエラーで止まり、Worker の配信にも進まない。
-このデプロイの後は、土台より前のコミットを再デプロイすると migrate が
-「適用済みマイグレーション 100 に対応するファイルがありません」で止まる。戻すときは revert のコミットを足して進める。
+
+### 戻すとき
+
+最初のデプロイの後は、本番の `_sqlx_migrations` に `0100〜0106` の行がある。土台を知らないランナー
+(この変更より前のコミットや、この変更の revert)は「適用済みマイグレーション 100 に対応するファイルがありません」で止まる。
+revert のコミットを足して進めても同じく止まる。
+
+- Worker だけを戻す: Worker の版だけを前に戻し(Cloudflare のダッシュボードか `wrangler rollback`)、
+  ランナーは新しいまま進める。DB は変わらない。
+- 旧コードを再デプロイする: 再デプロイの前に、移行用の接続で
+  `DELETE FROM _sqlx_migrations WHERE version BETWEEN 100 AND 106;` を流す。
+  本番では土台の SQL は流れておらず記録だけなので、行を消してもスキーマは変わらない。
+  この手順が使えるのは `0107` 以降を本番に当てる前だけ(当てた後は、その版の行と変更が旧コードに無いため戻らない)。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 
@@ -83,6 +94,9 @@ cargo run --bin migrate
 - 1つの目的ごとに1本にまとめ、細かく分けすぎない(同じ表への列追加・索引・ポリシーは同じファイルに書く)。
 - 構造の変更(DDL)と、行数の多い静的データ(seed)は別のファイルに分ける。目安は seed が 50 行を超えるとき。
 - `fund_codes` の seed を更新するときは、マーカー(`-- gen:fund-codes-seed begin/end`)付きの新しい migration を作り、`scripts/update_fund_codes_seed.py --migration <そのファイル>` で書く(土台の `0103` は書き換えない)。
+- テスト(`backend/tests/db_integration.rs`)と `scripts/check-migration-baseline.sh` は、版の範囲を
+  `backend/migrations` のファイルとランナーの `BASELINE_LAST_VERSION` から求めるので、ファイルを足しても直す所はない。
+  parity のジョブは、足したファイルを本番と同じ形の DB(archive の後ろ)と新しい DB(土台の後ろ)の両方に当てて比べる。
 - 数が増えて読みにくくなったら、下の「土台の作り直し」で畳む。
 
 検出は正規表現ベースのため、SQL 文字列リテラルやコメントアウトした SQL の中で
@@ -161,9 +175,12 @@ PR に理由を書く。
    `LEGACY_LAST_VERSION` を archive の最後の版、`BASELINE_LAST_VERSION` を新しい土台の最後の版にし、
    `LEGACY_HISTORY_SHA384` を archive 全体から計算し直す(「版の 8 バイト big endian + ファイル本文の
    SHA-384」を版の順に連結した SHA-384。単体テスト `legacy_history_digest_matches_archive` が同じ計算で照合する)。
+   2回目以降は archive に `0000〜0037` と `0100〜` の両方が入り、この digest は両方の履歴を照合する。
+   そのため、1回目の土台から作った手元の DB(履歴が `0100〜` だけで `0000〜0037` が無い)は旧履歴の照合を通らず、
+   新しい土台へは移れない。手元の DB は `make db-reset` で作り直す。
 4. `scripts/check-migration-baseline.sh` で、archive を全て当てた DB と新しい土台だけを当てた DB が
    一致することを確かめ、差を1つずつ潰す。
-5. `backend/tests/db_integration.rs` の `BASELINE_VERSIONS` と、旧ファイルを参照するテストのパスを直す。
+5. 旧ファイルを参照するテスト(`include_str!("../migrations/archive/...")`)のパスを直す。版の範囲はファイルから求めるので直さなくてよい。
 6. この README と `docs/` の migration への参照を新しい形に合わせる。
 
 ## 検証
@@ -173,11 +190,12 @@ cd backend && cargo fmt --check
 cd backend && cargo clippy --all-targets -- -D warnings
 cd backend && cargo test
 cd backend && make test-ignored          # Docker の結合テスト(login_rls・db_integration など)
-scripts/check-migration-baseline.sh      # 旧 migration と土台の一致(Docker の postgres:17)
+scripts/check-migration-baseline.sh      # 本番と同じ形の DB と新しい DB の一致(Docker の postgres:17)
 ```
 
 `scripts/check-migration-baseline.sh` は使い捨ての Docker Postgres(既定は本番と同じ 17)を立て、
-archive を順に当てた DB と土台だけを当てた DB の `pg_dump --schema-only`(所有者・権限・RLS・
+本番と同じ形の DB(archive を順に当て、`BASELINE_LAST_VERSION` より後ろのファイルを足す)と、
+新しい DB(`backend/migrations` を全て当てる)の `pg_dump --schema-only`(所有者・権限・RLS・
 ポリシー・関数・`security_invoker` を含む)、`pg_dumpall --roles-only`(ロールの属性と所属・付与者)、
 seed の行を比べる。移行ロールは superuser と、本番(Supabase)に近い非 superuser の `CREATEROLE` ロールの2通りで比べる。
 CI では `Backend DB Integration` の `Migration baseline parity` ジョブで回る。

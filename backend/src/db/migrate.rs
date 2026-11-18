@@ -329,11 +329,17 @@ async fn record_only(
         .await
         .map_err(|e| format!("トランザクション開始に失敗: {e}"))?;
     for m in baseline {
-        insert_migration_tx(&tx, m, &checksum(m.sql), 0).await?;
+        insert_migration_tx(&tx, m, &checksum(m.sql), 0)
+            .await
+            .map_err(|e| format!("土台 {} の記録に失敗(記録は全て取り消し): {e}", m.version))?;
     }
-    tx.commit()
-        .await
-        .map_err(|e| format!("土台の記録のコミットに失敗: {e}"))
+    tx.commit().await.map_err(|e| {
+        format!(
+            "土台 {}〜{} の記録のコミットに失敗(記録は全て取り消し): {e}",
+            baseline.first().map_or(0, |m| m.version),
+            baseline.last().map_or(0, |m| m.version)
+        )
+    })
 }
 
 async fn apply(client: &mut tokio_postgres::Client, m: &Migration) -> Result<(), String> {
@@ -490,7 +496,10 @@ mod tests {
         let local = super::migrations().unwrap();
         let plan = super::plan(&HashMap::new(), &local).unwrap();
         assert!(plan.record_only.is_empty());
-        assert_eq!(versions(&plan.pending), baseline_versions());
+        assert_eq!(
+            versions(&plan.pending),
+            local.iter().map(|m| m.version).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -498,7 +507,15 @@ mod tests {
         let local = super::migrations().unwrap();
         let plan = super::plan(&legacy_applied(), &local).unwrap();
         assert_eq!(versions(&plan.record_only), baseline_versions());
-        assert!(plan.pending.is_empty());
+        assert_eq!(
+            versions(&plan.pending),
+            local
+                .iter()
+                .map(|m| m.version)
+                .filter(|version| *version > super::BASELINE_LAST_VERSION)
+                .collect::<Vec<_>>(),
+            "土台の後ろの migration だけを当てる"
+        );
     }
 
     #[test]

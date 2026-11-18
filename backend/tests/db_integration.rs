@@ -2643,8 +2643,40 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     execution_time BIGINT NOT NULL
 )";
 
-/// 土台(backend/migrations の 0100〜0106)の版
-const BASELINE_VERSIONS: std::ops::RangeInclusive<i64> = 100..=106;
+/// backend/migrations にある migration の版(昇順)。新しい DB に当たる版の正本
+fn local_migration_versions() -> Vec<i64> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut versions: Vec<i64> = std::fs::read_dir(&dir)
+        .expect("migrations の読み取りに失敗")
+        .map(|entry| entry.expect("migrations の要素の取得に失敗").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "sql"))
+        .map(|path| {
+            path.file_name().unwrap().to_string_lossy()[..4]
+                .parse()
+                .expect("migration version")
+        })
+        .collect();
+    versions.sort_unstable();
+    versions
+}
+
+/// 土台の最後の版。ランナーの `BASELINE_LAST_VERSION` を正本として読む
+fn baseline_last_version() -> i64 {
+    include_str!("../src/db/migrate.rs")
+        .lines()
+        .find_map(|line| line.strip_prefix("const BASELINE_LAST_VERSION: i64 = "))
+        .and_then(|rest| rest.strip_suffix(';'))
+        .expect("BASELINE_LAST_VERSION の定義")
+        .parse()
+        .expect("BASELINE_LAST_VERSION は数値")
+}
+
+fn legacy_last_version() -> i64 {
+    legacy_migration_files()
+        .last()
+        .map(|(version, _, _)| *version)
+        .expect("archive に旧 migration がある")
+}
 
 /// 旧 migration(backend/migrations/archive)を版の順に (版, 説明, SQL) で読む
 fn legacy_migration_files() -> Vec<(i64, String, String)> {
@@ -2701,12 +2733,12 @@ async fn apply_legacy_migrations(pool: &Db, to: i64) {
     }
 }
 
-/// version from〜=to まで任意の checksum で適用済みの状態を再現する
-async fn seed_migration_history_range(pool: &Db, from: i64, to: i64) {
+/// 指定の版を任意の checksum で適用済みにした状態を再現する
+async fn seed_migration_history(pool: &Db, versions: &[i64]) {
     pool.batch_execute(SQLX_MIGRATIONS_DDL)
         .await
         .expect("履歴テーブルの作成に失敗");
-    for version in from..=to {
+    for version in versions.iter().copied() {
         db::query(
             "INSERT INTO _sqlx_migrations
                 (version, description, success, checksum, execution_time)
@@ -2781,22 +2813,17 @@ async fn fresh_database_applies_all_migrations() {
     run_migrations(&pool)
         .await
         .expect("空 DB への全適用は成功するはず");
-    assert_eq!(
-        migration_versions(&pool).await,
-        BASELINE_VERSIONS.collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     run_migrations(&pool)
         .await
         .expect("適用済み DB の再実行は成功するはず");
-    assert_eq!(
-        migration_versions(&pool).await,
-        BASELINE_VERSIONS.collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 }
 
-/// 旧 migration を全て適用済みの DB(本番)では、土台の SQL を流さず履歴だけを足す。
-/// スキーマと既存の行は変わらず、再実行も履歴を変えない
+/// 旧 migration を全て適用済みの DB(本番)では、土台の SQL を流さず履歴だけを足し、
+/// 土台の後ろの migration だけを当てる。結果は空の DB から作った DB と同じスキーマになり、
+/// 既存の行は残り、再実行も履歴を変えない
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn legacy_database_records_baseline_without_applying() {
@@ -2806,36 +2833,64 @@ async fn legacy_database_records_baseline_without_applying() {
         .await
         .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+    let fresh_node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let fresh_port = fresh_node.get_host_port_ipv4(5432).await.unwrap();
+    let fresh = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{fresh_port}/postgres"
+    ))
+    .await;
+    run_migrations(&fresh).await.expect("空 DB への全適用");
 
-    let pool = connect_with_retry(&database_url).await;
-    apply_legacy_migrations(&pool, 37).await;
+    apply_legacy_migrations(&pool, legacy_last_version()).await;
     create_test_user(&pool).await;
-    let before = schema_fingerprint(&pool).await;
 
     run_migrations(&pool)
         .await
         .expect("旧 migration 適用済み DB では土台の記録だけで成功するはず");
-    let expected: Vec<i64> = (0..=37).chain(BASELINE_VERSIONS).collect();
+    let expected: Vec<i64> = legacy_migration_files()
+        .into_iter()
+        .map(|(version, _, _)| version)
+        .chain(local_migration_versions())
+        .collect();
     assert_eq!(migration_versions(&pool).await, expected);
     assert_eq!(
         schema_fingerprint(&pool).await,
-        before,
-        "スキーマは変わらない"
+        schema_fingerprint(&fresh).await,
+        "空の DB から作った DB と同じスキーマになる"
     );
     let users = db::query_scalar::<i64>("SELECT count(*) FROM users", vec![])
         .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(users, 1, "既存の行は残る");
+    let baseline_count = local_migration_versions()
+        .into_iter()
+        .filter(|version| *version <= baseline_last_version())
+        .count();
     let recorded_only = db::query_scalar::<i64>(
-        "SELECT count(*) FROM _sqlx_migrations WHERE version >= 100 AND success AND execution_time = 0",
-        vec![],
+        "SELECT count(*) FROM _sqlx_migrations
+         WHERE version > $1 AND version <= $2 AND success AND execution_time = 0",
+        vec![
+            Bind::from(legacy_last_version()),
+            Bind::from(baseline_last_version()),
+        ],
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(recorded_only, 7, "土台は実行せずに記録だけされる");
+    assert_eq!(
+        usize::try_from(recorded_only).unwrap(),
+        baseline_count,
+        "土台は実行せずに記録だけされる"
+    );
 
     run_migrations(&pool)
         .await
@@ -2883,7 +2938,7 @@ async fn unknown_history_version_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, 99, 99).await;
+    seed_migration_history(&pool, &[99]).await;
 
     let err = run_migrations(&pool)
         .await
@@ -2911,7 +2966,7 @@ async fn mismatched_history_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, *BASELINE_VERSIONS.start(), *BASELINE_VERSIONS.end()).await;
+    seed_migration_history(&pool, &local_migration_versions()).await;
 
     let err = run_migrations(&pool)
         .await
@@ -6514,10 +6569,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
-    assert_eq!(
-        migration_versions(&pool).await,
-        BASELINE_VERSIONS.collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     let info_a = GoogleUserInfo {
         sub: "stage5b-google-a".to_string(),
@@ -6949,10 +7001,7 @@ async fn rls_5c_writes_via_app_enter() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
-    assert_eq!(
-        migration_versions(&pool).await,
-        BASELINE_VERSIONS.collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     let user_a = create_test_user(&pool).await;
     let user_b = create_test_user(&pool).await;
