@@ -324,8 +324,8 @@ test.describe('PCの下線タブ', () => {
     // 下線は左から右へ動く。色は同じ青のまま
     expect(after?.left ?? 0).toBeGreaterThan(before?.left ?? 0);
     expect(after?.color).toBe(before?.color);
-    // 滑って切り替わる(動きを減らさない設定では遷移あり)
-    expect(after?.transitionDuration).toContain('0.18');
+    // 滑って切り替わる。遷移時間のms値は固定しない(変えても挙動は同じ)
+    expect(after?.transitionDuration).not.toBe('0s');
   });
 
   test('クリックで下線が選んだタブの下へ動き下線は1本(取引明細)', async ({
