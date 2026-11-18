@@ -395,6 +395,30 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             .any(|line| line.starts_with("event_triggers count=")),
         "{state_lines:?}"
     );
+    let memberships = state_lines
+        .iter()
+        .find(|line| line.starts_with("role_memberships roles="))
+        .expect("所属ロールの一覧が出る");
+    assert!(
+        !memberships.contains("postgres") && !memberships.contains("login_test_owner"),
+        "app_worker は所有者に所属しない: {memberships}"
+    );
+    let mut owner_lines = 0;
+    for line in state_lines
+        .iter()
+        .filter(|line| line.starts_with("table_owner "))
+    {
+        owner_lines += 1;
+        assert!(
+            line.ends_with(" member=false can_set=false"),
+            "app_worker は表の所有者に所属しない: {line}"
+        );
+    }
+    assert_eq!(owner_lines, 11, "{state_lines:?}");
+    assert!(
+        state_lines.contains(&"role_owner postgres member=false can_set=false".to_string()),
+        "{state_lines:?}"
+    );
     // 利用者の残高読み取りは app_restricted 経由の経路だけを使い、app_worker 直には付与しない。
     for view in ["public.asset_balances_view", "public.fund_balances_view"] {
         let readable = db::query_scalar::<bool>(

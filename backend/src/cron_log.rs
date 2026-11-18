@@ -69,6 +69,32 @@ UNION ALL
 SELECT pg_catalog.format('event_triggers count=%s names=%s', pg_catalog.count(*),
            COALESCE(pg_catalog.string_agg(e.evtname::text, ',' ORDER BY e.evtname), '-'))
 FROM pg_catalog.pg_event_trigger e
+UNION ALL
+SELECT pg_catalog.format('role_memberships roles=%s',
+           COALESCE((WITH RECURSIVE membership(role_oid) AS (
+               SELECT m.roleid FROM pg_catalog.pg_auth_members m
+               WHERE m.member = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = current_user)
+               UNION
+               SELECT m.roleid FROM pg_catalog.pg_auth_members m
+               JOIN membership ON membership.role_oid = m.member
+           ) SELECT pg_catalog.string_agg(r.rolname, ',' ORDER BY r.rolname)
+           FROM membership JOIN pg_catalog.pg_roles r ON r.oid = membership.role_oid), '-'))
+UNION ALL
+SELECT CASE WHEN o.oid IS NULL
+       THEN pg_catalog.format('table_owner %s owner=- member=false can_set=false', t.name)
+       ELSE pg_catalog.format('table_owner %s owner=%s member=%s can_set=%s', t.name, o.rolname,
+           pg_catalog.pg_has_role(current_user, o.oid, 'MEMBER')::text,
+           pg_catalog.pg_has_role(current_user, o.oid, 'SET')::text) END
+FROM (VALUES ('users'), ('sessions'), ('dividends'), ('domestic_stocks'), ('mutualfunds'),
+             ('asset_balances'), ('fund_balances'), ('csv_import_history'), ('login_events'),
+             ('login_notify_tokens'), ('admin_login_views')) AS t(name)
+LEFT JOIN pg_catalog.pg_class c
+    ON c.relname = t.name AND c.relnamespace = 'public'::pg_catalog.regnamespace
+LEFT JOIN pg_catalog.pg_roles o ON o.oid = c.relowner
+UNION ALL
+SELECT pg_catalog.format('role_owner %s member=%s can_set=%s', 'postgres',
+           pg_catalog.pg_has_role(current_user, 'postgres', 'MEMBER')::text,
+           pg_catalog.pg_has_role(current_user, 'postgres', 'SET')::text)
 ";
 
 /// BulkTimer と同じ方式の計測。wasm では Instant が未対応のため epoch ミリ秒で保持する
