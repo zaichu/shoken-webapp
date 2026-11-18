@@ -9,7 +9,7 @@ use crate::features::csv_sync::{CsvKind as SyncKind, CsvSyncBody, KindStatus};
 use crate::features::receipts;
 use crate::features::receipts::ReceiptsTab;
 use crate::session;
-use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard};
+use crate::ui::csv_page::{CsvKindRowData, CsvKindTable, CsvManageFetchCard, CsvManageStack};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
@@ -173,7 +173,7 @@ pub(crate) fn CsvPage() -> impl IntoView {
 
     view! {
         <PageFrame title=labels::CSV_MANAGE_TITLE back_href="/assetbalance" back_label=labels::ASSET_BALANCE_BACK>
-            <div class="flex flex-col gap-4">
+            <CsvManageStack>
 
                 {/* 取得カード */}
                 <CsvManageFetchCard
@@ -192,7 +192,7 @@ pub(crate) fn CsvPage() -> impl IntoView {
                         on_stats_changed=Callback::new(move |()| refresh_stats(false))
                     />
                 </section>
-            </div>
+            </CsvManageStack>
         </PageFrame>
     }
 }

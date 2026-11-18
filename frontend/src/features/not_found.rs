@@ -1,6 +1,7 @@
 use crate::ui::button::{ButtonSize, ButtonVariant, LinkButton};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels;
+use crate::ui::not_found as not_found_ui;
 use crate::ui::page_frame::PageFrame;
 use leptos::prelude::*;
 
@@ -19,25 +20,23 @@ pub fn NotFoundPage() -> impl IntoView {
                 title=labels::NOT_FOUND_HEADING
                 icon=EmptyStateIcon::Warning
             >
-                <div class="mt-4">
-                    <div class="flex flex-col items-center gap-4">
-                        <LinkButton variant=ButtonVariant::Primary(ButtonSize::Md) class="no-print" href="/">
-                            {labels::NOT_FOUND_HOME_BACK}
-                        </LinkButton>
-                        <div class="flex flex-wrap justify-center gap-3">
-                            {RELATED_LINKS
-                                .iter()
-                                .map(|(to, label)| {
-                                    view! {
-                                        <a href={*to} class="security-code-link text-body">
-                                            {*label}
-                                        </a>
-                                    }
-                                })
-                                .collect_view()}
-                        </div>
-                    </div>
-                </div>
+                <not_found_ui::NotFoundActions>
+                    <LinkButton variant=ButtonVariant::Primary(ButtonSize::Md) class="no-print" href="/">
+                        {labels::NOT_FOUND_HOME_BACK}
+                    </LinkButton>
+                    <not_found_ui::NotFoundRelatedLinks>
+                        {RELATED_LINKS
+                            .iter()
+                            .map(|(to, label)| {
+                                view! {
+                                    <a href={*to} class="security-code-link text-body">
+                                        {*label}
+                                    </a>
+                                }
+                            })
+                            .collect_view()}
+                    </not_found_ui::NotFoundRelatedLinks>
+                </not_found_ui::NotFoundActions>
             </EmptyState>
         </div>
         </PageFrame>
