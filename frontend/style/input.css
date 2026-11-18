@@ -1028,9 +1028,7 @@
     display: none;
   }
 
-  /* スマホの検索欄。並べ替えの入口と同じ高さ(48px)・角丸・枠線・
-     左右の余白にする。親が lg:hidden のため PC には効かない。
-     高さは h-12 で固定し、上下の余白を消して入力欄(44px)を中に収める */
+  /* 並べ替えと同高(48px)にする。入力欄(44px)を収めるため上下の余白を消す */
   .mobile-search-box {
     @apply h-12 min-h-12 px-3 py-0;
   }
@@ -1039,11 +1037,7 @@
     display: contents;
   }
 
-  /* スマホの並べ替えの入口。検索欄と同じ高さ(48px)・角丸・枠線・
-     左右の余白・文字の大きさにする。高さ・角丸・余白・文字の実値は
-     Button の variant の utilities が components 層に勝つため、
-     ファイル末尾の層の外の指定で上書きする。親が lg:hidden のため
-     PC には効かない */
+  /* 実値は末尾の層の外の指定。variant の utilities が components 層に勝つため */
   .mobile-sort-entry {
     @apply min-h-11 w-full justify-start gap-1 rounded-lg border border-border-strong bg-surface px-3 text-left text-text hover:bg-surface-raised lg:hidden;
   }
@@ -2348,11 +2342,7 @@
   display: none !important;
 }
 
-/* スマホの検索欄と並べ替えの入口を同じ高さ(48px)・角丸・枠線・
-   左右の余白・文字の大きさにそろえる。Button の variant が持つ
-   utilities が components 層の .mobile-sort-entry に勝つため、
-   [hidden] と同じく層の外に置く。検索欄の文字は 16px 以上を保つ
-   (iOS の入力時拡大を防ぐ)。呼び出し側は lg:hidden のため PC には効かない */
+/* variant の utilities に勝つため層の外に置く([hidden] と同じ) */
 button.mobile-sort-entry {
   @apply h-12 min-h-12 rounded-lg border-border-strong px-3 py-2 text-base;
 }

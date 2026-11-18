@@ -1,11 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, paginated, mockSession } from '../support/test';
 
-/**
- * #2032: スマホの検索欄と並べ替えの入口の高さをそろえる。
- * 390px の資産管理・取引明細で、2つの高さの差が 1px 以内であること。
- * 押せる高さ 44px 以上と、検索欄の文字 16px 以上(iOS の入力時拡大防止)も保つ。
- */
+/** 検索欄と並べ替えを同高にする。16px は iOS の入力時拡大防止、44px は押せる高さ */
 
 const STOCKS = [
   {
