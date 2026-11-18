@@ -1,12 +1,10 @@
 use super::super::model;
 use super::super::store::{self, HomeOverviewData};
-use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::{funds_of, stocks_of};
 use crate::features::asset_balance;
 use crate::session;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::card::{Card, CardVariant};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::home::{HomeCardEmpty, HomeCardError, HomeCardHead, HomeCardSkeleton, HomeListCard};
 use crate::ui::labels;
 use crate::ui::list_row::{ListGroupHeader, ListRowLink};
 use leptos::prelude::*;
@@ -21,8 +19,8 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
         (assets, funds)
     };
     view! {
-        <Card variant=CardVariant::Panel class="overflow-clip" testid="home-pnl-card">
-            <CardHead
+        <HomeListCard testid="home-pnl-card">
+            <HomeCardHead
                 title=labels::HOME_PNL_TITLE
                 href="/assetbalance"
                 link_label=labels::ASSET_BALANCE_TITLE
@@ -30,19 +28,17 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (assets, funds) = card();
                 if assets.is_none() && funds.is_none() {
-                    return view! { <CardSkeleton /> }.into_any();
+                    return view! { <HomeCardSkeleton /> }.into_any();
                 }
                 if matches!(assets, Some(None)) && matches!(funds, Some(None)) {
-                    return view! { <CardError message=labels::HOME_HOLDING_FETCH_FAILED.to_string() /> }
+                    return view! { <HomeCardError message=labels::HOME_HOLDING_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let stocks = stocks_of(&assets).unwrap_or(&[]);
                 let fund_rows = funds_of(&funds).unwrap_or(&[]);
                 if stocks.is_empty() && fund_rows.is_empty() {
                     return view! {
-                        <div class="px-4 py-4">
-                            <EmptyState title=labels::HOME_NO_STOCKS />
-                        </div>
+                        <HomeCardEmpty title=labels::HOME_NO_STOCKS />
                     }
                         .into_any();
                 }
@@ -71,11 +67,7 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                             .collect_view()}
                     </ul>
                     {if gains.is_empty() && losses.is_empty() {
-                        view! {
-                            <div class="px-4 py-4">
-                                <EmptyState title=labels::HOME_NO_PNL />
-                            </div>
-                        }
+                        view! { <HomeCardEmpty title=labels::HOME_NO_PNL /> }
                             .into_any()
                     } else {
                         ().into_any()
@@ -83,7 +75,7 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
                 }
                     .into_any()
             }}
-        </Card>
+        </HomeListCard>
     }
 }
 

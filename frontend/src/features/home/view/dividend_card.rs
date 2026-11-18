@@ -1,12 +1,14 @@
 use super::super::model;
 use super::super::store::{self, HomeOverviewData};
-use super::card_parts::{CardError, CardHead, CardSkeleton};
 use super::stocks_of;
 use crate::features::asset_balance;
 use crate::session;
-use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::card::{Card, CardVariant};
+use crate::ui::amount::Amount;
 use crate::ui::format;
+use crate::ui::home::{
+    HomeCardError, HomeCardHead, HomeCardSkeleton, HomeChartLegend, HomeChartSection,
+    HomeDetailCard, HomeDividendHead, HomeDividendNote, HomeDividendTooltip,
+};
 use crate::ui::labels;
 use leptos::prelude::*;
 use rust_decimal::Decimal;
@@ -23,8 +25,8 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
         (current, previous, assets, estimates)
     };
     view! {
-        <Card variant=CardVariant::Panel class="pb-4" testid="home-dividend-card">
-            <CardHead
+        <HomeDetailCard testid="home-dividend-card">
+            <HomeCardHead
                 title=labels::HOME_THIS_YEAR_DIVIDEND
                 href="/receipts"
                 link_label=labels::HOME_RECEIPTS_VIEW_LINK
@@ -32,10 +34,10 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (current, previous, assets, estimates) = card();
                 if current.is_none() || previous.is_none() {
-                    return view! { <CardSkeleton /> }.into_any();
+                    return view! { <HomeCardSkeleton /> }.into_any();
                 }
                 if matches!(current, Some(None)) {
-                    return view! { <CardError message=labels::HOME_DIVIDEND_FETCH_FAILED.to_string() /> }
+                    return view! { <HomeCardError message=labels::HOME_DIVIDEND_FETCH_FAILED.to_string() /> }
                         .into_any();
                 }
                 let current_rows = current.flatten().unwrap_or_default();
@@ -67,7 +69,7 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                 }
                     .into_any()
             }}
-        </Card>
+        </HomeDetailCard>
     }
 }
 
@@ -105,30 +107,13 @@ fn DividendCardBody(
         |value| asset_balance::format_signed_valuation_amount(Some(value)),
     );
     view! {
-        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
-            <span class="text-subhero">
-                {labels::HOME_RECEIVED_LABEL}
-                <strong class="text-subhero">
-                    <Amount
-                        kind=AmountKind::Delta
-                        text=received
-                        negative=asset_balance::is_negative_valuation(received_value)
-                        positive=asset_balance::is_positive_valuation(received_value)
-                    />
-                </strong>
-            </span>
-            <span class="text-label text-text-muted">
-                {if pending {
-                    view! { {labels::HOME_FORECAST_LOADING} }.into_any()
-                } else {
-                    view! {
-                        {labels::home_forecast("")}
-                        <Amount text=forecast />
-                    }.into_any()
-                }}
-            </span>
-            <Amount class="ml-auto text-label font-bold" text=progress_text />
-        </div>
+        <HomeDividendHead
+            received_text=received
+            received_negative=asset_balance::is_negative_valuation(received_value)
+            received_positive=asset_balance::is_positive_valuation(received_value)
+            forecast_text=(!pending).then(|| forecast.clone())
+            progress_text=progress_text
+        />
         <div class="home-progress">
             {progress_pct.map(|pct| {
                 view! {
@@ -139,23 +124,15 @@ fn DividendCardBody(
                 }
             })}
         </div>
-        <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
-            {remaining_prefix}
-            <Amount text=remaining_amount />
-            {remaining_suffix}
-            {previous_remaining.map(|amount| view! {
-                {previous_span.clone()}
-                <Amount text=amount />
-                {labels::HOME_DEPOSIT_SUFFIX}
-            })}
-            {labels::HOME_DIVIDEND_YOY_LABEL}
-            <Amount
-                kind=AmountKind::Delta
-                text=yoy_text
-                negative=asset_balance::is_negative_valuation(yoy_value)
-                positive=asset_balance::is_positive_valuation(yoy_value)
-            />
-        </p>
+        <HomeDividendNote
+            prefix=remaining_prefix
+            remaining=remaining_amount
+            suffix=remaining_suffix
+            previous=previous_remaining.map(|amount| (previous_span.clone(), amount))
+            yoy_text=yoy_text
+            yoy_negative=asset_balance::is_negative_valuation(yoy_value)
+            yoy_positive=asset_balance::is_positive_valuation(yoy_value)
+        />
         <DividendMonthlyChart
             monthly=model.monthly
             year=year
@@ -193,11 +170,7 @@ fn DividendMonthlyChart(
         })
         .collect_view();
     view! {
-        <div
-            class="mt-3 px-4"
-            role="group"
-            aria-label=labels::home_monthly_aria(year, previous_year)
-        >
+        <HomeChartSection label=labels::home_monthly_aria(year, previous_year)>
             <p class="home-chart-max"><Amount text=asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&max))) /></p>
             <div class="home-chart-plot">
                 <div class="home-chart-grid" aria-hidden="true">
@@ -223,17 +196,8 @@ fn DividendMonthlyChart(
                     })
                     .collect_view()}
             </div>
-        </div>
-        <div class="mt-2 flex justify-center gap-4 px-4 text-cell text-text-muted">
-            <span class="flex items-center gap-1">
-                <span class="home-swatch bg-chart-1"></span>
-                {labels::receipt_year_label(&year.to_string())}
-            </span>
-            <span class="flex items-center gap-1">
-                <span class="home-swatch home-chart-previous"></span>
-                {labels::receipt_year_label(&previous_year.to_string())}
-            </span>
-        </div>
+        </HomeChartSection>
+        <HomeChartLegend year=year previous_year=previous_year />
     }
 }
 
@@ -256,20 +220,21 @@ fn DividendMonthCell(
     } else {
         ""
     };
+    let month_aria = labels::home_month_aria(
+        pair.month,
+        current_note,
+        year,
+        &cur_text,
+        previous_year,
+        &prev_text,
+        &diff_text,
+    );
     view! {
         <div
             class="home-chart-month"
             tabindex="0"
             role="group"
-            aria-label=labels::home_month_aria(
-                pair.month,
-                current_note,
-                year,
-                &cur_text,
-                previous_year,
-                &prev_text,
-                &diff_text,
-            )
+            aria-label=month_aria
         >
             <div class="home-chart-bars">
                 <span
@@ -285,27 +250,15 @@ fn DividendMonthCell(
                 <p class="font-bold text-text">
                     {labels::receipt_month_label(pair.month)}
                 </p>
-                <dl class="mt-1 space-y-0.5">
-                    <div class="flex items-center gap-1.5">
-                        <dt class="home-swatch bg-chart-1"></dt>
-                        <dd>{labels::home_year_amount(year, "")}<Amount text=cur_text.clone() /></dd>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <dt class="home-swatch home-chart-previous"></dt>
-                        <dd>{labels::home_year_amount(previous_year, "")}<Amount text=prev_text.clone() /></dd>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <dt class="text-text-muted">{labels::HOME_DIFF_LABEL}</dt>
-                        <dd>
-                            <Amount
-                                kind=AmountKind::Delta
-                                text=diff_text.clone()
-                                negative=asset_balance::is_negative_valuation(Some(diff_value))
-                                positive=asset_balance::is_positive_valuation(Some(diff_value))
-                            />
-                        </dd>
-                    </div>
-                </dl>
+                <HomeDividendTooltip
+                    year=year
+                    previous_year=previous_year
+                    cur_text=cur_text
+                    prev_text=prev_text
+                    diff_text=diff_text
+                    diff_negative=asset_balance::is_negative_valuation(Some(diff_value))
+                    diff_positive=asset_balance::is_positive_valuation(Some(diff_value))
+                />
             </div>
         </div>
     }

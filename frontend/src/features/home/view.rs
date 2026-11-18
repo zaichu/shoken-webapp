@@ -1,7 +1,6 @@
 //! ホームダッシュボードの表示。集計は model、取得は store に寄せ、
 //! ここではスロットの値を表示用の部品に展開する。
 
-mod card_parts;
 mod composition_card;
 mod dividend_card;
 mod pnl_ranking;
@@ -20,8 +19,8 @@ use crate::features::asset_balance;
 use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
 use crate::session;
 use crate::ui::format;
+use crate::ui::home::{HomeLogin, HomeMain, HomePartialError, HomeSummarySection};
 use crate::ui::labels;
-use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonSummary;
@@ -129,7 +128,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
             when=move || session.user.get().is_some()
             fallback=move || {
                 session.connection_error.get().map_or_else(
-                    || view! { <LoginPrompt class="mx-auto w-full max-w-md" /> }.into_any(),
+                    || view! { <HomeLogin /> }.into_any(),
                     |error| {
                         view! {
                             <crate::ui::state::ListLoadError
@@ -157,19 +156,17 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                             store::refresh_failed(map, generation)
                         });
                         any_failed.then(|| {
-                            view! {
-                                <span class="mt-1 block">{labels::HOME_PARTIAL_ERROR}</span>
-                            }
+                            view! { <HomePartialError /> }
                         })
                     }}
                 </p>
             </div>
-            <div class="content-gutter lg:mt-3">
+            <HomeSummarySection>
                 <SkeletonSummary>
                     <SummaryBand data=data />
                 </SkeletonSummary>
-            </div>
-            <div class="page-gutter flex flex-1 flex-col pb-4">
+            </HomeSummarySection>
+            <HomeMain>
                 <div class="home-card-grid">
                     <div class="home-card-col">
                         <DividendCard data=data />
@@ -187,7 +184,7 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                         extra_class="more-link-centered"
                     />
                 </div>
-            </div>
+            </HomeMain>
         </Show>
     }
 }
