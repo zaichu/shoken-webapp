@@ -31,10 +31,11 @@ use crate::features::asset_balance::store::{BalanceSlot, DataOps, FundSlot};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::session::SessionStore;
+use crate::ui::asset_balance::{AssetPageLinks, AssetWorkspaceError, AssetWorkspaceWarning};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs::{SwipeArea, SwipeMotion, SwipeSlide};
 use kind_tabs::AssetKindTabs;
 use leptos::prelude::*;
@@ -331,10 +332,10 @@ pub fn AssetBalancePage() -> impl IntoView {
     });
     let csv_link: Children = Box::new(move || {
         view! {
-            <span class="flex items-center gap-2">
+            <AssetPageLinks>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
-            </span>
+            </AssetPageLinks>
         }
         .into_any()
     });
@@ -374,15 +375,7 @@ pub fn AssetBalancePage() -> impl IntoView {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
                         .map(|message| {
-                            view! {
-                                <div class="no-print mb-3 px-4 lg:px-0">
-                                    <Alert variant=AlertVariant::Danger>
-                                        <strong>{labels::ERROR_PREFIX}</strong>
-                                        " "
-                                        {message}
-                                    </Alert>
-                                </div>
-                            }
+                            view! { <AssetWorkspaceError message=message /> }
                         })
                 }}
                 {move || {
@@ -392,13 +385,10 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .and_then(|view| view.warning)
                         .map(|message| {
                         view! {
-                            <div class="no-print mb-3 px-4 lg:px-0">
-                                <Alert variant=AlertVariant::Warning>
-                                    <strong>{labels::WARNING_PREFIX}</strong>
-                                    " "
-                                    <span data-testid="truncated-list-warning">{message}</span>
-                                </Alert>
-                            </div>
+                            <AssetWorkspaceWarning
+                                message=message
+                                testid="truncated-list-warning"
+                            />
                         }
                     })
                 }}
@@ -409,13 +399,10 @@ pub fn AssetBalancePage() -> impl IntoView {
                         .and_then(|view| view.warning)
                         .map(|message| {
                         view! {
-                            <div class="no-print mb-3 px-4 lg:px-0">
-                                <Alert variant=AlertVariant::Warning>
-                                    <strong>{labels::WARNING_PREFIX}</strong>
-                                    " "
-                                    <span data-testid="fund-truncated-list-warning">{message}</span>
-                                </Alert>
-                            </div>
+                            <AssetWorkspaceWarning
+                                message=message
+                                testid="fund-truncated-list-warning"
+                            />
                         }
                     })
                 }}

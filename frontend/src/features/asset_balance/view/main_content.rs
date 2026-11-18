@@ -30,8 +30,7 @@ use crate::features::asset_balance::store;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
-use crate::ui::button::{Button, ButtonVariant};
-use crate::ui::empty_state::EmptyState;
+use crate::ui::asset_balance::{AssetEmptyPanel, AssetFilteredEmpty};
 use crate::ui::labels;
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
@@ -142,41 +141,16 @@ fn fund_summary(
 
 #[component]
 fn EmptyAssetPanel() -> impl IntoView {
-    view! {
-        <div class="px-4 py-4 lg:px-0">
-            <EmptyState
-                title=labels::ASSET_EMPTY_TITLE
-                description=labels::ASSET_EMPTY_DESCRIPTION
-            >
-                <a
-                    href="/csv"
-                    class="mt-4 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-4 py-2 text-body font-bold text-text no-underline hover:border-border-bold hover:bg-surface-sunken"
-                >
-                    {labels::CSV_IMPORT}
-                </a>
-            </EmptyState>
-        </div>
-    }
+    view! { <AssetEmptyPanel /> }
 }
 
 /// 検索で全行が消えたときの表示
 #[component]
 fn EmptyFilteredPanel(
     title: &'static str,
-    on_clear: impl Fn() + Copy + Send + 'static,
+    on_clear: impl Fn() + Copy + Send + Sync + 'static,
 ) -> impl IntoView {
-    view! {
-        <div class="asset-panel-padded mx-4 mt-3 lg:mx-0">
-            <div>
-                <EmptyState title=title />
-                <div class="mt-3">
-                    <Button variant=ButtonVariant::Ghost on_click=move |_| on_clear()>
-                        {labels::CLEAR_SEARCH_CONDITIONS}
-                    </Button>
-                </div>
-            </div>
-        </div>
-    }
+    view! { <AssetFilteredEmpty title=title on_clear=on_clear /> }
 }
 
 /// 検索で全行が消えたときの文面。3タブで同じ文言を使う

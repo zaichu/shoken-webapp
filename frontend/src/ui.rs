@@ -1,5 +1,6 @@
 pub(crate) mod admin_logins;
 pub(crate) mod amount;
+pub(crate) mod asset_balance;
 pub(crate) mod avatar;
 pub(crate) mod badge;
 pub(crate) mod button;

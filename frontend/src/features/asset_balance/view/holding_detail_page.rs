@@ -3,10 +3,10 @@ use crate::app::CurrentPath;
 use crate::features::asset_balance::holdings;
 use crate::features::asset_balance::store;
 use crate::session;
-use crate::ui::empty_state::EmptyState;
+use crate::ui::asset_balance::{AssetPageEmpty, AssetPageError};
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use leptos::prelude::*;
 
 /// 旧 `/assetbalance/holdings/:id` は銘柄画面(`/search?code=`)へ置き換える。
@@ -77,15 +77,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
                         .map(|message| {
-                            view! {
-                                <div class="no-print mb-3">
-                                    <Alert variant=AlertVariant::Danger>
-                                        <strong>{labels::ERROR_PREFIX}</strong>
-                                        " "
-                                        {message}
-                                    </Alert>
-                                </div>
-                            }
+                            view! { <AssetPageError message=message /> }
                         })
                 }}
                 {move || {
@@ -109,9 +101,7 @@ pub fn AssetBalanceHoldingPage(id: String) -> impl IntoView {
                             });
                             let Some(row) = found else {
                                 return view! {
-                                    <div class="px-4 py-4">
-                                        <EmptyState title=labels::ASSET_HOLDING_NOT_FOUND />
-                                    </div>
+                                    <AssetPageEmpty title=labels::ASSET_HOLDING_NOT_FOUND />
                                 }
                                     .into_any();
                             };

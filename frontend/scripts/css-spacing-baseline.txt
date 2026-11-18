@@ -1,13 +1,3 @@
-spacing-features	src/features/asset_balance/view.rs	10
-spacing-features	src/features/asset_balance/view/all_list.rs	1
-spacing-features	src/features/asset_balance/view/asset_table.rs	1
-spacing-features	src/features/asset_balance/view/composition_page.rs	6
-spacing-features	src/features/asset_balance/view/day_change.rs	2
-spacing-features	src/features/asset_balance/view/fund_detail_page.rs	8
-spacing-features	src/features/asset_balance/view/fund_table.rs	1
-spacing-features	src/features/asset_balance/view/holding_detail_page.rs	3
-spacing-features	src/features/asset_balance/view/main_content.rs	10
-spacing-features	src/features/asset_balance/view/search_bar.rs	6
 spacing-features	src/features/receipts/dividend_info.rs	13
 spacing-features	src/features/receipts/view/action_bar/dialog.rs	5
 spacing-features	src/features/receipts/view/action_bar/period.rs	17

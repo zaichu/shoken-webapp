@@ -14,15 +14,15 @@ use crate::features::asset_balance::store;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::ui::amount::Amount;
+use crate::ui::asset_balance::{AssetPageEmpty, AssetPageError, CompositionFrame};
 use crate::ui::button::TabButton;
-use crate::ui::empty_state::EmptyState;
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{ListRow, ListRowStatic};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonNote;
 use crate::ui::segmented::Segmented;
-use crate::ui::state::{Alert, AlertVariant, ListLoadError, ListSkeleton, ListSkeletonVariant};
+use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
 use crate::ui::underline_tabs;
 use leptos::prelude::*;
 
@@ -118,15 +118,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                     data_ops
                         .with(|ops| ops.refresh_error.clone())
                         .map(|message| {
-                            view! {
-                                <div class="no-print mb-3">
-                                    <Alert variant=AlertVariant::Danger>
-                                        <strong>{labels::ERROR_PREFIX}</strong>
-                                        " "
-                                        {message}
-                                    </Alert>
-                                </div>
-                            }
+                            view! { <AssetPageError message=message /> }
                         })
                 }}
                 {move || {
@@ -164,11 +156,7 @@ pub fn AssetBalanceCompositionPage() -> impl IntoView {
                                 .map(fund::fund_view)
                                 .collect();
                             if views.is_empty() && fund_views.is_empty() {
-                                return view! {
-                                    <div class="px-4 py-4">
-                                        <EmptyState title=labels::NO_DATA />
-                                    </div>
-                                }
+                                return view! { <AssetPageEmpty title=labels::NO_DATA /> }
                                     .into_any();
                             }
                             view! {
@@ -200,7 +188,7 @@ fn CompositionContent(
     let basis_value = Signal::derive(move || basis.get().value().to_string());
     let sources = portfolio::composition_sources(&views, &funds);
     view! {
-        <div class="mx-auto w-full max-w-2xl" data-testid="asset-composition">
+        <CompositionFrame>
             <div
                 class="comp-tab-row"
             >
@@ -287,11 +275,7 @@ fn CompositionContent(
                         {labels::COMPOSITION_NOTE_SUFFIX}
                     </SkeletonNote>
                     {if total <= 0.0 {
-                        view! {
-                            <div class="px-4 py-4">
-                                <EmptyState title=labels::COMPOSITION_UNAVAILABLE />
-                            </div>
-                        }
+                        view! { <AssetPageEmpty title=labels::COMPOSITION_UNAVAILABLE /> }
                             .into_any()
                     } else {
                         view! {
@@ -401,7 +385,7 @@ fn CompositionContent(
                     }}
                 }
             }}
-        </div>
+        </CompositionFrame>
     }
 }
 
