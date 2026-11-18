@@ -173,10 +173,10 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
                 <div class="home-card-grid">
                     <div class="home-card-col">
                         <DividendCard data=data />
-                        <RecentDividendsCard data=data />
+                        <CompositionCard data=data />
                     </div>
                     <div class="home-card-col">
-                        <CompositionCard data=data />
+                        <RecentDividendsCard data=data />
                         <PnlRankingCard data=data />
                     </div>
                 </div>
