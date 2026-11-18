@@ -684,6 +684,12 @@ fn status_dot_class(status_key: &str) -> Option<&'static str> {
     }
 }
 
+/// CSV 管理の本文の縦並び(取得・進行・種類の表)
+#[component]
+pub(crate) fn CsvManageStack(children: Children) -> impl IntoView {
+    view! { <div class="flex flex-col gap-4">{children()}</div> }
+}
+
 /// 種類ごとのテーブル
 #[component]
 pub(crate) fn CsvKindTable(

@@ -134,7 +134,7 @@ fn AdminDialogFields(
     let draft_text = move || draft.with(|query| query.q.clone());
     let set_draft_text = move |value: String| draft.update(|query| query.q = value);
     view! {
-        <div class="flex flex-col gap-4">
+        <admin_logins_ui::AdminDialogStack>
             <section aria-label=labels::SEARCH>
                 <p class="search-dialog-section-title">{labels::SEARCH}</p>
                 <div class="search-dialog-field">
@@ -154,8 +154,7 @@ fn AdminDialogFields(
                 <p class="search-dialog-section-title">{labels::SORT_BY}</p>
                 <div class="search-dialog-sort-row">
                     <div>
-                        <label class="mb-1 block text-label font-medium text-text-deep">
-                            {labels::SORT_TARGET}
+                        <admin_logins_ui::AdminDialogField label=labels::SORT_TARGET>
                             <Select
                                 value=Signal::derive(move || draft.with(|query| query.sort_by.to_string()))
                                 aria_label=labels::SORT_TARGET.to_string()
@@ -176,11 +175,10 @@ fn AdminDialogFields(
                                     })
                                     .collect_view()}
                             </Select>
-                        </label>
+                        </admin_logins_ui::AdminDialogField>
                     </div>
                     <div>
-                        <label class="mb-1 block text-label font-medium text-text-deep">
-                            {labels::SORT_ORDER_LABEL}
+                        <admin_logins_ui::AdminDialogField label=labels::SORT_ORDER_LABEL>
                             <Select
                                 value=Signal::derive(move || if draft.with(|query| query.descending) { "desc".to_string() } else { "asc".to_string() })
                                 aria_label=labels::SORT_ORDER_LABEL.to_string()
@@ -200,11 +198,11 @@ fn AdminDialogFields(
                                     {move || order_labels(draft.with(|query| query.sort_by)).1}
                                 </option>
                             </Select>
-                        </label>
+                        </admin_logins_ui::AdminDialogField>
                     </div>
                 </div>
             </section>
-        </div>
+        </admin_logins_ui::AdminDialogStack>
     }
 }
 
@@ -336,8 +334,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
 
     view! {
         <PageFrame title=labels::ADMIN_LOGINS>
-            <div class="hidden lg:block">
-                <div class="pc-search-area mb-4" role="search" aria-label=labels::ADMIN_LOGIN_SEARCH>
+            <admin_logins_ui::AdminPcSearchArea>
                     <SearchBox>
                         <SearchTag label=labels::ADMIN_LOGIN_EMAIL value=Memo::new(move |_| query.with(|query| query.email.clone()))
                             on_clear=move || { query.update(|query| query.set_filter("email", String::new())); load_first(); } />
@@ -383,8 +380,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                                 on_clear=move || { query.update(|query| { query.q.clear(); query.email.clear(); query.place.clear(); query.page = 1; }); load_first(); } />
                         </ConditionRowEnd>
                     </AddConditionRow>
-                </div>
-            </div>
+            </admin_logins_ui::AdminPcSearchArea>
             <MobileSearchEntryShell
                 entry_testid="admin-login-search-entry"
                 search_label=labels::ADMIN_LOGIN_SEARCH.to_string()
@@ -438,12 +434,10 @@ pub fn AdminLoginsPage() -> impl IntoView {
                     .get()
                     .map(|message| {
                         view! {
-                            <div class="mt-4">
-                                <ListLoadError
-                                    message=message
-                                    on_retry=load_more
-                                />
-                            </div>
+                            <admin_logins_ui::AdminListMoreError
+                                message=message
+                                on_retry=load_more
+                            />
                         }
                     })
             }}
@@ -514,6 +508,7 @@ use crate::api::{ApiClient, ApiError};
 use crate::features::settings;
 use crate::features::settings::ResultBadge;
 use crate::session;
+use crate::ui::admin_logins as admin_logins_ui;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::empty_state::EmptyState;
 use crate::ui::labels;

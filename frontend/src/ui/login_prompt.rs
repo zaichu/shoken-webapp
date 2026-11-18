@@ -4,6 +4,7 @@ use crate::session;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::empty_state::{EmptyState, EmptyStateIcon};
 use crate::ui::labels;
+use crate::ui::state::{Spinner, SpinnerSize};
 use leptos::prelude::*;
 
 /// ログインが必要な画面・ログイン前のホームに出す案内カード。
@@ -27,6 +28,26 @@ pub fn LoginPrompt(#[prop(into, optional)] class: Signal<String>) -> impl IntoVi
                 {labels::GOOGLE_LOGIN}
             </Button>
         </EmptyState>
+    }
+}
+
+/// ログイン画面の中央寄せの枠
+#[component]
+pub fn LoginPageCenter(children: Children) -> impl IntoView {
+    view! {
+        <div class="mx-auto flex min-h-[50vh] w-full max-w-md flex-1 flex-col items-center justify-center py-12">
+            {children()}
+        </div>
+    }
+}
+
+/// 読み込み中・ログイン済みの待ち表示
+#[component]
+pub fn LoginLoading() -> impl IntoView {
+    view! {
+        <div class="flex items-center justify-center py-12">
+            <Spinner size=SpinnerSize::Lg class="text-text-deep" />
+        </div>
     }
 }
 
