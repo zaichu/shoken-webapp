@@ -254,12 +254,20 @@ async function mobileTabStrip(page: Page, testid: string) {
     }
     const rect = list.getBoundingClientRect();
     const style = getComputedStyle(list);
-    // 隣の面に覆われると座標・表示は変わらず見えなくなるため、上にある要素で確かめる
-    const covered = [0.1, 0.5, 0.9].some((fraction) => {
-      const hit = document.elementFromPoint(
-        rect.x + rect.width * fraction,
-        rect.y + rect.height / 2,
-      );
+    // 隣の面に覆われると座標・表示は変わらず見えなくなるため、上にある要素で確かめる。
+    // 右端(最後のタブ)の中心も含め、帯の端から端まで覆われていないこと
+    const tabs = list.querySelectorAll('[role="tab"]');
+    const lastTab = tabs.length > 0 ? tabs[tabs.length - 1] : null;
+    const lastRect = lastTab instanceof HTMLElement ? lastTab.getBoundingClientRect() : null;
+    const points: Array<[number, number]> = [0.1, 0.5, 0.9].map((fraction) => [
+      rect.x + rect.width * fraction,
+      rect.y + rect.height / 2,
+    ]);
+    if (lastRect !== null) {
+      points.push([lastRect.x + lastRect.width / 2, lastRect.y + lastRect.height / 2]);
+    }
+    const covered = points.some(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
       return hit === null || (hit !== list && !list.contains(hit));
     });
     return {
