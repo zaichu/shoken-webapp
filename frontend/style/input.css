@@ -701,8 +701,15 @@
     }
   }
 
-  /* 下線タブの横スワイプ(スマホ幅だけ)。縦スクロールは残し、指に追従する面は transform だけで動かす */
+  /* 帯は面の外に1つだけ置く。隣の面が帯より上にはみ出さないよう、
+     帯側を不透明の地色と面より上の重ね順で受ける */
   @media (width < 64rem) {
+    .tab-swipe-tabs {
+      position: relative;
+      z-index: 2;
+      background: var(--color-page);
+    }
+
     .tab-swipe-area {
       touch-action: pan-y;
       overflow-x: clip;
@@ -725,21 +732,27 @@
       position: relative;
     }
 
+    /* スワイプ中も下線は青の1本だけにする。指に追従するのは ink 側のため、
+       選択中タブ側の下線(::after)は引いている間だけ隠す */
+    .page-tab-list[data-swiping="true"]::after {
+      display: none;
+    }
+
+    .page-tab-list[data-swiping="true"] .page-tab[aria-selected="true"]::after {
+      display: none;
+    }
+
     .tab-swipe-ink {
       position: absolute;
-      bottom: -1px;
+      bottom: 0;
       left: 0;
-      height: 3px;
-      background: var(--color-gold);
+      height: 2px;
+      background: var(--color-accent);
       will-change: transform;
     }
 
     .tab-swipe-ink[data-on="false"] {
       display: none;
-    }
-
-    .page-tab-list[data-swiping="true"] .page-tab[aria-selected="true"] {
-      box-shadow: none;
     }
   }
 

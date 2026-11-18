@@ -71,12 +71,29 @@ pub fn ReceiptsTabNav(
     #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
     let active_tab = store.active_tab;
+    let list = NodeRef::<leptos::html::Div>::new();
+    {
+        let position = active_tab;
+        let follow = motion;
+        Effect::new(move || {
+            let selected = ReceiptsTab::ALL
+                .iter()
+                .position(|tab| *tab == position.get())
+                .unwrap_or(0);
+            let progress = follow.progress.get();
+            let _dragging = follow.dragging.get();
+            if let Some(list) = list.get() {
+                underline_tabs::place_ink(&list, selected, progress);
+            }
+        });
+    }
     view! {
         <nav aria-label=labels::KIND>
             <div
                 class="page-tab-list relative"
                 role="tablist"
                 data-swiping=move || motion.dragging.get().to_string()
+                node_ref=list
             >
                 {ReceiptsTab::ALL
                     .iter()
@@ -95,14 +112,6 @@ pub fn ReceiptsTabNav(
                 <span
                     class="tab-swipe-ink"
                     data-on=move || motion.dragging.get().to_string()
-                    style:width=format!("calc(100% / {})", ReceiptsTab::ALL.len())
-                    style:transform=move || {
-                        let position = ReceiptsTab::ALL
-                            .iter()
-                            .position(|tab| *tab == active_tab.get())
-                            .unwrap_or(0);
-                        format!("translateX({}%)", underline_tabs::tab_ink_offset(position, motion.progress.get()) * 100.0)
-                    }
                 ></span>
             </div>
         </nav>
@@ -150,7 +159,7 @@ pub fn TabPanel(
                 if !store.is_authenticated() {
                     return view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any();
                 }
-                view! { <ReceiptsMainContent store=store tab=tab motion=motion /> }.into_any()
+                view! { <ReceiptsMainContent store=store tab=tab /> }.into_any()
             }}
         </div>
     }
