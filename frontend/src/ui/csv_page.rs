@@ -466,7 +466,7 @@ fn CsvKindRow(
                 <div class="relative inline-block" node_ref=menu_container>
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
+                        class="inline-flex h-8 w-8 hit-area-44-x items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
                         aria_label=labels::MENU
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()

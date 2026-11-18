@@ -93,12 +93,12 @@ impl ButtonVariant {
                     .to_string()
             }
             Self::CopyName => "copyable-name".to_string(),
-            Self::AssetSortColumn => "asset-th-sort".to_string(),
+            Self::AssetSortColumn => "asset-th-sort hit-area-44-y".to_string(),
             Self::ConditionChip => "active-condition-chip".to_string(),
             Self::AddCondition => "add-condition-button".to_string(),
             Self::ConditionOption => "condition-option".to_string(),
             Self::YearOption => "year-option".to_string(),
-            Self::SearchClear => "receipts-search-clear".to_string(),
+            Self::SearchClear => "receipts-search-clear hit-area-44-y".to_string(),
             Self::Segmented => "segment-option".to_string(),
             Self::PageTab => "page-tab".to_string(),
             Self::ConditionSegment => "segment-option".to_string(),
