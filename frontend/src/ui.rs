@@ -24,6 +24,7 @@ pub(crate) mod more_link;
 pub(crate) mod not_found;
 pub(crate) mod page_frame;
 pub(crate) mod page_skeleton;
+pub(crate) mod receipts;
 pub(crate) mod search_controls;
 pub(crate) mod search_dialog;
 pub(crate) mod search_entry;

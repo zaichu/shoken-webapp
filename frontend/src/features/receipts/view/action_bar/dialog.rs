@@ -5,6 +5,7 @@ use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::support::list_search::SearchOption;
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
+use crate::ui::receipts::{ReceiptDialogFooter, ReceiptDialogLabel, ReceiptDialogStack};
 use crate::ui::search_controls::{SearchBox, SearchTextInput};
 use crate::ui::search_dialog::SearchDialog;
 use crate::ui::search_entry::MobileSearchEntryShell;
@@ -32,11 +33,11 @@ fn DialogFieldSelect(
     testid: &'static str,
     #[prop(into)] value: Signal<String>,
     #[prop(into)] options: Signal<Vec<SearchOption>>,
-    on_select: impl Fn(String) + Copy + 'static,
+    on_select: impl Fn(String) + Copy + Send + Sync + 'static,
 ) -> impl IntoView {
     view! {
         <div class="search-dialog-field">
-            <label class="mb-1 block text-label font-medium text-text-deep">
+            <ReceiptDialogLabel>
                 {label}
                 <Select
                     value=value
@@ -56,7 +57,7 @@ fn DialogFieldSelect(
                             .collect_view()
                     }}
                 </Select>
-            </label>
+            </ReceiptDialogLabel>
         </div>
     }
 }
@@ -193,7 +194,7 @@ fn DialogSortSection(
             <p class="search-dialog-section-title">{labels::SORT_BY}</p>
             <div class="search-dialog-sort-row">
                 <div>
-                    <label class="mb-1 block text-label font-medium text-text-deep">
+                    <ReceiptDialogLabel>
                         {labels::SORT_TARGET}
                         <Select
                             value=Signal::derive(move || "date".to_string())
@@ -204,10 +205,10 @@ fn DialogSortSection(
                         >
                             <option value="date">{date_label}</option>
                         </Select>
-                    </label>
+                    </ReceiptDialogLabel>
                 </div>
                 <div>
-                    <label class="mb-1 block text-label font-medium text-text-deep">
+                    <ReceiptDialogLabel>
                         {labels::SORT_ORDER_LABEL}
                         <Select
                             value=Signal::derive(move || draft_order.get().value().to_string())
@@ -223,7 +224,7 @@ fn DialogSortSection(
                             <option value="newest">{labels::SORT_NEWEST_FIRST}</option>
                             <option value="oldest">{labels::SORT_OLDEST_FIRST}</option>
                         </Select>
-                    </label>
+                    </ReceiptDialogLabel>
                 </div>
             </div>
         </section>
@@ -242,7 +243,7 @@ fn ReceiptDialogFields(
     on_search: impl Fn() + Copy + 'static + Send + Sync,
 ) -> impl IntoView {
     view! {
-        <div class="flex flex-col gap-4">
+        <ReceiptDialogStack>
             <DialogSearchSection draft=draft on_search=on_search />
             <DialogConditionSection
                 draft=draft
@@ -252,7 +253,7 @@ fn ReceiptDialogFields(
                 has_years=has_years
             />
             <DialogSortSection draft_order=draft_order tab=tab />
-        </div>
+        </ReceiptDialogStack>
     }
 }
 
@@ -334,14 +335,14 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
             open=open
         >
             <ConditionTags search=search has_years=has_years />
-            <div class="flex w-full items-center justify-between gap-2">
+            <ReceiptDialogFooter>
                 <ReceiptSearchCount store=store tab=tab />
                 <MoreLink
                     href="/csv".to_string()
                     label=labels::CSV_MANAGE_TITLE.to_string()
                     testid="receipts-csv-link".to_string()
                 />
-            </div>
+            </ReceiptDialogFooter>
         </MobileSearchEntryShell>
         {move || {
             open.get()

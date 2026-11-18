@@ -9,6 +9,11 @@ use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
+use crate::ui::receipts::{
+    ReceiptGroupBreakdown, ReceiptGroupCount, ReceiptGroupDetails, ReceiptGroupSummaryMeta,
+    ReceiptItemDetails, ReceiptItemHead, ReceiptItemMeta, ReceiptItemTitleRow,
+    ReceiptMobileGroupList,
+};
 use crate::ui::security_link;
 use crate::ui::security_link::SecurityCodeLink;
 use crate::ui::stat_row::StatRow;
@@ -647,8 +652,8 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
     let (name_view, name_title) = card_detail_view(&name);
     view! {
         <Card variant=CardVariant::Item class="border-l-4 border-l-accent" testid="receipt-card">
-            <div class="flex min-w-0 flex-col gap-1.5 px-3 py-3">
-                <div class="flex min-w-0 items-center gap-2">
+            <ReceiptItemHead>
+                <ReceiptItemTitleRow>
                     {code.map(|code| {
                         view! {
                             <CodeBadge flush=true testid="receipt-card-code">
@@ -665,13 +670,13 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                     >
                         {name_view}
                     </div>
-                </div>
-                <div class="flex items-center gap-2 text-cell text-text-muted">
+                </ReceiptItemTitleRow>
+                <ReceiptItemMeta>
                     <span class="shrink-0">{date}</span>
                     {(!account.is_empty()).then(|| view! { <AccountBadge label=account /> })}
-                </div>
-            </div>
-            <dl class="space-y-1.5 border-t border-ink/10 px-3 py-2.5">
+                </ReceiptItemMeta>
+            </ReceiptItemHead>
+            <ReceiptItemDetails>
                 {details
                     .iter()
                     .map(|detail| {
@@ -683,7 +688,7 @@ fn ReceiptItemCard(card: CardRowData) -> impl IntoView {
                         }
                     })
                     .collect_view()}
-            </dl>
+            </ReceiptItemDetails>
         </Card>
     }
 }
@@ -709,21 +714,19 @@ pub(crate) fn MobileCardGroup(
     let button_id = format!("{id_prefix}-group-button");
     let details_id = format!("{id_prefix}-group-details");
     let card_list = view! {
-        <div class="mt-2 space-y-2">
+        <ReceiptMobileGroupList>
             {cards
                 .into_iter()
                 .map(|card| view! { <ReceiptItemCard card=card /> })
                 .collect_view()}
-        </div>
+        </ReceiptMobileGroupList>
     };
     if summary.is_empty() {
         return view! {
             <section data-testid="receipt-card-group">
                 <Card variant=CardVariant::GroupLabel>
                     <span class="text-label font-semibold text-text-soft">{label}</span>
-                    <span class="ml-2 text-cell font-medium text-text-muted">
-                        {labels::count(count)}
-                    </span>
+                    <ReceiptGroupCount text=labels::count(count) />
                 </Card>
                 {card_list}
             </section>
@@ -761,14 +764,9 @@ pub(crate) fn MobileCardGroup(
                 >
                     <span class="min-w-0 flex-1 truncate text-label font-semibold text-text-soft">
                         {label}
-                        <span class="ml-2 text-cell font-medium text-text-muted">
-                            {labels::count(count)}
-                        </span>
+                        <ReceiptGroupCount text=labels::count(count) />
                     </span>
-                    <span
-                        class="flex shrink-0 items-baseline gap-1 whitespace-nowrap"
-                        aria-hidden="true"
-                    >
+                    <ReceiptGroupSummaryMeta>
                         <span class="text-cell text-text-muted">{primary_label}</span>
                         <Amount
                             kind=primary_kind
@@ -781,21 +779,20 @@ pub(crate) fn MobileCardGroup(
                             expanded=Signal::derive(move || expanded.get())
                             class="h-4 w-4 shrink-0 self-center text-text-muted"
                         />
-                    </span>
+                    </ReceiptGroupSummaryMeta>
                 </DisclosureToggle>
-                <div
+                <ReceiptGroupDetails
                     id=details_id
-                    role="region"
-                    aria-labelledby=button_id
-                    hidden=move || !expanded.get()
-                    class="border-t border-border-subtle bg-surface px-3 py-1"
+                    labelledby=button_id
+                    expanded=expanded
                 >
                     {move || {
+                        let summary = summary.clone();
                         expanded
                             .get()
                             .then(|| {
                                 view! {
-                                    <dl class="space-y-1.5">
+                                    <ReceiptGroupBreakdown>
                                         {summary
                                             .iter()
                                             .map(|(label, value)| {
@@ -822,11 +819,11 @@ pub(crate) fn MobileCardGroup(
                                                 }
                                             })
                                             .collect_view()}
-                                    </dl>
+                                    </ReceiptGroupBreakdown>
                                 }
                             })
                     }}
-                </div>
+                </ReceiptGroupDetails>
             </Card>
             {card_list}
         </section>
