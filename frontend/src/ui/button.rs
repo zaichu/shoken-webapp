@@ -93,7 +93,7 @@ impl ButtonVariant {
                 "inline-flex min-h-11 shrink-0 items-center justify-center px-3 text-body font-bold text-accent-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/50 focus-visible:ring-offset-2".to_string()
             }
             Self::MenuItem => {
-                "w-full px-3 py-2 text-left text-body font-semibold hover:bg-surface-raised"
+                "w-full px-3 py-2 text-left text-body font-bold hover:bg-surface-raised"
                     .to_string()
             }
             Self::CopyName => "copyable-name".to_string(),
@@ -107,7 +107,7 @@ impl ButtonVariant {
             Self::PageTab => "page-tab".to_string(),
             Self::ConditionSegment => "segment-option".to_string(),
             Self::MenuItemDanger => {
-                "w-full px-3 py-2 text-left text-body font-semibold text-negative hover:bg-negative/10 disabled:opacity-50 disabled:hover:bg-transparent"
+                "w-full px-3 py-2 text-left text-body font-bold text-negative hover:bg-negative/10 disabled:opacity-50 disabled:hover:bg-transparent"
                     .to_string()
             }
             Self::RowButton => {

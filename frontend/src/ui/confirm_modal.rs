@@ -65,7 +65,7 @@ pub fn ConfirmDeleteModal(
             >
                 <div class="dialog-panel flex w-full flex-col overflow-hidden">
                     <div class="flex items-center justify-between border-b border-border px-4 py-3">
-                        <h5 id="confirm-delete-title" class="text-negative font-semibold">
+                        <h5 id="confirm-delete-title" class="text-negative font-bold">
                             {title}
                         </h5>
                         <Button

@@ -39,7 +39,7 @@ pub fn ChevronIcon(
 fn DisclosureHint(#[prop(into)] expanded: Signal<bool>) -> impl IntoView {
     view! {
         <span class="flex shrink-0 items-center gap-1 text-text-soft">
-            <span class="text-cell font-semibold">
+            <span class="text-cell font-bold">
                 {move || if expanded.get() { labels::DIALOG_CLOSE } else { labels::DISCLOSURE_OPEN }}
             </span>
             <ChevronIcon expanded=expanded class="h-4 w-4 text-text-subtle transition-transform duration-200" />
