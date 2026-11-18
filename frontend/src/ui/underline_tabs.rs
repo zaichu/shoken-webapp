@@ -344,8 +344,17 @@ fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, widt
         let _ = element
             .style()
             .set_property("transform", &format!("translateX({offset}px)"));
-        // タブの帯は面と一緒に流さず残す。内側を逆向きに同じ量だけ動かして打ち消す
-        // (指への追従と下線の滑りは帯の中のまま保つ)
+        // 帯を持つ前面を隣より上に置く。打ち消しても隣に覆われると見えないため
+        if element
+            .get_attribute("data-index")
+            .and_then(|value| value.parse::<usize>().ok())
+            .is_some_and(|index| index == current)
+        {
+            let _ = element.style().set_property("z-index", "1");
+        } else {
+            let _ = element.style().remove_property("z-index");
+        }
+        // タブの帯は面と一緒に流さず、内側を逆向きに同じ量だけ動かして残す
         if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
             && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
         {
@@ -360,6 +369,7 @@ fn place_slides(track: &web_sys::HtmlDivElement, current: usize, drag: f64, widt
 fn clear_slides(track: &web_sys::HtmlDivElement) {
     for element in slide_elements(track) {
         let _ = element.style().remove_property("transform");
+        let _ = element.style().remove_property("z-index");
         if let Ok(Some(strip)) = element.query_selector(TAB_STRIP_SELECTOR)
             && let Ok(strip) = strip.dyn_into::<web_sys::HtmlElement>()
         {

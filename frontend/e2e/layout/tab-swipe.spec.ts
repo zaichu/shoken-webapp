@@ -254,11 +254,20 @@ async function mobileTabStrip(page: Page, testid: string) {
     }
     const rect = list.getBoundingClientRect();
     const style = getComputedStyle(list);
+    // 隣の面に覆われると座標・表示は変わらず見えなくなるため、上にある要素で確かめる
+    const covered = [0.1, 0.5, 0.9].some((fraction) => {
+      const hit = document.elementFromPoint(
+        rect.x + rect.width * fraction,
+        rect.y + rect.height / 2,
+      );
+      return hit === null || (hit !== list && !list.contains(hit));
+    });
     return {
       x: rect.x,
       width: rect.width,
       display: style.display,
       opacity: style.opacity,
+      covered,
     };
   }, testid);
 }
@@ -688,6 +697,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(mid).not.toBeNull();
     expect(mid?.display).not.toBe('none');
     expect(mid?.opacity).toBe('1');
+    expect(mid?.covered).toBe(false);
     expect(Math.abs((mid?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
 
     await touchMove(page, 'assetbalance-main-stage', 90, 400);
@@ -705,6 +715,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(after).not.toBeNull();
     expect(after?.display).not.toBe('none');
     expect(after?.opacity).toBe('1');
+    expect(after?.covered).toBe(false);
     expect(Math.abs((after?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
   });
 
@@ -724,6 +735,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(mid).not.toBeNull();
     expect(mid?.display).not.toBe('none');
     expect(mid?.opacity).toBe('1');
+    expect(mid?.covered).toBe(false);
     expect(Math.abs((mid?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
 
     await touchMove(page, 'receipts-workspace', 90, 400);
@@ -736,6 +748,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(after).not.toBeNull();
     expect(after?.display).not.toBe('none');
     expect(after?.opacity).toBe('1');
+    expect(after?.covered).toBe(false);
     expect(Math.abs((after?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
   });
 
@@ -755,6 +768,7 @@ test.describe('下線タブの横スワイプ', () => {
     expect(after).not.toBeNull();
     expect(after?.display).not.toBe('none');
     expect(after?.opacity).toBe('1');
+    expect(after?.covered).toBe(false);
     expect(Math.abs((after?.x ?? 0) - (rest?.x ?? 0))).toBeLessThanOrEqual(2);
   });
 });
