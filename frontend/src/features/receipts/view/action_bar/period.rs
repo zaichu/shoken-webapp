@@ -2,6 +2,10 @@ use crate::features::receipts::filter::{DateSegment, ReceiptSearch, SearchKey};
 use crate::support::list_search::SearchOption;
 use crate::ui::button::{Button, ButtonVariant};
 use crate::ui::labels;
+use crate::ui::receipts::{
+    PeriodDateField, PeriodFlatOptions, PeriodNativeSelect, PeriodOptionWrap, PeriodRangeField,
+    PeriodRangeWrap, PeriodYearMonthRow,
+};
 use leptos::prelude::*;
 
 #[component]
@@ -84,7 +88,7 @@ fn PeriodSegmentButtons(
 #[component]
 fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -> impl IntoView {
     view! {
-        <div class="mt-2 flex flex-wrap gap-1.5">
+        <PeriodOptionWrap>
             {move || {
                 let years = years.get();
                 if years.is_empty() {
@@ -108,14 +112,14 @@ fn YearPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -
                     }).collect_view()}
                 }.into_any()
             }}
-        </div>
+        </PeriodOptionWrap>
     }
 }
 
 #[component]
 fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) -> impl IntoView {
     view! {
-        <div class="mt-2 flex flex-wrap gap-1.5">
+        <PeriodOptionWrap>
             {move || {
                 if years.get().is_empty() {
                     view! { <MonthButtonsWithoutYears search=search /> }.into_any()
@@ -123,7 +127,7 @@ fn MonthPicker(search: RwSignal<ReceiptSearch>, years: Memo<Vec<SearchOption>>) 
                     view! { <MonthYearSelects search=search years=years /> }.into_any()
                 }
             }}
-        </div>
+        </PeriodOptionWrap>
     }
 }
 
@@ -132,7 +136,7 @@ fn MonthButtonsWithoutYears(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     let months = (1..=12).map(|m| format!("{m:02}")).collect::<Vec<_>>();
     let selected_month = Memo::new(move |_| search.with(|s| s.date_inputs.month_value.clone()));
     view! {
-        <div class="flex flex-wrap gap-1.5">
+        <PeriodFlatOptions>
             {months.iter().map(|m| {
                 let m_value = m.clone();
                 let m_label = labels::receipt_month_label(m_value.parse::<u32>().unwrap_or(0));
@@ -156,7 +160,7 @@ fn MonthButtonsWithoutYears(search: RwSignal<ReceiptSearch>) -> impl IntoView {
                     </Button>
                 }
             }).collect_view()}
-        </div>
+        </PeriodFlatOptions>
     }
 }
 
@@ -168,12 +172,11 @@ fn MonthYearSelects(
     let selected_month = Memo::new(move |_| search.with(|s| s.date_inputs.month_value.clone()));
     let selected_year = Memo::new(move |_| search.with(|s| s.date_inputs.year_value.clone()));
     view! {
-        <div class="flex items-center gap-1">
-            <select
-                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-label max-sm:min-h-11"
-                aria-label=labels::PERIOD_YEAR
-                prop:value=move || selected_year.get()
-                on:change=move |ev| search.update(|s| s.select_year(event_target_value(&ev)))
+        <PeriodYearMonthRow>
+            <PeriodNativeSelect
+                aria_label=labels::PERIOD_YEAR.to_string()
+                value=selected_year
+                on_change=move |value: String| search.update(|s| s.select_year(value))
             >
                 <option value="">{labels::RECEIPT_YEAR_SELECT}</option>
                 {move || {
@@ -185,13 +188,11 @@ fn MonthYearSelects(
                         })
                         .collect_view()
                 }}
-            </select>
-            <select
-                class="h-9 px-3 border border-border-strong bg-surface rounded-lg text-label max-sm:min-h-11"
-                aria-label=labels::MONTH
-                prop:value=move || selected_month.get()
-                on:change=move |ev| {
-                    let month = event_target_value(&ev);
+            </PeriodNativeSelect>
+            <PeriodNativeSelect
+                aria_label=labels::MONTH.to_string()
+                value=selected_month
+                on_change=move |month: String| {
                     search.update(|s| {
                         s.date_inputs.month_value = month.clone();
                         let year = s.date_inputs.year_value.clone();
@@ -209,8 +210,8 @@ fn MonthYearSelects(
                     let m_label = labels::receipt_month_label(m);
                     view! { <option value={m_str.clone()}>{m_label}</option> }
                 }).collect_view()}
-            </select>
-        </div>
+            </PeriodNativeSelect>
+        </PeriodYearMonthRow>
     }
 }
 
@@ -219,22 +220,16 @@ fn DatePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     let selected_date = Memo::new(move |_| search.with(|s| s.date_inputs.date_value.clone()));
 
     view! {
-        <div class="mt-2 max-w-xs">
-            <label class="block text-cell text-text-muted mb-1">{labels::DATE}</label>
-            <input
-                type="date"
-                class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
-                aria-label=labels::DATE
-                data-empty=move || selected_date.get().is_empty().then_some("true")
-                prop:value=move || selected_date.get()
-                on:input=move |ev| {
-                    search.update(|s| {
-                        s.date_inputs.date_value = event_target_value(&ev);
-                        s.set_date_query(event_target_value(&ev));
-                    });
-                }
-            />
-        </div>
+        <PeriodDateField
+            label=labels::DATE
+            value=selected_date
+            on_input=move |value: String| {
+                search.update(|s| {
+                    s.date_inputs.date_value = value.clone();
+                    s.set_date_query(value);
+                });
+            }
+        />
     }
 }
 
@@ -244,40 +239,28 @@ fn RangePicker(search: RwSignal<ReceiptSearch>) -> impl IntoView {
     let range_end = Memo::new(move |_| search.with(|s| s.date_inputs.range_end.clone()));
 
     view! {
-        <div class="mt-2 flex flex-wrap gap-2 items-end">
-            <div class="flex-1 min-w-40">
-                <label class="block text-cell text-text-muted mb-1">{labels::START_DATE}</label>
-                <input
-                    type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
-                    aria-label=labels::START_DATE
-                    data-empty=move || range_start.get().is_empty().then_some("true")
-                    prop:value=move || range_start.get()
-                    on:input=move |ev| {
-                        search.update(|s| {
-                            s.date_inputs.range_start = event_target_value(&ev);
-                            s.update_range_query();
-                        });
-                    }
-                />
-            </div>
+        <PeriodRangeWrap>
+            <PeriodRangeField
+                label=labels::START_DATE
+                value=range_start
+                on_input=move |value: String| {
+                    search.update(|s| {
+                        s.date_inputs.range_start = value;
+                        s.update_range_query();
+                    });
+                }
+            />
             <span class="text-text-muted">{labels::RANGE_SEPARATOR}</span>
-            <div class="flex-1 min-w-40">
-                <label class="block text-cell text-text-muted mb-1">{labels::END_DATE}</label>
-                <input
-                    type="date"
-                    class="h-10 px-3 border border-border-strong bg-surface rounded-lg text-label w-full max-sm:min-h-11"
-                    aria-label=labels::END_DATE
-                    data-empty=move || range_end.get().is_empty().then_some("true")
-                    prop:value=move || range_end.get()
-                    on:input=move |ev| {
-                        search.update(|s| {
-                            s.date_inputs.range_end = event_target_value(&ev);
-                            s.update_range_query();
-                        });
-                    }
-                />
-            </div>
-        </div>
+            <PeriodRangeField
+                label=labels::END_DATE
+                value=range_end
+                on_input=move |value: String| {
+                    search.update(|s| {
+                        s.date_inputs.range_end = value;
+                        s.update_range_query();
+                    });
+                }
+            />
+        </PeriodRangeWrap>
     }
 }
