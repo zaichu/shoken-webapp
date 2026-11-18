@@ -15,7 +15,7 @@ const fn tab_id(kind: AssetKind) -> &'static str {
 
 /// 保有種別の切り替えピル(すべて/国内株式/投資信託)。
 /// 取引明細のタブと同じ構造。
-/// スマホでは集計の下にもう1組出すため、その分は suffix="-mobile" で
+/// スマホでは面の外にもう1組出すため、その分は suffix="-mobile" で
 /// id と testid を分け、隠れている側と取り違えないようにする
 #[component]
 pub(crate) fn AssetKindTabs(

@@ -371,6 +371,38 @@ async function inkPercent(page: Page, testid: string): Promise<number | null> {
   return parseTranslateXPercent(transform);
 }
 
+// スワイプ中の下線の見え方。選択中タブ側の下線(::after)は隠れ、
+// 指に追従する ink が青の1本だけ残ることを確かめる
+async function swipeUnderlineState(page: Page, testid: string) {
+  return page.getByTestId(testid).evaluate((stage) => {
+    const tabs = stage.querySelector('.tab-swipe-tabs');
+    const list = tabs?.querySelector('[role="tablist"]');
+    const inks = tabs ? Array.from(tabs.querySelectorAll('.tab-swipe-ink')) : [];
+    const visibleInks = inks.filter(
+      (element) =>
+        element instanceof HTMLElement &&
+        element.offsetParent !== null &&
+        getComputedStyle(element).display !== 'none',
+    );
+    const selected = list?.querySelector('[role="tab"][aria-selected="true"]');
+    const listAfter =
+      list instanceof HTMLElement ? getComputedStyle(list, '::after') : null;
+    const tabAfter =
+      selected instanceof HTMLElement ? getComputedStyle(selected, '::after') : null;
+    return {
+      inkCount: visibleInks.length,
+      inkBackground:
+        visibleInks.length > 0
+          ? getComputedStyle(visibleInks[0] as HTMLElement).backgroundColor
+          : null,
+      listAfterDisplay: listAfter?.display ?? null,
+      listAfterColor: listAfter?.borderBottomColor ?? null,
+      tabAfterContent: tabAfter?.content ?? null,
+      tabAfterDisplay: tabAfter?.display ?? null,
+    };
+  });
+}
+
 async function swipePanelGeometry(
   page: Page,
   testid: string,
@@ -707,6 +739,81 @@ test.describe('下線タブの横スワイプ', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  test('スワイプ途中で下線は青の1本だけ出る(資産管理)', async ({ page }) => {
+    await setupAssetMocks(page);
+    await page.goto('/assetbalance');
+    await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
+    const rest = await swipeUnderlineState(page, 'assetbalance-main-stage');
+    expect(rest.inkCount).toBe(0);
+    expect(rest.listAfterDisplay).not.toBe('none');
+    expect(rest.listAfterColor).not.toBeNull();
+
+    await touchStart(page, 'assetbalance-main-stage', 300, 400);
+    await touchMove(page, 'assetbalance-main-stage', 190, 400);
+    await waitForDrag(page, 'assetbalance-main-stage');
+    const mid = await swipeUnderlineState(page, 'assetbalance-main-stage');
+    // 選択中タブ側の下線は隠れ、指に追従する1本だけが残る。色は通常の下線と同じ青
+    expect(mid.inkCount).toBe(1);
+    expect(mid.inkBackground).toBe(rest.listAfterColor);
+    expect(mid.listAfterDisplay).toBe('none');
+    expect(
+      mid.tabAfterDisplay === 'none' || mid.tabAfterContent === 'none',
+      '選択中タブ側の下線は出ない',
+    ).toBe(true);
+
+    await touchMove(page, 'assetbalance-main-stage', 90, 400);
+    await touchEnd(page, 'assetbalance-main-stage', 90, 400);
+    await expect(page.getByTestId('asset-kind-tab-fund-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByTestId('assetbalance-main-stage')).toHaveAttribute(
+      'data-settling',
+      'false',
+      { timeout: 2_000 },
+    );
+    const after = await swipeUnderlineState(page, 'assetbalance-main-stage');
+    expect(after.inkCount).toBe(0);
+    expect(after.listAfterDisplay).not.toBe('none');
+  });
+
+  test('スワイプ途中で下線は青の1本だけ出る(取引明細)', async ({ page }) => {
+    await setupReceiptMocks(page);
+    await page.goto('/receipts');
+    await expect(page.getByRole('tab')).toHaveCount(3);
+    const rest = await swipeUnderlineState(page, 'receipts-workspace');
+    expect(rest.inkCount).toBe(0);
+    expect(rest.listAfterDisplay).not.toBe('none');
+    expect(rest.listAfterColor).not.toBeNull();
+
+    await touchStart(page, 'receipts-workspace', 300, 400);
+    await touchMove(page, 'receipts-workspace', 190, 400);
+    await waitForDrag(page, 'receipts-workspace');
+    const mid = await swipeUnderlineState(page, 'receipts-workspace');
+    expect(mid.inkCount).toBe(1);
+    expect(mid.inkBackground).toBe(rest.listAfterColor);
+    expect(mid.listAfterDisplay).toBe('none');
+    expect(
+      mid.tabAfterDisplay === 'none' || mid.tabAfterContent === 'none',
+      '選択中タブ側の下線は出ない',
+    ).toBe(true);
+
+    await touchMove(page, 'receipts-workspace', 90, 400);
+    await touchEnd(page, 'receipts-workspace', 90, 400);
+    await expect(page.locator('#tab-domesticstock-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByTestId('receipts-workspace')).toHaveAttribute(
+      'data-settling',
+      'false',
+      { timeout: 2_000 },
+    );
+    const after = await swipeUnderlineState(page, 'receipts-workspace');
+    expect(after.inkCount).toBe(0);
+    expect(after.listAfterDisplay).not.toBe('none');
   });
 
   test('動きを減らす設定では即時に切り替わる', async ({ page }) => {

@@ -732,21 +732,27 @@
       position: relative;
     }
 
+    /* スワイプ中も下線は青の1本だけにする。指に追従するのは ink 側のため、
+       選択中タブ側の下線(::after)は引いている間だけ隠す */
+    .page-tab-list[data-swiping="true"]::after {
+      display: none;
+    }
+
+    .page-tab-list[data-swiping="true"] .page-tab[aria-selected="true"]::after {
+      display: none;
+    }
+
     .tab-swipe-ink {
       position: absolute;
-      bottom: -1px;
+      bottom: 0;
       left: 0;
-      height: 3px;
-      background: var(--color-gold);
+      height: 2px;
+      background: var(--color-accent);
       will-change: transform;
     }
 
     .tab-swipe-ink[data-on="false"] {
       display: none;
-    }
-
-    .page-tab-list[data-swiping="true"] .page-tab[aria-selected="true"] {
-      box-shadow: none;
     }
   }
 
