@@ -1028,16 +1028,18 @@
     display: none;
   }
 
+  /* 並べ替えと同高(48px)にする。入力欄(44px)を収めるため上下の余白を消す */
   .mobile-search-box {
-    @apply min-h-12 px-3;
+    @apply h-12 min-h-12 px-3 py-0;
   }
 
   .receipts-mobile-summary-order {
     display: contents;
   }
 
+  /* 実値は末尾の層の外の指定。variant の utilities が components 層に勝つため */
   .mobile-sort-entry {
-    @apply min-h-11 w-full justify-start gap-1 rounded-lg border border-border bg-surface px-3 text-left text-text hover:bg-surface-raised lg:hidden;
+    @apply min-h-11 w-full justify-start gap-1 rounded-lg border border-border-strong bg-surface px-3 text-left text-text hover:bg-surface-raised lg:hidden;
   }
 
   .mobile-sort-entry-value {
@@ -2338,6 +2340,11 @@
 /* utilities 層の指定に勝つよう層の外に置く */
 [hidden] {
   display: none !important;
+}
+
+/* variant の utilities に勝つため層の外に置く([hidden] と同じ) */
+button.mobile-sort-entry {
+  @apply h-12 min-h-12 rounded-lg border-border-strong px-3 py-2 text-base;
 }
 
 @media print {
