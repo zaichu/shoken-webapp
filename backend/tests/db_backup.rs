@@ -516,11 +516,12 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     .unwrap();
     // FORCE RLS の検証は BYPASSRLS を持たない別ロールで行う。移行ロール自体は
     // 限定関数の所有ロールを作るため BYPASSRLS が要り、FORCE の影響を受けない。
+    // 所有者を force_probe に移してから確かめる(非所有者の拒否は FORCE に依存しないため)。
     admin
         .batch_execute(
             "CREATE ROLE force_probe LOGIN PASSWORD 'test' NOSUPERUSER NOBYPASSRLS; \
              GRANT USAGE ON SCHEMA public TO force_probe; \
-             GRANT SELECT, INSERT ON users TO force_probe;",
+             ALTER TABLE users OWNER TO force_probe;",
         )
         .await
         .unwrap();
@@ -528,7 +529,7 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
         "postgres://force_probe:test@127.0.0.1:{port}/postgres"
     ))
     .await;
-    role_pool
+    probe_pool
         .batch_execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
         .await
         .unwrap();
@@ -542,7 +543,7 @@ async fn migration_role_runs_all_migrations_and_force_rls_is_verified_separately
     )
     .execute(&probe_pool)
     .await
-    .expect_err("RLS を FORCE した表への通常ロールの INSERT は拒否される");
+    .expect_err("RLS を FORCE した表への BYPASSRLS の無い所有者の INSERT は拒否される");
     db::query(
         "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
         vec![

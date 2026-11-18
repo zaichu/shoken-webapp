@@ -125,6 +125,12 @@ def prepare(target):
         description = path.stem[5:].replace("_", " ")
         checksum = hashlib.sha384(content).hexdigest()
         statements.append(content.decode())
+        if version == 100:
+            statements.append("""
+                ALTER EXTENSION citext SET SCHEMA public;
+                ALTER EXTENSION pg_trgm SET SCHEMA public;
+                ALTER EXTENSION pgcrypto SET SCHEMA public;
+            """)
         metadata.append(
             {"version": version, "description": description, "checksum": checksum}
         )

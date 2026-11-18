@@ -114,6 +114,33 @@ class MigrationTest(unittest.TestCase):
             self.source, (ROOT / "scripts/tests/db_migration_fixture.sql").read_text()
         )
 
+    def test_prepare_relocates_preinstalled_extensions(self):
+        name = "ext" + uuid.uuid4().hex
+        self.sql("postgres", 'CREATE DATABASE "' + name + '"')
+        url = (
+            "postgresql://postgres@127.0.0.1:"
+            + self.base_env["PGPORT"]
+            + "/"
+            + name
+        )
+        self.sql(
+            url,
+            "CREATE SCHEMA ext; "
+            "CREATE EXTENSION citext WITH SCHEMA ext; "
+            "CREATE EXTENSION pg_trgm WITH SCHEMA ext; "
+            "CREATE EXTENSION pgcrypto WITH SCHEMA ext;",
+        )
+        self.migration.prepare(url)
+        self.assertEqual(
+            self.sql(
+                url,
+                "SELECT count(*) FROM pg_extension "
+                "WHERE extnamespace = 'public'::regnamespace "
+                "AND extname IN ('citext', 'pg_trgm', 'pgcrypto')",
+            ),
+            "3",
+        )
+
     def test_roundtrip_all_tables_keys_rows_views_and_sequence(self):
         self.seed()
         self.migration.export_data(self.source, self.archive)
