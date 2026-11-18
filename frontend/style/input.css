@@ -1526,6 +1526,11 @@
     @apply text-cell font-semibold text-text-soft;
   }
 
+  /* 帯の主ラベル。途中で割らず、入りきらないときは注記ごと次の行に送る */
+  .summary-label-text {
+    @apply whitespace-nowrap;
+  }
+
   /* 帯のラベルの横に出す時点・更新待ち。ラベルと同じ行で小さく出す。
      期間は途中で割らず、入りきらないときは全体を次の行に送る */
   .summary-label-note {
