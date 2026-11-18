@@ -632,9 +632,7 @@
     inset-inline: 0;
   }
 
-  /* PC は選ばれたタブをピル塗りつぶしで示し、下線は出さない。
-     塗りはアクセント、文字はライト白・ダークはページ色で
-     どちらもコントラスト 4.5:1 以上を保つ */
+  /* 選ばれたタブはピル塗り・下線なし。文字はライト白・ダークはページ色で両テーマ 4.5:1 以上 */
   .page-tab[aria-selected="true"] {
     @apply border-accent bg-accent font-bold text-text-inverse hover:text-text-inverse focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
     anchor-name: --selected-page-tab;
