@@ -1,5 +1,6 @@
 use super::use_csv_sync;
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::ui::csv_sync as csv_sync_ui;
 use crate::ui::labels;
 use crate::ui::state::{Alert, AlertVariant};
 use leptos::prelude::*;
@@ -20,16 +21,15 @@ pub(crate) fn CsvSyncBody() -> impl IntoView {
             {state.import.confirm.clone().map(|confirm| {
                 let kind_label = confirm.kind.label();
                 view! {
-                    <div class="mt-2" data-testid="csv-sync-confirm">
-                        <Alert variant=AlertVariant::Warning>
-                            <p>
-                                {labels::csv_sync_plunge_question(
-                                    kind_label,
-                                    confirm.new_rows,
-                                    confirm.saved_rows,
-                                )}
-                            </p>
-                            <div class="mt-2 flex gap-2">
+                    <csv_sync_ui::CsvSyncNotice variant=AlertVariant::Warning testid="csv-sync-confirm">
+                        <p>
+                            {labels::csv_sync_plunge_question(
+                                kind_label,
+                                confirm.new_rows,
+                                confirm.saved_rows,
+                            )}
+                        </p>
+                        <csv_sync_ui::CsvSyncConfirmActions>
                                 <Button
                                     variant=ButtonVariant::Primary(ButtonSize::Sm)
                                     testid="csv-sync-confirm-yes"
@@ -44,57 +44,50 @@ pub(crate) fn CsvSyncBody() -> impl IntoView {
                                 >
                                     {labels::NO}
                                 </Button>
-                            </div>
-                        </Alert>
-                    </div>
+                        </csv_sync_ui::CsvSyncConfirmActions>
+                    </csv_sync_ui::CsvSyncNotice>
                 }
             })}
             {state.missing.then(|| {
                 view! {
-                    <div class="mt-2">
-                        <Alert variant=AlertVariant::Warning>
-                            <strong>{labels::CSV_SYNC_MISSING_TITLE}</strong>
-                            <p class="mt-1 font-normal">
-                                {labels::CSV_SYNC_MISSING_DESCRIPTION}
-                                " "
-                                <a
-                                    href=STORE_URL
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="underline"
-                                    aria-label=labels::stock_search_new_tab(labels::CSV_SYNC_STORE_LINK)
-                                >
-                                    {labels::CSV_SYNC_STORE_LINK}
-                                </a>
-                            </p>
-                        </Alert>
-                    </div>
+                    <csv_sync_ui::CsvSyncNotice variant=AlertVariant::Warning>
+                        <strong>{labels::CSV_SYNC_MISSING_TITLE}</strong>
+                        <csv_sync_ui::CsvSyncNote>
+                            {labels::CSV_SYNC_MISSING_DESCRIPTION}
+                            " "
+                            <a
+                                href=STORE_URL
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="underline"
+                                aria-label=labels::stock_search_new_tab(labels::CSV_SYNC_STORE_LINK)
+                            >
+                                {labels::CSV_SYNC_STORE_LINK}
+                            </a>
+                        </csv_sync_ui::CsvSyncNote>
+                    </csv_sync_ui::CsvSyncNotice>
                 }
             })}
             {state.error.clone().map(|message| {
                 view! {
-                    <div class="mt-2">
-                        <Alert variant=AlertVariant::Danger>
-                            <strong>{labels::ERROR_PREFIX}</strong>
-                            " "
-                            {message}
-                        </Alert>
-                    </div>
+                    <csv_sync_ui::CsvSyncNotice variant=AlertVariant::Danger>
+                        <strong>{labels::ERROR_PREFIX}</strong>
+                        " "
+                        {message}
+                    </csv_sync_ui::CsvSyncNotice>
                 }
             })}
             {state.needs_file_access_guide().then(|| {
                 view! {
-                    <div class="mt-2">
-                        <Alert variant=AlertVariant::Warning>
-                            <strong>{labels::CSV_SYNC_FILE_ACCESS_TITLE}</strong>
-                            <ol class="mt-1 list-decimal pl-5 font-normal">
-                                {labels::CSV_SYNC_FILE_ACCESS_STEPS
-                                    .iter()
-                                    .map(|step| view! { <li>{*step}</li> })
-                                    .collect_view()}
-                            </ol>
-                        </Alert>
-                    </div>
+                    <csv_sync_ui::CsvSyncNotice variant=AlertVariant::Warning>
+                        <strong>{labels::CSV_SYNC_FILE_ACCESS_TITLE}</strong>
+                        <csv_sync_ui::CsvSyncSteps>
+                            {labels::CSV_SYNC_FILE_ACCESS_STEPS
+                                .iter()
+                                .map(|step| view! { <li>{*step}</li> })
+                                .collect_view()}
+                        </csv_sync_ui::CsvSyncSteps>
+                    </csv_sync_ui::CsvSyncNotice>
                 }
             })}
         }
