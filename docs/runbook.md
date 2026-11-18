@@ -142,6 +142,23 @@ git push origin --delete <branch-name>
 git fetch origin --prune
 ```
 
+## スクリーンショットの後片付け
+
+画像の置き方・撮り方は `docs/screenshots.md` を正本とする。
+CI では作り直さない。frontend の変更を含むマージの後で行う。
+
+```bash
+# 1. main を最新化(上の手順 2 まで済ませた後)
+# 2. 全画面の最新を作り直す(latest/ を置き換える)
+frontend/scripts/ui-shots.sh i< Issue番号> latest
+
+# 3. マージ・close した PR の確認用画像を消す(開いている PR のものは残す)
+frontend/scripts/ui-shots.sh --cleanup-pr <PR番号>
+```
+
+`latest/` が新しくなったら Muse に全画面のデザインレビューを頼み、
+指摘を Issue にまとめる(手順と依頼文のひな形は `docs/screenshots.md`)。
+
 > **注意**: `gh pr merge --delete-branch` はリモートブランチを削除するが、
 > ローカルに worktree が残っている状態ではブランチ削除が失敗する。
 > 上記の順序（merge → main pull → worktree remove → branch -d → push delete → fetch prune）を守ること。
