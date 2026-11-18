@@ -75,7 +75,7 @@ pub(crate) fn SecurityCodeLink(
     }
     let label = code.clone();
     let classes = format!(
-        "security-code-link{}{}",
+        "security-code-link hit-area-44-x hit-area-44-y{}{}",
         if has_weight { "" } else { " font-bold" },
         class.map_or_default(|extra| format!(" {extra}")),
     );
