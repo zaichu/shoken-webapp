@@ -163,6 +163,8 @@
   --text-label: 0.8125rem;
   --text-heading: 1.0625rem;
   --text-subhero: 1.125rem;
+  /* ページ名(h1)。カード見出しより一目で大きいと分かる段にする */
+  --text-page-title: 1.375rem;
 
   /* 集計帯の金額の段。主は1つだけ、従はすべて同じ大きさにする。
      PC は主 32px・従 24px、スマホは主 30px・従 16px */
@@ -1382,7 +1384,7 @@
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-heading;
+    @apply font-bold leading-tight tracking-normal text-page-title;
     color: var(--color-design-page-title);
   }
 
@@ -1573,12 +1575,27 @@
 
   /* 帯の直下の注記行は「ページの骨格」(page-skeleton-note) が持つ */
 
-  /* ホームのカード置き場。PCは左列(2fr)に配当・最近、右列(1fr)に内訳・損益。
-     スマホは DOM 順(配当→内訳→最近→損益)にそのまま積む */
+  /* ホームのカード置き場。1920 以上は左列(2fr)に配当・内訳、右列(1fr)に最近・損益の
+     独立した縦列。狭い幅では DOM 順(配当→内訳→最近→損益)にそのまま積む */
   .home-card-grid {
-    @apply grid grid-cols-1 lg:grid-cols-[2fr_1fr];
+    @apply grid grid-cols-1 items-start lg:grid-cols-[2fr_1fr];
     gap: var(--space-card);
     margin-top: var(--space-card);
+  }
+
+  /* 列の包み。狭い幅では透過して4枚を DOM 順のまま並べ、1920 以上でのみ
+     左右の独立した縦列になる(行を共有しないため片列の空きが出ない) */
+  .home-card-col {
+    display: contents;
+  }
+
+  @media (width >= 120rem) {
+    .home-card-col {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-card);
+      min-width: 0;
+    }
   }
 
   @media (width < 64rem) {
@@ -1588,7 +1605,7 @@
       gap: var(--space-table);
     }
 
-    .home-card-grid > * {
+    .home-card-grid .home-card-col > * {
       @apply rounded-xl border border-border-subtle bg-surface;
     }
 

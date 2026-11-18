@@ -171,10 +171,14 @@ fn HomeDashboard(data: HomeOverviewData) -> impl IntoView {
             </div>
             <div class="page-gutter flex flex-1 flex-col pb-4">
                 <div class="home-card-grid">
-                    <DividendCard data=data />
-                    <CompositionCard data=data />
-                    <RecentDividendsCard data=data />
-                    <PnlRankingCard data=data />
+                    <div class="home-card-col">
+                        <DividendCard data=data />
+                        <CompositionCard data=data />
+                    </div>
+                    <div class="home-card-col">
+                        <RecentDividendsCard data=data />
+                        <PnlRankingCard data=data />
+                    </div>
                 </div>
                 <div class="home-footlink">
                     <MoreLink
