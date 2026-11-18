@@ -98,7 +98,7 @@ flowchart TB
 - [frontend/src/features/csv_sync/port.rs:146](../../frontend/src/features/csv_sync/port.rs#L146): 別の拡張機能への接続。
 - [backend/src/worker_entry.rs:167](../../backend/src/worker_entry.rs#L167)、[同:199](../../backend/src/worker_entry.rs#L199)、[同:123](../../backend/src/worker_entry.rs#L123): fetchとscheduledが共通のDB接続を構築する。
 - [backend/wrangler.toml:12](../../backend/wrangler.toml#L12)、[同:44](../../backend/wrangler.toml#L44): Hyperdriveと定期イベントの設定。
-- [backend/src/db.rs:472](../../backend/src/db.rs#L472)、[backend/migrations/0014_asset_balances_account.sql:16](../../backend/migrations/0014_asset_balances_account.sql#L16): PostgreSQL接続とDB側のビュー定義。
+- [backend/src/db.rs:472](../../backend/src/db.rs#L472)、[backend/migrations/0104_holdings.sql:39](../../backend/migrations/0104_holdings.sql#L39): PostgreSQL接続とDB側のビュー定義。
 
 定期処理と配信手順は [配信と自動化](03-delivery.md)、保存するものは [データモデル](02-data-model.md) を参照。
 

@@ -215,7 +215,7 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
     .unwrap();
     assert_eq!(visible_cache_rows(&worker, "0000").await, 0);
     pool.batch_execute(include_str!(
-        "../migrations/0036_shared_table_worker_rls.sql"
+        "../migrations/archive/0036_shared_table_worker_rls.sql"
     ))
     .await
     .expect("RLS 有効化後に共有表 policy を適用");
@@ -1353,7 +1353,7 @@ async fn login_rls_repairs_existing_membership_without_inheriting() {
     tx.rollback().await.unwrap();
     for _ in 0..2 {
         pool.batch_execute(include_str!(
-            "../migrations/0029_app_restricted_set_option.sql"
+            "../migrations/archive/0029_app_restricted_set_option.sql"
         ))
         .await
         .unwrap();
@@ -1751,7 +1751,7 @@ async fn balance_views_and_user_policies_isolate_rows_for_app_restricted() {
     assert_eq!(count_in_tx(&mut tx, &other_rows_sql).await, 3);
     tx.rollback().await.unwrap();
     pool.batch_execute(include_str!(
-        "../migrations/0037_rls_views_invoker_and_indexable_policies.sql"
+        "../migrations/archive/0037_rls_views_invoker_and_indexable_policies.sql"
     ))
     .await
     .expect("0037 は再適用できる");

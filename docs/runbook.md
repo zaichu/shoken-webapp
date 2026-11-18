@@ -64,8 +64,8 @@ Neon からの移行は [Supabase へのデータ移行手順](db-migration-supa
 (cd backend && make migrate-local)
 ```
 
-新規マイグレーションは `backend/migrations/NNNN_<name>.sql`（次番号）を作り、
-`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する。
+新規マイグレーションは `backend/migrations/NNNN_<name>.sql`（土台 `0100〜0106` の次番号）を作り、
+`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する。土台と適用済みのファイルは書き換えない。
 詳細は `backend/migrations/README.md`。
 
 ## 環境変数（本番）

@@ -2398,7 +2398,7 @@ async fn dividend_cache_migration_backfills_all_non_pending_rows_without_stale_a
     .expect("既存行の投入");
 
     pool.batch_execute(include_str!(
-        "../migrations/0031_dividend_cache_error_stale_at.sql"
+        "../migrations/archive/0031_dividend_cache_error_stale_at.sql"
     ))
     .await
     .expect("NULL stale_at のバックフィル");
@@ -2643,78 +2643,102 @@ const SQLX_MIGRATIONS_DDL: &str = "CREATE TABLE _sqlx_migrations (
     execution_time BIGINT NOT NULL
 )";
 
-/// 現行 baseline(0000〜0010)の SQL。本文の checksum を履歴に記録するため名前も持つ
-const BASELINE_SCHEMA_FILES: &[(&str, &str)] = &[
-    (
-        "0000_extensions",
-        include_str!("../migrations/0000_extensions.sql"),
-    ),
-    ("0001_users", include_str!("../migrations/0001_users.sql")),
-    (
-        "0002_sessions",
-        include_str!("../migrations/0002_sessions.sql"),
-    ),
-    (
-        "0003_dividends",
-        include_str!("../migrations/0003_dividends.sql"),
-    ),
-    (
-        "0004_domestic_stocks",
-        include_str!("../migrations/0004_domestic_stocks.sql"),
-    ),
-    (
-        "0005_mutualfunds",
-        include_str!("../migrations/0005_mutualfunds.sql"),
-    ),
-    (
-        "0006_asset_balances",
-        include_str!("../migrations/0006_asset_balances.sql"),
-    ),
-    ("0007_stock", include_str!("../migrations/0007_stock.sql")),
-    (
-        "0008_dividend_per_share_cache",
-        include_str!("../migrations/0008_dividend_per_share_cache.sql"),
-    ),
-    (
-        "0009_market_data_provider_rate_control",
-        include_str!("../migrations/0009_market_data_provider_rate_control.sql"),
-    ),
-    (
-        "0010_security_prices",
-        include_str!("../migrations/0010_security_prices.sql"),
-    ),
-];
-
-/// baseline の schema を適用し、履歴 0〜10 を実 checksum で記録する。
-/// checksum は pgcrypto の digest で現行ファイルから計算する
-async fn seed_baseline_applied_state(pool: &Db) {
-    for (name, sql) in BASELINE_SCHEMA_FILES {
-        pool.batch_execute(sql)
-            .await
-            .expect("baseline schema の適用に失敗");
-        let (version, description) = name.split_once('_').expect("migration 名の形式");
-        db::query(
-            "INSERT INTO _sqlx_migrations
-                (version, description, success, checksum, execution_time)
-            VALUES ($1, $2, true, digest($3, 'sha384'), 0)",
-            vec![
-                Bind::from(version.parse::<i64>().expect("migration version")),
-                Bind::from(description.replace('_', " ")),
-                Bind::from(*sql),
-            ],
-        )
-        .execute(pool)
-        .await
-        .expect("履歴行の作成に失敗");
-    }
+/// backend/migrations にある migration の版(昇順)。新しい DB に当たる版の正本
+fn local_migration_versions() -> Vec<i64> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut versions: Vec<i64> = std::fs::read_dir(&dir)
+        .expect("migrations の読み取りに失敗")
+        .map(|entry| entry.expect("migrations の要素の取得に失敗").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "sql"))
+        .map(|path| {
+            path.file_name().unwrap().to_string_lossy()[..4]
+                .parse()
+                .expect("migration version")
+        })
+        .collect();
+    versions.sort_unstable();
+    versions
 }
 
-/// version from〜=to まで任意の checksum で適用済みの状態を再現する
-async fn seed_migration_history_range(pool: &Db, from: i64, to: i64) {
+/// 土台の最後の版。ランナーの `BASELINE_LAST_VERSION` を正本として読む
+fn baseline_last_version() -> i64 {
+    include_str!("../src/db/migrate.rs")
+        .lines()
+        .find_map(|line| line.strip_prefix("const BASELINE_LAST_VERSION: i64 = "))
+        .and_then(|rest| rest.strip_suffix(';'))
+        .expect("BASELINE_LAST_VERSION の定義")
+        .parse()
+        .expect("BASELINE_LAST_VERSION は数値")
+}
+
+fn legacy_last_version() -> i64 {
+    legacy_migration_files()
+        .last()
+        .map(|(version, _, _)| *version)
+        .expect("archive に旧 migration がある")
+}
+
+/// 旧 migration(backend/migrations/archive)を版の順に (版, 説明, SQL) で読む
+fn legacy_migration_files() -> Vec<(i64, String, String)> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/archive");
+    let mut paths: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .expect("archive の読み取りに失敗")
+        .map(|entry| entry.expect("archive の要素の取得に失敗").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "sql"))
+        .collect();
+    paths.sort();
+    paths
+        .iter()
+        .map(|path| {
+            let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
+            let (version, description) = stem.split_once('_').expect("migration 名の形式");
+            (
+                version.parse().expect("migration version"),
+                description.replace('_', " "),
+                std::fs::read_to_string(path).expect("archive の読み取りに失敗"),
+            )
+        })
+        .collect()
+}
+
+/// 旧 migration を `to` の版まで当て、ランナーと同じ checksum(本文の SHA-384)で履歴に記録する。
+/// 本番(旧 migration を全て適用済み)と同じ状態を作る
+async fn apply_legacy_migrations(pool: &Db, to: i64) {
     pool.batch_execute(SQLX_MIGRATIONS_DDL)
         .await
         .expect("履歴テーブルの作成に失敗");
-    for version in from..=to {
+    for (version, description, sql) in legacy_migration_files() {
+        if version > to {
+            break;
+        }
+        let mut tx = pool.begin().await.expect("トランザクション開始に失敗");
+        (&tx)
+            .batch_execute(&sql)
+            .await
+            .unwrap_or_else(|e| panic!("旧 migration {version} の適用に失敗: {e}"));
+        db::query(
+            "INSERT INTO _sqlx_migrations
+                (version, description, success, checksum, execution_time)
+            VALUES ($1, $2, true, digest($3, 'sha384'), 1)",
+            vec![
+                Bind::from(version),
+                Bind::from(description),
+                Bind::from(sql),
+            ],
+        )
+        .execute(&mut tx)
+        .await
+        .expect("履歴行の作成に失敗");
+        tx.commit().await.expect("コミットに失敗");
+    }
+}
+
+/// 指定の版を任意の checksum で適用済みにした状態を再現する
+async fn seed_migration_history(pool: &Db, versions: &[i64]) {
+    pool.batch_execute(SQLX_MIGRATIONS_DDL)
+        .await
+        .expect("履歴テーブルの作成に失敗");
+    for version in versions.iter().copied() {
         db::query(
             "INSERT INTO _sqlx_migrations
                 (version, description, success, checksum, execution_time)
@@ -2741,7 +2765,39 @@ async fn migration_versions(pool: &Db) -> Vec<i64> {
     .collect()
 }
 
-/// 空の DB に全 migration が適用され、再実行は履歴を変えない
+/// public の表・ビュー・関数・ポリシーと、その所有者・権限・RLS・オプションの指紋
+async fn schema_fingerprint(pool: &Db) -> String {
+    db::query_scalar::<String>(
+        "SELECT md5(string_agg(item, E'\n' ORDER BY item)) FROM (
+            SELECT c.relname || ':' || c.relkind::text || ':' || c.relowner::regrole::text || ':'
+                || coalesce(c.relacl::text, '') || ':' || c.relrowsecurity || ':'
+                || coalesce(array_to_string(c.reloptions, ','), '') AS item
+              FROM pg_class c
+             WHERE c.relnamespace = 'public'::regnamespace AND c.relname NOT LIKE '\\_sqlx\\_migrations%'
+            UNION ALL
+            SELECT a.attrelid::regclass::text || '.' || a.attname || ':' || format_type(a.atttypid, a.atttypmod)
+                || ':' || coalesce(a.attacl::text, '')
+              FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
+             WHERE c.relnamespace = 'public'::regnamespace AND c.relname NOT LIKE '\\_sqlx\\_migrations%'
+               AND a.attnum > 0 AND NOT a.attisdropped
+            UNION ALL
+            SELECT p.oid::regprocedure::text || ':' || p.proowner::regrole::text || ':'
+                || coalesce(p.proacl::text, '') || ':' || md5(p.prosrc)
+              FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
+            UNION ALL
+            SELECT pol.polrelid::regclass::text || ':' || pol.polname || ':'
+                || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || ':'
+                || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '')
+              FROM pg_policy pol
+        ) s",
+        vec![],
+    )
+    .fetch_one(pool)
+    .await
+    .expect("スキーマの指紋の取得に失敗")
+}
+
+/// 空の DB には土台が適用され、再実行は履歴を変えない
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn fresh_database_applies_all_migrations() {
@@ -2757,25 +2813,95 @@ async fn fresh_database_applies_all_migrations() {
     run_migrations(&pool)
         .await
         .expect("空 DB への全適用は成功するはず");
-    assert_eq!(
-        migration_versions(&pool).await,
-        (0..=37).collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     run_migrations(&pool)
         .await
         .expect("適用済み DB の再実行は成功するはず");
-    assert_eq!(
-        migration_versions(&pool).await,
-        (0..=37).collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 }
 
-/// baseline(0000〜0010)適用済みの DB には残りが増分適用される。
-/// 新規 migration 追加時のデプロイと同じ経路
+/// 旧 migration を全て適用済みの DB(本番)では、土台の SQL を流さず履歴だけを足し、
+/// 土台の後ろの migration だけを当てる。結果は空の DB から作った DB と同じスキーマになり、
+/// 既存の行は残り、再実行も履歴を変えない
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
-async fn baseline_applied_database_applies_increments() {
+async fn legacy_database_records_baseline_without_applying() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+    let fresh_node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let fresh_port = fresh_node.get_host_port_ipv4(5432).await.unwrap();
+    let fresh = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{fresh_port}/postgres"
+    ))
+    .await;
+    run_migrations(&fresh).await.expect("空 DB への全適用");
+
+    apply_legacy_migrations(&pool, legacy_last_version()).await;
+    create_test_user(&pool).await;
+
+    run_migrations(&pool)
+        .await
+        .expect("旧 migration 適用済み DB では土台の記録だけで成功するはず");
+    let expected: Vec<i64> = legacy_migration_files()
+        .into_iter()
+        .map(|(version, _, _)| version)
+        .chain(local_migration_versions())
+        .collect();
+    assert_eq!(migration_versions(&pool).await, expected);
+    assert_eq!(
+        schema_fingerprint(&pool).await,
+        schema_fingerprint(&fresh).await,
+        "空の DB から作った DB と同じスキーマになる"
+    );
+    let users = db::query_scalar::<i64>("SELECT count(*) FROM users", vec![])
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(users, 1, "既存の行は残る");
+    let baseline_count = local_migration_versions()
+        .into_iter()
+        .filter(|version| *version <= baseline_last_version())
+        .count();
+    let recorded_only = db::query_scalar::<i64>(
+        "SELECT count(*) FROM _sqlx_migrations
+         WHERE version > $1 AND version <= $2 AND success AND execution_time = 0",
+        vec![
+            Bind::from(legacy_last_version()),
+            Bind::from(baseline_last_version()),
+        ],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        usize::try_from(recorded_only).unwrap(),
+        baseline_count,
+        "土台は実行せずに記録だけされる"
+    );
+
+    run_migrations(&pool)
+        .await
+        .expect("記録後の再実行は成功するはず(土台の checksum が一致する)");
+    assert_eq!(migration_versions(&pool).await, expected);
+}
+
+/// 旧 migration が途中までの DB は、続きを当てられないため状態と対処を示して止める
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn partially_applied_legacy_database_stops() {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)
         .start()
@@ -2785,17 +2911,17 @@ async fn baseline_applied_database_applies_increments() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    pool.batch_execute(SQLX_MIGRATIONS_DDL)
-        .await
-        .expect("履歴テーブルの作成に失敗");
-    seed_baseline_applied_state(&pool).await;
+    apply_legacy_migrations(&pool, 20).await;
 
-    run_migrations(&pool)
+    let err = run_migrations(&pool)
         .await
-        .expect("baseline 済み DB への増分適用は成功するはず");
+        .expect_err("途中までの旧 migration はエラーで止まるはず");
+    assert!(err.contains("0020 までしか適用されていません"), "{err}");
+    assert!(err.contains("make db-reset"), "{err}");
     assert_eq!(
         migration_versions(&pool).await,
-        (0..=37).collect::<Vec<_>>()
+        (0..=20).collect::<Vec<_>>(),
+        "土台は記録しない"
     );
 }
 
@@ -2812,7 +2938,7 @@ async fn unknown_history_version_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, 99, 99).await;
+    seed_migration_history(&pool, &[99]).await;
 
     let err = run_migrations(&pool)
         .await
@@ -2840,7 +2966,7 @@ async fn mismatched_history_stops_migration() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
 
     let pool = connect_with_retry(&database_url).await;
-    seed_migration_history_range(&pool, 0, 10).await;
+    seed_migration_history(&pool, &local_migration_versions()).await;
 
     let err = run_migrations(&pool)
         .await
@@ -6443,10 +6569,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
-    assert_eq!(
-        migration_versions(&pool).await,
-        (0..=37).collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     let info_a = GoogleUserInfo {
         sub: "stage5b-google-a".to_string(),
@@ -6878,10 +7001,7 @@ async fn rls_5c_writes_via_app_enter() {
     let database_url = format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres");
     let pool = connect_with_retry(&database_url).await;
     run_migrations(&pool).await.expect("migrations failed");
-    assert_eq!(
-        migration_versions(&pool).await,
-        (0..=37).collect::<Vec<_>>()
-    );
+    assert_eq!(migration_versions(&pool).await, local_migration_versions());
 
     let user_a = create_test_user(&pool).await;
     let user_b = create_test_user(&pool).await;

@@ -3,15 +3,19 @@
 
 資産運用業協会が公開する「成長投資枠対象商品リスト(非上場ファンド)」の xlsx から
 運用会社が三菱UFJアセットマネジメントのファンドを選び、
-backend/migrations/0013_fund_nav.sql 内の seed ブロック
+--migration で指定した migration 内の seed ブロック
 (-- gen:fund-codes-seed begin/end で囲まれた VALUES)を書き換える。
+
+本番に当てた migration(土台の backend/migrations/0103_shared_masters_and_caches.sql を含む)は
+書き換えられない(checksum が食い違いデプロイが止まる)。seed を更新するときは、
+マーカー付きの seed ブロックを持つ新しい migration を作って --migration で指定する。
 
 標準ライブラリだけで動く(openpyxl 等は不要)。ファンド名のセルに埋め込まれた
 ふりがな(<rPh>)は読み飛ばす。
 
 使い方:
-    python3 scripts/update_fund_codes_seed.py
-    python3 scripts/update_fund_codes_seed.py --xlsx /path/to/unlisted_fund_for_investor.xlsx
+    python3 scripts/update_fund_codes_seed.py --migration backend/migrations/NNNN_fund_codes_seed.sql
+    python3 scripts/update_fund_codes_seed.py --migration backend/migrations/NNNN_fund_codes_seed.sql --xlsx /path/to/unlisted_fund_for_investor.xlsx
 """
 
 import argparse
@@ -26,7 +30,6 @@ SOURCE_URL = (
     "https://www.imaj.or.jp/find/nisa_growth_productslist/"
     "xlsx-cms/unlisted_fund_for_investor.xlsx"
 )
-MIGRATION = Path(__file__).resolve().parent.parent / "backend/migrations/0013_fund_nav.sql"
 SHEET_NAME = "対象商品一覧"
 OPERATOR_PREFIX = "三菱UFJアセット"
 BEGIN = "-- gen:fund-codes-seed begin"
@@ -111,7 +114,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--xlsx", default=SOURCE_URL,
                     help="対象商品リスト xlsx の URL またはローカルパス")
-    ap.add_argument("--migration", default=str(MIGRATION))
+    ap.add_argument("--migration", required=True,
+                    help="seed ブロックを書き換える新しい migration のパス")
     args = ap.parse_args()
     source = urllib.request.urlretrieve(args.xlsx)[0] if "://" in args.xlsx else args.xlsx
     funds = extract_funds(source)
