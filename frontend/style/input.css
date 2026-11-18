@@ -1382,7 +1382,7 @@
   }
 
   .page-frame-title {
-    @apply font-bold leading-tight tracking-normal text-heading;
+    @apply font-extrabold leading-tight tracking-normal text-subhero;
     color: var(--color-design-page-title);
   }
 
@@ -1576,7 +1576,7 @@
   /* ホームのカード置き場。PCは左列(2fr)に配当・最近、右列(1fr)に内訳・損益。
      スマホは DOM 順(配当→内訳→最近→損益)にそのまま積む */
   .home-card-grid {
-    @apply grid grid-cols-1 lg:grid-cols-[2fr_1fr];
+    @apply grid grid-cols-1 items-start lg:grid-cols-[2fr_1fr];
     gap: var(--space-card);
     margin-top: var(--space-card);
   }

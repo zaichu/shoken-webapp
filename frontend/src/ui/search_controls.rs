@@ -225,7 +225,7 @@ pub fn AddConditionRow(
     }
 }
 
-/// 条件の行の右端に置く件数と「すべてクリア」。
+/// 条件の行の右端に置く件数と「条件をクリア」。
 /// スマホは条件のボタンと1行に並べない(ボタンが狭くなるため次の行に置く)
 #[component]
 pub fn ConditionRowEnd(children: Children) -> impl IntoView {
