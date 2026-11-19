@@ -113,15 +113,6 @@ pub(crate) fn oldest_home_price_iso(
     dates.into_iter().next()
 }
 
-/// 取込日の素の日付(YYYY-MM-DD)。JSTで最も新しい日を返す
-pub(crate) fn latest_import_iso(stamps: &[String]) -> Option<String> {
-    stamps
-        .iter()
-        .filter_map(|stamp| format::jst_date(stamp))
-        .max()
-        .map(|(year, month, day)| format!("{year:04}-{month:02}-{day:02}"))
-}
-
 /// ホーム帯の更新待ち。評価額の計算に使う価格が無い株か基準価額が古い投信があれば true
 pub(crate) fn home_has_pending(
     stocks: &[AssetBalance],

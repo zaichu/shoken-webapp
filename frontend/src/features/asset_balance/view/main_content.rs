@@ -7,7 +7,7 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, date_notes, fund_has_pending, latest_import_iso, oldest_combined_price_iso,
+    AssetSummaryBand, date_notes, fund_has_pending, oldest_combined_price_iso,
     oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag, stock_pending_from_parts,
     stock_price_dates, stock_summary_values,
 };
@@ -27,69 +27,13 @@ use crate::features::asset_balance::portfolio;
 use crate::features::asset_balance::portfolio::{SortInput, SortKey, SortOrder};
 use crate::features::asset_balance::search;
 use crate::features::asset_balance::store;
-use crate::features::asset_balance::store::csv;
 use crate::features::asset_balance::store::csv::ResolvedFundBalance;
-use crate::features::asset_balance::store::{BalanceSlot, FundSlot};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::session::Generation;
 use crate::ui::asset_balance::{AssetEmptyPanel, AssetFilteredEmpty};
 use crate::ui::labels;
 use crate::ui::page_skeleton::{FilteredCount, SkeletonNote, SkeletonSearch, SkeletonSummary};
 use leptos::prelude::*;
-
-/// ページヘッダー右上(PCのみ)の取込表示用。タブごとの帯と同じ日付から
-/// 古い取込の文言を作る。古くない・読めないときは None(出さない)
-pub(crate) fn tab_header_import(
-    kind: AssetKind,
-    balances: &BalanceSlot,
-    funds: &FundSlot,
-    generation: Generation,
-) -> Option<(String, bool)> {
-    let (price_iso, import_iso) = match kind {
-        AssetKind::Stock => {
-            let rows = &csv::resolve_asset_balance(generation, balances)?.rows;
-            (
-                oldest_stock_price_iso(rows),
-                latest_import_iso(rows.iter().map(|row| row.updated_at.as_str())),
-            )
-        }
-        AssetKind::Fund => {
-            let resolved = csv::resolve_fund_balance(generation, funds)?;
-            (
-                oldest_fund_price_iso(&resolved),
-                latest_import_iso(resolved.rows.iter().map(|row| row.updated_at.as_str())),
-            )
-        }
-        AssetKind::All => {
-            let stock_rows = &csv::resolve_asset_balance(generation, balances)?.rows;
-            let fund_resolved = csv::resolve_fund_balance(generation, funds)?;
-            let mut stamps: Vec<String> = stock_rows
-                .iter()
-                .map(|row| row.updated_at.clone())
-                .collect();
-            stamps.extend(fund_resolved.rows.iter().map(|row| row.updated_at.clone()));
-            (
-                oldest_combined_price_iso(stock_rows, &fund_resolved),
-                latest_import_iso(stamps.iter().map(String::as_str)),
-            )
-        }
-    };
-    let stale = match (&price_iso, &import_iso) {
-        (Some(price), Some(import)) => labels::stale_sides(price, import).1,
-        _ => false,
-    };
-    if !stale {
-        return None;
-    }
-    let label = import_iso
-        .as_deref()
-        .map_or_default(labels::stale_import_label);
-    if label.is_empty() {
-        None
-    } else {
-        Some((label, true))
-    }
-}
 
 /// 絞り込みの件数。検索条件が無いときは注記に出さない
 fn filtered_count(
@@ -271,13 +215,7 @@ fn StockContent(
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
                     let price_iso = oldest_stock_price_iso(&rows);
-                    let import_iso = latest_import_iso(
-                        rows.iter().map(|row| row.updated_at.as_str()),
-                    );
-                    let (as_of, stale, import_status, import_stale) = date_notes(
-                        price_iso.as_deref(),
-                        import_iso.as_deref(),
-                    );
+                    let as_of = date_notes(price_iso.as_deref());
                     let pending = asset_balance::valuation_has_pending(
                         stock_pending_from_parts(&rows, fallback_totals.as_ref()),
                         false,
@@ -293,9 +231,6 @@ fn StockContent(
                                 purchase=purchase
                                 as_of=as_of
                                 show_pending=pending
-                                as_of_stale=stale
-                                import_note=import_status
-                                import_stale=import_stale
                             />
                         </SkeletonSummary>
                         <SkeletonNote filtered=filtered_count />
@@ -405,9 +340,7 @@ fn FundContent(
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
     let price_iso = oldest_fund_price_iso(&resolved);
-    let import_iso = latest_import_iso(resolved.rows.iter().map(|row| row.updated_at.as_str()));
-    let (as_of, stale, import_status, import_stale) =
-        date_notes(price_iso.as_deref(), import_iso.as_deref());
+    let as_of = date_notes(price_iso.as_deref());
     let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
@@ -424,9 +357,6 @@ fn FundContent(
                     purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
-                    as_of_stale=stale
-                    import_note=import_status
-                    import_stale=import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
@@ -586,14 +516,7 @@ fn AllContent(
         fund_has_pending(&fund_resolved),
     );
     let price_iso = oldest_combined_price_iso(&stock_rows, &fund_resolved);
-    let mut import_stamps: Vec<String> = stock_rows
-        .iter()
-        .map(|row| row.updated_at.clone())
-        .collect();
-    import_stamps.extend(fund_resolved.rows.iter().map(|row| row.updated_at.clone()));
-    let import_iso = latest_import_iso(import_stamps.iter().map(String::as_str));
-    let (as_of, all_stale, all_import_status, all_import_stale) =
-        date_notes(price_iso.as_deref(), import_iso.as_deref());
+    let as_of = date_notes(price_iso.as_deref());
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
@@ -619,9 +542,6 @@ fn AllContent(
                     purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
-                    as_of_stale=all_stale
-                    import_note=all_import_status
-                    import_stale=all_import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />

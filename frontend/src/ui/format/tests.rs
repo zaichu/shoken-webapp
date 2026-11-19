@@ -246,7 +246,7 @@ fn calendar_days_between_counts_calendar_days() {
 
 #[test]
 fn compact_iso_date_picks_nothing_but_formats() {
-    // 最新選択は呼び出し側(latest_import_iso)が担い、ここでは書式だけ決める
+    // 最新選択は呼び出し側が担い、ここでは書式だけ決める
     assert_eq!(
         compact_iso_date("2026-10-19").as_deref(),
         Some("2026/10/19")

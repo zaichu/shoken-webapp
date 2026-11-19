@@ -18,9 +18,7 @@ use crate::api::dto::{AssetBalance, FundBalance};
 use crate::features::asset_balance;
 use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
 use crate::session;
-use crate::ui::home::{
-    HomeImportLabel, HomeLogin, HomeMain, HomePartialError, HomeStatusNote, HomeSummarySection,
-};
+use crate::ui::home::{HomeLogin, HomeMain, HomePartialError, HomeStatusNote, HomeSummarySection};
 use crate::ui::labels;
 use crate::ui::more_link::MoreLink;
 use crate::ui::page_frame::PageFrame;
@@ -77,43 +75,8 @@ pub fn HomePage() -> impl IntoView {
     if session.user.get_untracked().is_some() {
         store::refresh_loaded(session, session.generation.get_untracked(), data);
     }
-    let import_label = Signal::derive(move || {
-        let generation = session.generation.get();
-        let mut stamps: Vec<String> = Vec::new();
-        if let Some(loaded) = store::current_summary(data.assets, generation).flatten() {
-            stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
-        }
-        if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
-            stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
-        }
-        let import_iso = model::latest_import_iso(&stamps);
-        let price_iso = {
-            let assets = store::current_summary(data.assets, generation).flatten();
-            let funds = store::current_summary(data.funds, generation).flatten();
-            let stocks = assets.map_or_default(|loaded| loaded.rows.clone());
-            let funds = funds.map_or_default(|loaded| loaded.rows.clone());
-            model::oldest_home_price_iso(&stocks, &funds)
-        };
-        let stale = match (&price_iso, &import_iso) {
-            (Some(price), Some(import)) => labels::stale_sides(price, import).1,
-            _ => false,
-        };
-        import_iso.map(|import| (labels::stale_import_label(&import), stale))
-    });
-    let links: Children = Box::new(move || {
-        view! {
-            {move || {
-                import_label.get().map(|(label, stale)| {
-                    view! {
-                        <HomeImportLabel stale=stale>{label}</HomeImportLabel>
-                    }
-                })
-            }}
-        }
-        .into_any()
-    });
     view! {
-        <PageFrame title=labels::HOME_TITLE full_bleed=true links=links>
+        <PageFrame title=labels::HOME_TITLE full_bleed=true>
             <HomeDashboard data=data />
         </PageFrame>
     }

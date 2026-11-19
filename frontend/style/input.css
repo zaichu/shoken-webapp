@@ -1127,10 +1127,6 @@
       @apply ml-1 inline;
     }
 
-    .summary-band-rows .summary-label-note2 {
-      @apply ml-0;
-    }
-
     .summary-band-rows .summary-value {
       @apply mt-0 shrink-0 justify-end text-right leading-tight;
     }
@@ -1578,12 +1574,6 @@
      期間は途中で割らず、入りきらないときは全体を次の行に送る */
   .summary-label-note {
     @apply text-cell font-normal text-text-muted whitespace-nowrap;
-  }
-
-  /* 帯のラベルの2行目の取込の状態。1行目と同じ左端から出し、途中で割らない。
-     1行目の補足と同じ大きさ・太さで、左の余白は付けない */
-  .summary-label-note2 {
-    @apply text-cell font-normal whitespace-nowrap basis-full ml-0;
   }
 
   /* 数字は行の高さを1に詰め、項目の底にそろえる。桁は等幅にそろえる */

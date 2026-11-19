@@ -56,30 +56,6 @@ const fn tone_of(negative: bool, positive: bool) -> SummaryTone {
     }
 }
 
-/// 古い日付への注意の印。文字と同じ大きさで、色は親から受け継ぐ。
-/// 理由の読み上げは呼び出し側の画面外の文字が担うため、印そのものは読まない
-#[component]
-pub(crate) fn StaleMark() -> impl IntoView {
-    view! {
-        <svg
-            class="mr-1 inline-block shrink-0"
-            width="1em"
-            height="1em"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-        >
-            <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-            />
-        </svg>
-    }
-}
-
 /// 集計帯の1項目。ラベルと数字の組。
 /// 全項目でラベルの上端と数字の基準線をそろえるために、帯の中で同じ作りを使う
 #[component]
@@ -91,7 +67,7 @@ pub fn SummaryItem(
     #[prop(into)] label: String,
     #[prop(into)] value: String,
     #[prop(optional)] size: SummarySize,
-    /// 数字の右に添える補足(率など)。値より小さいサイズで、値と同じ正負の色で出す
+    /// 数字の右に添える補足(率など)。値と同じ正負の色で出す
     #[prop(optional)]
     note: String,
     #[prop(optional)] note_negative: bool,
@@ -102,16 +78,6 @@ pub fn SummaryItem(
     /// ラベルの横に小さく出す補足(基準日・更新待ちなど)。空なら出さない
     #[prop(optional, into)]
     label_note: String,
-    /// ラベルの補足が古い日付のときの強調。色と文字の両方で示す
-    #[prop(optional)]
-    label_note_stale: bool,
-    /// ラベルの横に小さく出す2つ目の補足(取込の状態など)。入りきらないときは
-    /// 1つ目の注記と分けて次の行に送る。空なら出さない
-    #[prop(optional, into)]
-    label_note2: String,
-    /// 2つ目の補足(取込の状態)が古いときの強調。色と注意の印・読み上げ文で示す
-    #[prop(optional)]
-    label_note2_stale: bool,
     #[prop(optional)] tone: SummaryTone,
     /// 項目ごとに付けたいクラス
     #[prop(optional, into)]
@@ -128,25 +94,7 @@ pub fn SummaryItem(
                 <span class="summary-label-text">{label}</span>
                 {(!label_note.is_empty())
                     .then(|| view! {
-                        <span class=if label_note_stale {
-                            "summary-label-note text-warn-ink"
-                        } else {
-                            "summary-label-note"
-                        }>{label_note.clone()}</span>
-                    })}
-                {(!label_note2.is_empty() && label_note2_stale)
-                    .then(|| view! {
-                        <span class=if label_note2_stale {
-                            "summary-label-note summary-label-note2 text-warn-ink"
-                        } else {
-                            "summary-label-note summary-label-note2"
-                        }>
-                            {label_note2_stale.then(|| view! { <StaleMark/> })}
-                            {label_note2.clone()}
-                            {label_note2_stale.then(|| view! {
-                                <span class="sr-only">{labels::IMPORT_STALE_SR}</span>
-                            })}
-                        </span>
+                        <span class="summary-label-note">{label_note.clone()}</span>
                     })}
             </dt>
             <dd class=format!("summary-value {size_class}")>
@@ -214,22 +162,12 @@ pub fn SummaryBand(
     /// スマホの行に出す従項目
     #[prop(optional, into)]
     breakdown: Vec<SummaryBreakdownEntry>,
-    /// 主ラベルの横に小さく出す基準日(「価格基準日 10/20」。空なら出さない)
+    /// 主ラベルの横に小さく出す基準日(株価・基準価額の最も古い日)。空なら出さない
     #[prop(optional, into)]
     primary_as_of: String,
-    /// 基準日が古い行・更新待ちの行があるときの小さな表示
+    /// 更新待ちの行があるときの小さな表示
     #[prop(optional)]
     show_pending: bool,
-    /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
-    #[prop(optional)]
-    as_of_stale: bool,
-    /// 主ラベルの横に小さく出す2つ目の補足(取込の状態など)。入りきらないときは
-    /// 1つ目の注記と分けて次の行に送る。空なら出さない
-    #[prop(optional, into)]
-    primary_note2: String,
-    /// 2つ目の補足(取込の状態)が古いときの強調。色と注意の印・読み上げ文で示す
-    #[prop(optional)]
-    primary_note2_stale: bool,
     #[prop(optional)] testid_band: Option<&'static str>,
 ) -> impl IntoView {
     let has_aux = !aux_label.is_empty();
@@ -261,11 +199,6 @@ pub fn SummaryBand(
                         value=primary_value.clone()
                         size=SummarySize::Primary
                         label_note=label_note.clone()
-                        label_note_stale=as_of_stale
-                        // PC の集計帯に2つ目の補足は出さない。古い取込は
-                        // ページヘッダー右上に出し、数字の基準線をそろえたままにする
-                        label_note2=""
-                        label_note2_stale=false
                         tone=primary_tone
                     />
                     {has_aux.then(|| view! {
@@ -301,9 +234,6 @@ pub fn SummaryBand(
                     value=primary_value
                     size=SummarySize::Primary
                     label_note=label_note
-                    label_note_stale=as_of_stale
-                    label_note2=primary_note2
-                    label_note2_stale=primary_note2_stale
                     tone=primary_tone
                 />
                 {has_aux.then(|| view! {

@@ -6,7 +6,6 @@ use crate::ui::labels;
 use crate::ui::login_prompt::LoginPrompt;
 use crate::ui::more_link::MoreLink;
 use crate::ui::state::{ListLoadError, ListSkeleton, ListSkeletonVariant};
-use crate::ui::summary::StaleMark;
 use leptos::prelude::*;
 
 #[component]
@@ -113,23 +112,6 @@ pub fn HomeCompositionAccounts(children: Children) -> impl IntoView {
 #[component]
 pub fn HomeCompositionNote(children: Children) -> impl IntoView {
     view! { <p class="text-label font-normal text-text-muted">{children()}</p> }
-}
-
-/// ヘッダー脇の取り込み日表示。補足は 400 のままにする。
-/// 取込が古いときだけ出す。古くないときは出さない。
-/// 取込が古いときは色に加え、日付の前に注意の印を付ける。理由は画面外の文字で読む
-#[component]
-pub fn HomeImportLabel(children: Children, #[prop(optional)] stale: bool) -> impl IntoView {
-    view! {
-        {stale
-            .then(|| view! {
-                <span class="hidden text-label font-normal text-warn-ink lg:inline">
-                    <StaleMark/>
-                    {children()}
-                    <span class="sr-only">{labels::IMPORT_STALE_SR}</span>
-                </span>
-            })}
-    }
 }
 
 /// 一部取得失敗の注意書き。補足は 400 のままにする
