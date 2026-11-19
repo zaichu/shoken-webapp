@@ -207,11 +207,12 @@ test('配当グラフは配当金の累計の折れ線で、点からその月�
   const chart = dividend.locator('.home-chart').first();
 
   await expect(dividend.locator('.home-cum-legend')).toHaveCount(0);
-  const endLabels = chart.locator('.home-cum-end-label');
-  await expect(endLabels.filter({ hasText: '今年' })).toHaveCount(1);
-  await expect(endLabels.filter({ hasText: '前年' })).toHaveCount(1);
-  await expect(endLabels.filter({ hasText: '今年' })).toContainText(/¥[\d,]+/);
-  await expect(endLabels.filter({ hasText: '前年' })).toContainText(/¥[\d,]+/);
+  const summary = dividend.locator('.home-cum-summary');
+  await expect(summary.locator('.home-cum-summary-current')).toContainText(/今年.*¥[\d,]+/);
+  await expect(summary.locator('.home-cum-summary-previous')).toContainText(/前年.*¥[\d,]+/);
+  const summaryBox = await summary.boundingBox();
+  const plotBox = await chart.locator('.home-chart-plot').boundingBox();
+  expect(summaryBox!.y + summaryBox!.height).toBeLessThanOrEqual(plotBox!.y);
   await expect(dividend.locator('.home-cum-area-current')).toBeVisible();
 
   // 点を押すとその月の配当金とその月までの今年と前年の累計が出る

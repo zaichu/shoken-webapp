@@ -272,32 +272,36 @@ pub fn CumulativeChart(
             })
     };
     view! {
-        <div class="home-chart" node_ref=chart_ref>
-            <div class="home-cum-axis" aria-hidden="true">
-                {ticks
-                    .iter()
-                    .rev()
-                    .map(|tick| {
-                        let position = if top > 0.0 { (1.0 - tick / top) * 100.0 } else { 100.0 };
-                        view! {
-                            <span class="home-cum-tick" style:top=format!("{position}%")>
-                                {labels::axis_yen_short(*tick)}
-                            </span>
-                        }
-                    })
-                    .collect_view()}
-            </div>
-            <div class="home-cum-main">
+        <div class="home-cum-layout" node_ref=chart_ref>
+            <div class="home-cum-summary-axis" aria-hidden="true"></div>
+            <div class="home-cum-summary-main">
                 <div class="home-cum-summary">
                     <span class="home-cum-summary-current">
-                        <span aria-hidden="true">{"●"}</span>{" "}{labels::CUMULATIVE_THIS_YEAR}{" "}{current_end_text}
+                        <span class="home-cum-summary-current-dot" aria-hidden="true">{"●"}</span>{" "}{labels::CUMULATIVE_THIS_YEAR}{" "}<Amount text=current_end_text.clone() />
                     </span>
                     {previous_end_text.map(|text| view! {
                         <span class="home-cum-summary-previous">
-                            <span aria-hidden="true">{"○"}</span>{" "}{previous_end_label}{" "}{text}
+                            <span aria-hidden="true">{"○"}</span>{" "}{previous_end_label}{" "}<Amount text=text />
                         </span>
                     })}
                 </div>
+            </div>
+            <div class="home-chart">
+                <div class="home-cum-axis" aria-hidden="true">
+                    {ticks
+                        .iter()
+                        .rev()
+                        .map(|tick| {
+                            let position = if top > 0.0 { (1.0 - tick / top) * 100.0 } else { 100.0 };
+                            view! {
+                                <span class="home-cum-tick" style:top=format!("{position}%")>
+                                    {labels::axis_yen_short(*tick)}
+                                </span>
+                            }
+                        })
+                        .collect_view()}
+                </div>
+                <div class="home-cum-main">
                 <div
                     class="home-chart-plot"
                     node_ref=plot_ref
@@ -510,6 +514,7 @@ pub fn CumulativeChart(
                             }
                         })
                         .collect_view()}
+                </div>
                 </div>
             </div>
         </div>
