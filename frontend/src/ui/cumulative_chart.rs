@@ -81,6 +81,36 @@ pub fn table_monthly_text(month: u32, current_month: u32, monthly: &[f64]) -> Op
         .map(|value| format::format_currency(*value))
 }
 
+/// タップ位置から最も近い月を返す。x は描画域の左端からの距離、width は描画域の幅。
+/// 12等分の境界で分け、描画域の外は端に寄せる。選べる月は 1..=current_month のため、
+/// 未来月の領域を押したときは今月に寄せる
+pub fn month_for_position(x: f64, width: f64, current_month: u32) -> u32 {
+    let max = current_month.clamp(1, 12);
+    if !x.is_finite() || !width.is_finite() || width <= 0.0 {
+        return 1;
+    }
+    let scaled = (x / width * 12.0).floor();
+    if scaled < 0.0 {
+        return 1;
+    }
+    (1..=max)
+        .find(|month| scaled < f64::from(*month))
+        .unwrap_or(max)
+}
+
+/// スライダーのキー操作で月を1つ動かす。範囲外は端に寄せる
+pub fn step_month(month: u32, delta: i32, current_month: u32) -> u32 {
+    let max = current_month.clamp(1, 12);
+    let next = i64::from(month) + i64::from(delta);
+    if next <= 1 {
+        return 1;
+    }
+    if next >= i64::from(max) {
+        return max;
+    }
+    u32::try_from(next).unwrap_or(max)
+}
+
 // 月の x 座標。押せる帯・目盛りの文字は12等分の帯の中心にいるため、
 // 線と丸も同じ帯中心から出す(全幅に広げると端で半月ずれる)
 fn x_percent(month: u32) -> f64 {
@@ -135,22 +165,14 @@ pub fn CumulativeChart(
     let top = ticks.last().copied().unwrap_or(0.0);
     let selected = RwSignal::new(None::<u32>);
     let chart_ref = NodeRef::<leptos::html::Div>::new();
-    // scroll・Escape で閉じても hover・focus だけで吹き出しが出るため、
-    // 閉じた月は押下・Enter・入り直しまで抑える
-    let dismissed = RwSignal::new(None::<u32>);
+    let plot_ref = NodeRef::<leptos::html::Div>::new();
     let dismiss = move || {
         if selected.get_untracked().is_some() {
-            dismissed.set(selected.get_untracked());
             selected.set(None);
         }
     };
-    let clear_dismissed = move || {
-        if dismissed.get_untracked().is_some() {
-            dismissed.set(None);
-        }
-    };
     // 吹き出しが開いている間だけ、ページ全体に1つずつ検知を付ける。
-    // 別の月は容器の内側なので閉じずに押した月の切替えに任せ、閉じたら外す
+    // 描画域の内側は押した位置の月の切替えに任せ、閉じたら外す
     Effect::new(move |_| {
         if selected.get().is_none() {
             return;
@@ -222,6 +244,22 @@ pub fn CumulativeChart(
         end_diff.is_some_and(|value| asset_balance::is_negative_valuation(Some(value)));
     let end_diff_positive =
         end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
+    // スライダーの読み上げ文(「6月 受取 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
+    // 選んだ月で引く。未来月は選べないため今月まで
+    let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
+        .map(|month| {
+            let monthly =
+                format::format_currency(current.get(month as usize - 1).copied().unwrap_or(0.0));
+            let cumulative = format::format_currency(
+                current_cum.get(month as usize - 1).copied().unwrap_or(0.0),
+            );
+            let previous = previous_cum
+                .as_ref()
+                .and_then(|sums| sums.get(month as usize - 1).copied())
+                .map(format::format_currency);
+            (monthly, cumulative, previous)
+        })
+        .collect();
 
     let months: Vec<u32> = (1..=12).collect();
     // 前年の丸は未来月にも置く(前年の線は12か月あるため)。
@@ -269,7 +307,64 @@ pub fn CumulativeChart(
                     .collect_view()}
             </div>
             <div class="home-cum-main">
-                <div class="home-chart-plot">
+                <div
+                    class="home-chart-plot"
+                    node_ref=plot_ref
+                    tabindex="0"
+                    role="slider"
+                    aria-label=aria_label.clone()
+                    aria-valuemin="1"
+                    aria-valuemax=current_month.to_string()
+                    aria-valuenow=move || selected.get().unwrap_or(current_month).to_string()
+                    aria-valuetext=move || {
+                        let month = selected.get().unwrap_or(current_month);
+                        slider_texts.get(month as usize - 1).map_or_default(
+                            |(monthly, cumulative, previous)| {
+                                labels::cumulative_slider_valuetext(
+                                    month,
+                                    monthly,
+                                    cumulative,
+                                    previous.as_deref(),
+                                )
+                            },
+                        )
+                    }
+                    aria-orientation="horizontal"
+                    on:click=move |event| {
+                        let Some(plot) = plot_ref.get() else { return };
+                        let rect = plot.get_bounding_client_rect();
+                        let month = month_for_position(
+                            f64::from(event.client_x()) - rect.left(),
+                            rect.width(),
+                            current_month,
+                        );
+                        selected.update(|state| {
+                            *state = if *state == Some(month) { None } else { Some(month) };
+                        });
+                    }
+                    on:keydown=move |event| {
+                        let key = event.key();
+                        if key == "Escape" {
+                            event.prevent_default();
+                            dismiss();
+                            return;
+                        }
+                        let base = selected.get_untracked().unwrap_or(current_month);
+                        let next = match key.as_str() {
+                            "ArrowLeft" | "ArrowUp" => Some(step_month(base, -1, current_month)),
+                            "ArrowRight" | "ArrowDown" => {
+                                Some(step_month(base, 1, current_month))
+                            }
+                            "Home" => Some(1),
+                            "End" => Some(current_month),
+                            _ => None,
+                        };
+                        if let Some(month) = next {
+                            event.prevent_default();
+                            selected.set(Some(month));
+                        }
+                    }
+                >
                 <div class="home-chart-grid" aria-hidden="true">
                     {ticks
                         .iter()
@@ -297,16 +392,16 @@ pub fn CumulativeChart(
                         })}
                     <polyline class="home-cum-line-current" points=current_line />
                 </svg>
-                <div class="home-cum-cols">
+                <div class="home-cum-cols" aria-hidden="true">
                     {months
                     .iter()
                     .map(|month| {
                         let month = *month;
                         if month > current_month {
                             // 未来の月も同じ幅の枠だけ置く。線の12か月座標と
-                            // 点・押せる範囲・月ラベルをずらさないため
+                            // 点と月ラベルをずらさないため
                             return view! {
-                                <div class="home-cum-col" aria-hidden="true">{previous_dot(month)}</div>
+                                <div class="home-cum-col">{previous_dot(month)}</div>
                             }
                                 .into_any();
                         }
@@ -320,15 +415,6 @@ pub fn CumulativeChart(
                             .and_then(|sums| sums.get(month as usize - 1).copied());
                         let current_text = format::format_currency(current_value);
                         let previous_text = previous_value.map(format::format_currency);
-                        let month_aria = labels::home_cumulative_month_aria(
-                            month,
-                            if month == current_month { labels::HOME_CURRENT_MONTH } else { "" },
-                            current_year,
-                            &monthly_text,
-                            &current_text,
-                            previous_value.map(|_| previous_year),
-                            previous_text.as_deref(),
-                        );
                         let month_label = labels::receipt_month_label(month);
                         let current_cell = current_label.clone();
                         let previous_cell = previous_label.clone();
@@ -344,47 +430,12 @@ pub fn CumulativeChart(
                         };
                         let tip_below = dot_top < 50.0;
                         let is_current = month == current_month;
-                        let clear_click = clear_dismissed;
-                        let clear_key = clear_dismissed;
-                        let clear_focus = clear_dismissed;
-                        let clear_enter = clear_dismissed;
-                        let dismiss_key = dismiss;
                         view! {
                             <div
                                 class="home-cum-col"
-                                tabindex="0"
-                                role="button"
-                                aria-expanded=move || (selected.get() == Some(month)).to_string()
-                                aria-label=month_aria
                                 data-selected=move || (selected.get() == Some(month)).to_string()
                                 data-current=is_current.to_string()
-                                data-suppressed=move || {
-                                    (dismissed.get() == Some(month)).to_string()
-                                }
                                 data-edge=edge
-                                on:click=move |_| {
-                                    clear_click();
-                                    selected.update(|state| {
-                                        *state = if *state == Some(month) { None } else { Some(month) };
-                                    });
-                                }
-                                on:mouseenter=move |_| clear_enter()
-                                on:focus=move |_| clear_focus()
-                                on:keydown=move |event| {
-                                    if event.key() == "Enter" || event.key() == " " {
-                                        event.prevent_default();
-                                        clear_key();
-                                        selected.update(|state| {
-                                            *state = if *state == Some(month) {
-                                                None
-                                            } else {
-                                                Some(month)
-                                            };
-                                        });
-                                    } else if event.key() == "Escape" {
-                                        dismiss_key();
-                                    }
-                                }
                             >
                                 {previous_dot(month)}
                                 <span

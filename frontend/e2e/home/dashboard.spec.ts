@@ -229,23 +229,51 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
     (sum, row) => sum + row.net_amount_received,
     0,
   );
-  const point = chart.locator('.home-cum-col').nth(currentMonth - 1);
-  await point.click();
-  const tip = point.locator('.home-cum-tip');
+  const plot = chart.locator('.home-chart-plot');
+  const tipFor = (month: number) =>
+    chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
+  // 描画域は1つのスライダー操作子(12個の柱ボタンは置かない)
+  await expect(plot).toHaveAttribute('role', 'slider');
+  await expect(plot).toHaveAttribute('aria-valuemin', '1');
+  await expect(plot).toHaveAttribute('aria-valuemax', String(currentMonth));
+  expect(await chart.locator('.home-cum-col[role="button"]').count()).toBe(0);
+
+  // 描画域のその月の位置を押すと、その月の受取とその月までの今年と前年の累計が出る
+  const box = await plot.boundingBox();
+  const xFor = (month: number) => (box!.width * (month - 0.5)) / 12;
+  await plot.click({ position: { x: xFor(currentMonth), y: box!.height / 2 } });
+  const tip = tipFor(currentMonth);
   await expect(tip).toBeVisible();
   await expect(tip).toContainText(`${currentMonth}月の受取`);
   await expect(tip).toContainText(`¥${currentMonthly.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${currentCum.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${previousCum.toLocaleString('en-US')}`);
+  await expect(plot).toHaveAttribute('aria-valuenow', String(currentMonth));
 
-  // キーボードでも出せる(Enter で開き、Escape で閉じる)
-  // click 後はマウスが点の上に残り hover で、press は focus で吹き出しが出続けるため外してから閉じる
-  await page.mouse.move(5, 5);
-  await point.press('Escape');
-  await point.evaluate((el) => (el as HTMLElement).blur());
-  await expect(tip).toBeHidden();
-  await chart.locator('.home-cum-col').first().press('Enter');
-  await expect(chart.locator('.home-cum-col').first().locator('.home-cum-tip')).toBeVisible();
+  // キーボードで月を移動できる(Home で1月、矢印で1か月ずつ、End で今月)
+  await plot.press('Home');
+  await expect(tipFor(1)).toBeVisible();
+  await expect(plot).toHaveAttribute('aria-valuenow', '1');
+  await expect(plot).toHaveAttribute('aria-valuetext', /1月 受取/);
+  const afterRight = Math.min(2, currentMonth);
+  await plot.press('ArrowRight');
+  await expect(tipFor(afterRight)).toBeVisible();
+  await expect(plot).toHaveAttribute('aria-valuenow', String(afterRight));
+  await plot.press('ArrowLeft');
+  await expect(tipFor(1)).toBeVisible();
+  await plot.press('End');
+  await expect(tipFor(currentMonth)).toBeVisible();
+
+  // Escape で閉じる
+  await plot.press('Escape');
+  await expect(tipFor(currentMonth)).toBeHidden();
+
+  // 外側タップで閉じる
+  const probeMonth = Math.min(3, currentMonth);
+  await plot.click({ position: { x: xFor(probeMonth), y: box!.height / 2 } });
+  await expect(tipFor(probeMonth)).toBeVisible();
+  await legend.click();
+  await expect(tipFor(probeMonth)).toBeHidden();
 
   // 資産の内訳の行には横棒と同じ色の印が出る
   const composition = page.getByTestId('home-composition-card');
