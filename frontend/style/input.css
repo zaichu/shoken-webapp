@@ -1086,9 +1086,14 @@
     @apply text-text-soft;
   }
 
-  /* 撮影用の案Cの低い行 */
+  /* 撮影用の案Cの低いカード。スマホの行はすでに py-2 のため、
+     効かせる値は py-1 にし、行内の段間も詰める。中身2行で 44px 以上を保つ */
   .list-row-action.receipt-compact-low {
-    @apply py-2;
+    @apply py-1;
+  }
+
+  .receipt-compact-low .list-row {
+    @apply gap-y-0;
   }
 
   /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
