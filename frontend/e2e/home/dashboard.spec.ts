@@ -275,6 +275,20 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   await legend.click();
   await expect(tipFor(probeMonth)).toBeHidden();
 
+  // Tab だけで操作域に到達し、Enter/Space で吹き出しを開閉できる
+  await dividend.getByRole('link', { name: '取引明細で見る' }).focus();
+  for (let i = 0; i < 10; i++) {
+    if (await plot.evaluate((el) => el === document.activeElement)) {
+      break;
+    }
+    await page.keyboard.press('Tab');
+  }
+  await expect(plot).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(tipFor(currentMonth)).toBeVisible();
+  await page.keyboard.press(' ');
+  await expect(tipFor(currentMonth)).toBeHidden();
+
   // 資産の内訳の行には横棒と同じ色の印が出る
   const composition = page.getByTestId('home-composition-card');
   const rows = composition.locator('.home-composition-row');

@@ -349,10 +349,23 @@ pub fn CumulativeChart(
                             dismiss();
                             return;
                         }
+                        // div のスライダーはボタンと違い Enter/Space の既定動作が無いため、
+                        // ここで吹き出しの開閉を受け持つ(主要な操作は Enter/Space で操作できること)
+                        if key == "Enter" || key == " " {
+                            event.prevent_default();
+                            selected.update(|state| {
+                                *state = if state.is_some() {
+                                    None
+                                } else {
+                                    Some(state.unwrap_or(current_month))
+                                };
+                            });
+                            return;
+                        }
                         let base = selected.get_untracked().unwrap_or(current_month);
                         let next = match key.as_str() {
-                            "ArrowLeft" | "ArrowUp" => Some(step_month(base, -1, current_month)),
-                            "ArrowRight" | "ArrowDown" => {
+                            "ArrowLeft" | "ArrowDown" => Some(step_month(base, -1, current_month)),
+                            "ArrowRight" | "ArrowUp" => {
                                 Some(step_month(base, 1, current_month))
                             }
                             "Home" => Some(1),
