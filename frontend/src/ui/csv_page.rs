@@ -667,8 +667,6 @@ fn dated_status(
             "fresh",
         )
     } else {
-        // 古いときも文面は新しいときと同じ「最終取り込み …」だけにし、
-        // 黄(現在は text-warn-ink)と読み上げ用の文言で更新が必要と示す
         (
             labels::csv_manage_status_updated_days_ago(days_ago, date, time),
             "text-warn-ink",

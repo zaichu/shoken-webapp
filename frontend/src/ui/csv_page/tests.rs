@@ -28,7 +28,9 @@ fn dated_status_key_marks_fresh_and_stale_by_kind() {
             status.0.contains(labels::CSV_MANAGE_IMPORTED_PREFIX),
             "状態は最終取り込みだけを出す"
         );
-        assert_eq!(status.1 == "text-warn-ink", stale);
+        // 色の区別は値の一致でなく新旧の違いで確かめる(見た目の固定化を避ける)
+        let fresh_class = dated_status(CsvKind::Dividend, 0, "2026/10/20", "12:00").1;
+        assert_eq!(status.1 == fresh_class, !stale);
     }
 }
 

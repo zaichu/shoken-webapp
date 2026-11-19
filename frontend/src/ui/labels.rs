@@ -388,9 +388,9 @@ pub fn csv_manage_status_updated_today(date: &str, time: &str) -> String {
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前")
 }
-/// CSV管理: 古い行に付く読み上げ用の「更新が必要」。
+/// CSV管理: 古い行に付く読み上げ用の区切り付き「、更新が必要」。
 /// 色だけに頼らないよう、画面外の文字(sr-only)で状態の文面の後に置く
-pub const CSV_MANAGE_STATUS_STALE_SR: &str = "更新が必要";
+pub const CSV_MANAGE_STATUS_STALE_SR: &str = "、更新が必要";
 /// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、
 /// 明細は7日以内が新しい (frontend/src/features/csv_page.rs の CsvKind::is_fresh)
 pub const CSV_MANAGE_FRESHNESS_NOTE: &str = "目安：残高は毎日、明細は7日以内に更新";
