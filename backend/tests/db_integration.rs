@@ -63,13 +63,14 @@ fn dividend_search_params_with_pagination(
     }
 }
 use backend::test_constants::POSTGRES_TAG;
-use chrono::{NaiveDate, Utc};
 use rust_decimal_macros::dec;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::{SecurityCode, UserId};
 use std::{sync::Arc, time::Duration};
 use testcontainers::{ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
+use time::format_description::well_known::Rfc3339;
+use time::{Date, OffsetDateTime};
 use tokio::time::{sleep, timeout};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -119,7 +120,9 @@ async fn db_integration_with_docker_and_migrations() {
           ($1, $2, $3, $4, $5, $6, $7)
         "#,
         vec![
-            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2025, time::Month::try_from(3).unwrap(), 24).unwrap(),
+            ),
             Bind::from("9931"),
             Bind::from("テスト株式会社"),
             Bind::from("プライム"),
@@ -201,7 +204,9 @@ async fn stock_master_replace_master_swaps_all_rows() {
     db::query(
         "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
         vec![
-            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2025, time::Month::try_from(3).unwrap(), 24).unwrap(),
+            ),
             Bind::from("9990"),
             Bind::from("旧銘柄"),
             Bind::from("スタンダード"),
@@ -213,7 +218,7 @@ async fn stock_master_replace_master_swaps_all_rows() {
 
     let rows = vec![
         stock_master::StockRow {
-            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+            date: Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 15).unwrap(),
             code: "9931".to_string(),
             name: "架空水産".to_string(),
             market_category: "プライム".to_string(),
@@ -222,7 +227,7 @@ async fn stock_master_replace_master_swaps_all_rows() {
             size_category: Some("TOPIX Small 1".to_string()),
         },
         stock_master::StockRow {
-            date: NaiveDate::from_ymd_opt(2026, 10, 15).unwrap(),
+            date: Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 15).unwrap(),
             code: "9904".to_string(),
             name: "架空自動車".to_string(),
             market_category: "プライム".to_string(),
@@ -264,7 +269,9 @@ async fn stock_master_replace_master_swaps_all_rows() {
     let err = db::query(
         "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
         vec![
-            Bind::from(NaiveDate::from_ymd_opt(2026, 10, 16).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 16).unwrap(),
+            ),
             Bind::from("9931"),
             Bind::from("重複銘柄"),
             Bind::from("プライム"),
@@ -278,7 +285,7 @@ async fn stock_master_replace_master_swaps_all_rows() {
 
 async fn seed_stock_row(pool: &Db) {
     let rows = vec![stock_master::StockRow {
-        date: Utc::now().date_naive() - chrono::Duration::days(3),
+        date: OffsetDateTime::now_utc().date() - time::Duration::days(3),
         code: "9931".to_string(),
         name: "架空水産".to_string(),
         market_category: "プライム".to_string(),
@@ -293,8 +300,8 @@ async fn seed_stock_row(pool: &Db) {
 
 /// 銘柄マスタ更新枠(market_data_provider_rate_control の provider='jquants-equities-master')
 /// の next_available_at。行が無ければ None
-async fn master_refresh_gate(pool: &Db) -> Option<chrono::DateTime<Utc>> {
-    db::query_scalar::<chrono::DateTime<Utc>>(
+async fn master_refresh_gate(pool: &Db) -> Option<time::OffsetDateTime> {
+    db::query_scalar::<time::OffsetDateTime>(
         "SELECT next_available_at FROM market_data_provider_rate_control \
          WHERE provider = 'jquants-equities-master'",
         vec![],
@@ -307,7 +314,7 @@ async fn master_refresh_gate(pool: &Db) -> Option<chrono::DateTime<Utc>> {
 // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
 #[expect(clippy::cast_precision_loss)]
 fn scheduled_now_ms() -> f64 {
-    Utc::now().timestamp_millis() as f64
+    OffsetDateTime::now_utc().unix_timestamp_nanos() as f64 / 1_000_000.0
 }
 
 /// 受け入れ条件①: 枠の行が無い初回は、枠を取って更新を実行する。
@@ -431,9 +438,9 @@ async fn stock_master_refresh_postpones_slot_one_hour_on_failure() {
     assert!(result.is_err(), "ホストでは取得が失敗するはず: {result:?}");
 
     let next = master_refresh_gate(&pool).await.expect("枠の行があるはず");
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     assert!(
-        next > now + chrono::Duration::minutes(55) && next < now + chrono::Duration::minutes(65),
+        next > now + time::Duration::minutes(55) && next < now + time::Duration::minutes(65),
         "失敗後の再試行は1時間後になるはず: {next:?}"
     );
 }
@@ -456,7 +463,8 @@ fn make_asset_item(code: &str) -> CreateAssetBalanceRequest {
 
 fn make_dividend_item(security_code: &str) -> CreateDividendRequest {
     CreateDividendRequest {
-        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        settlement_date: Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 25)
+            .unwrap(),
         product: "国内株式".to_string(),
         account: "特定".parse().unwrap(),
         security_code: security_code.to_string(),
@@ -471,8 +479,9 @@ fn make_dividend_item(security_code: &str) -> CreateDividendRequest {
 
 fn make_domestic_stock_item(security_code: &str) -> CreateDomesticStockRequest {
     CreateDomesticStockRequest {
-        trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
-        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        trade_date: Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 20).unwrap(),
+        settlement_date: Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 25)
+            .unwrap(),
         security_code: security_code.parse().unwrap(),
         security_name: format!("銘柄_{security_code}"),
         account: "特定".parse().unwrap(),
@@ -488,8 +497,9 @@ fn make_domestic_stock_item(security_code: &str) -> CreateDomesticStockRequest {
 
 fn make_mutualfund_item(fund_name: &str) -> CreateMutualfundRequest {
     CreateMutualfundRequest {
-        trade_date: NaiveDate::from_ymd_opt(2024, 3, 20).unwrap(),
-        settlement_date: NaiveDate::from_ymd_opt(2024, 3, 25).unwrap(),
+        trade_date: Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 20).unwrap(),
+        settlement_date: Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 25)
+            .unwrap(),
         fund_name: fund_name.to_string(),
         dividends: None,
         account: "特定".parse().unwrap(),
@@ -987,7 +997,7 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     // 取込直後は基準日が未確定(NULL)なので、最初の取得値がそのまま入る
     let first = ClosePrice {
         close: dec!(900),
-        as_of: NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
+        as_of: Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1).unwrap(),
         prev_close: Some(dec!(890)),
     };
     let updated = stock_price::apply_close_price(&pool, &code, &first)
@@ -998,7 +1008,7 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     // 保存済みの基準日より古い取得値は反映しない（日付の新しいほうを残す）
     let stale = ClosePrice {
         close: dec!(800),
-        as_of: NaiveDate::from_ymd_opt(2000, 1, 1).unwrap(),
+        as_of: Date::from_calendar_date(2000, time::Month::try_from(1).unwrap(), 1).unwrap(),
         prev_close: Some(dec!(790)),
     };
     let updated = stock_price::apply_close_price(&pool, &code, &stale)
@@ -1009,7 +1019,7 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     // 新しい取得値が current_price/market_value/daily_change に反映されることを確認
     let fresh = ClosePrice {
         close: dec!(2500.5),
-        as_of: NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
+        as_of: Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 2).unwrap(),
         prev_close: Some(dec!(2400)),
     };
     let updated = stock_price::apply_close_price(&pool, &code, &fresh)
@@ -1031,7 +1041,10 @@ async fn stock_price_apply_close_price_keeps_newer_row() {
     assert_eq!(row.current_price, dec!(2500.5));
     // daily_change = close - prev_close、一覧には共有テーブルの値が出る
     assert_eq!(row.daily_change, dec!(100.5));
-    assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2020, 1, 2));
+    assert_eq!(
+        row.price_as_of,
+        Some(Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 2).unwrap())
+    );
 }
 
 /// 同一銘柄を持つ2人の利用者で、確定値の反映は共有テーブル1行だけを更新し、
@@ -1056,7 +1069,7 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
 
     // CSV 取込では共有 security_prices を seed しないため、確定値の適用前は共有行がない。
     // 一覧・集計は個人 current_price に fallback して表示される
-    let seeded: Option<(db::Numeric, Option<NaiveDate>)> = db::query_as(
+    let seeded: Option<(db::Numeric, Option<Date>)> = db::query_as(
         "SELECT current_price, price_as_of FROM security_prices WHERE security_code = '9904'",
         vec![],
     )
@@ -1077,7 +1090,7 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
     let code: SecurityCode = "9904".parse().unwrap();
     let price = ClosePrice {
         close: dec!(2700),
-        as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
+        as_of: Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 14).unwrap(),
         prev_close: Some(dec!(2650)),
     };
     let updated = stock_price::apply_close_price(&pool, &code, &price)
@@ -1094,7 +1107,10 @@ async fn stock_price_applies_once_to_shared_row_and_visible_to_all_holders() {
         let row = res.data.into_iter().next().expect("1件のはず");
         assert_eq!(row.current_price, dec!(2700));
         assert_eq!(row.daily_change, dec!(50));
-        assert_eq!(row.price_as_of, NaiveDate::from_ymd_opt(2026, 10, 14));
+        assert_eq!(
+            row.price_as_of,
+            Some(Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 14).unwrap())
+        );
 
         // 前日比の合計・評価額は 共有価格×その利用者の数量 で計算される
         let summary = res.summary.expect("summary 必須");
@@ -1123,7 +1139,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     let code: SecurityCode = "9904".parse().unwrap();
     let confirmed = ClosePrice {
         close: dec!(2700),
-        as_of: NaiveDate::from_ymd_opt(2026, 10, 14).unwrap(),
+        as_of: Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 14).unwrap(),
         prev_close: Some(dec!(2650)),
     };
     stock_price::apply_close_price(&pool, &code, &confirmed)
@@ -1164,7 +1180,7 @@ async fn asset_balance_csv_reimport_keeps_confirmed_price() {
     assert_eq!(confirmed_row.daily_change, dec!(50));
     assert_eq!(
         confirmed_row.price_as_of,
-        NaiveDate::from_ymd_opt(2026, 10, 14)
+        Some(Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 14).unwrap())
     );
     let seeded_row = by_code("9914");
     assert_eq!(seeded_row.current_price, dec!(1234.5));
@@ -2011,7 +2027,7 @@ async fn account_delete_with_invalid_session_returns_unauthorized() {
     let unknown_token = SessionToken::new();
     let unknown_confirmation = backend::handlers::v1::auth::issue_account_delete_confirmation(
         &unknown_token.to_string(),
-        chrono::Utc::now().timestamp(),
+        time::OffsetDateTime::now_utc().unix_timestamp(),
     )
     .expect("未知 token 用確認 Cookie");
     for (invalid_token, expire, revoke, confirmation) in [
@@ -2022,7 +2038,7 @@ async fn account_delete_with_invalid_session_returns_unauthorized() {
             true,
             backend::handlers::v1::auth::issue_account_delete_confirmation(
                 &revoked_token.to_string(),
-                chrono::Utc::now().timestamp(),
+                time::OffsetDateTime::now_utc().unix_timestamp(),
             )
             .expect("失効 token 用確認 Cookie"),
         ),
@@ -2100,14 +2116,17 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut older = make_dividend_item("9938");
     older.security_name = "旧社名".to_string();
-    older.settlement_date = NaiveDate::from_ymd_opt(2024, 3, 25).unwrap();
+    older.settlement_date =
+        Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 25).unwrap();
     let mut newer = make_dividend_item("9938");
     newer.security_name = "新社名".to_string();
-    newer.settlement_date = NaiveDate::from_ymd_opt(2024, 6, 10).unwrap();
+    newer.settlement_date =
+        Date::from_calendar_date(2024, time::Month::try_from(6).unwrap(), 10).unwrap();
     let mut other = make_dividend_item("9939");
     other.product = "投資信託".to_string();
     other.account = "NISA".parse().unwrap();
-    other.settlement_date = NaiveDate::from_ymd_opt(2023, 1, 10).unwrap();
+    other.settlement_date =
+        Date::from_calendar_date(2023, time::Month::try_from(1).unwrap(), 10).unwrap();
     dividend_svc::bulk_create(
         &pool,
         user_id,
@@ -2170,7 +2189,8 @@ async fn search_facets_group_by_domain_fields() {
 
     let mut ds_older = make_domestic_stock_item("9935");
     ds_older.account = "NISA".parse().unwrap();
-    ds_older.trade_date = NaiveDate::from_ymd_opt(2023, 5, 15).unwrap();
+    ds_older.trade_date =
+        Date::from_calendar_date(2023, time::Month::try_from(5).unwrap(), 15).unwrap();
     let ds_newer = make_domestic_stock_item("9936");
     domestic_stock_svc::bulk_create(
         &pool,
@@ -2227,7 +2247,8 @@ async fn search_facets_group_by_domain_fields() {
 
     let mf_older = make_mutualfund_item("テスト投信A");
     let mut mf_newer = make_mutualfund_item("テスト投信B");
-    mf_newer.trade_date = NaiveDate::from_ymd_opt(2023, 8, 1).unwrap();
+    mf_newer.trade_date =
+        Date::from_calendar_date(2023, time::Month::try_from(8).unwrap(), 1).unwrap();
     mutualfund_svc::bulk_create(
         &pool,
         user_id,
@@ -2363,7 +2384,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     dividend_cache::acquire_rate_slot(&pool)
         .await
         .expect("スロット予約");
-    let row: (chrono::DateTime<Utc>,) = db::query_as(
+    let row: (time::OffsetDateTime,) = db::query_as(
         "SELECT next_available_at FROM market_data_provider_rate_control \
          WHERE provider = 'jquants'",
         vec![],
@@ -2372,7 +2393,7 @@ async fn dividend_cache_persistence_and_rate_slot() {
     .await
     .unwrap();
     assert!(
-        row.0 > Utc::now(),
+        row.0 > OffsetDateTime::now_utc(),
         "予約後の next_available_at は未来: {:?}",
         row.0
     );
@@ -2403,7 +2424,7 @@ async fn dividend_cache_migration_backfills_all_non_pending_rows_without_stale_a
     .await
     .expect("NULL stale_at のバックフィル");
 
-    let rows: Vec<(String, Option<chrono::DateTime<Utc>>)> = db::query(
+    let rows: Vec<(String, Option<time::OffsetDateTime>)> = db::query(
         "SELECT security_code, stale_at FROM dividend_per_share_cache
          WHERE security_code IN ('9911', '9912', '9913', '9914') ORDER BY security_code",
         vec![],
@@ -2411,10 +2432,19 @@ async fn dividend_cache_migration_backfills_all_non_pending_rows_without_stale_a
     .fetch_all(&pool)
     .await
     .expect("更新結果の取得");
-    assert_eq!(rows[0].1, Some("2025-01-01T00:00:00Z".parse().unwrap()));
+    assert_eq!(
+        rows[0].1,
+        Some(OffsetDateTime::parse("2025-01-01T00:00:00Z", &Rfc3339).unwrap())
+    );
     assert_eq!(rows[1].1, None);
-    assert_eq!(rows[2].1, Some("2099-01-03T00:00:00Z".parse().unwrap()));
-    assert_eq!(rows[3].1, Some("2025-01-05T00:00:00Z".parse().unwrap()));
+    assert_eq!(
+        rows[2].1,
+        Some(OffsetDateTime::parse("2099-01-03T00:00:00Z", &Rfc3339).unwrap())
+    );
+    assert_eq!(
+        rows[3].1,
+        Some(OffsetDateTime::parse("2025-01-05T00:00:00Z", &Rfc3339).unwrap())
+    );
 
     let selected: Vec<(String,)> = db::query(
         "SELECT security_code FROM dividend_per_share_cache
@@ -2502,7 +2532,7 @@ async fn dividend_cache_drain_refresh_queue() {
     assert_eq!(row.1.as_deref(), Some("429"));
 
     // 失敗した行は再試行間隔分だけ stale_at が未来になり、即時には再消化されない
-    let row: (chrono::DateTime<Utc>,) = db::query_as(
+    let row: (time::OffsetDateTime,) = db::query_as(
         "SELECT stale_at FROM dividend_per_share_cache WHERE security_code = '9904'",
         vec![],
     )
@@ -2510,7 +2540,7 @@ async fn dividend_cache_drain_refresh_queue() {
     .await
     .unwrap();
     assert!(
-        row.0 > Utc::now() + chrono::Duration::hours(23),
+        row.0 > OffsetDateTime::now_utc() + time::Duration::hours(23),
         "失敗行の stale_at は再試行間隔の先: {:?}",
         row.0
     );
@@ -3390,7 +3420,7 @@ async fn trading_tables_rls_isolates_restricted_role() {
     )
     .await
     .expect("残高の投入に失敗");
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
     insert_fund_row(
         &pool,
         user_a,
@@ -3402,7 +3432,7 @@ async fn trading_tables_rls_isolates_restricted_role() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     insert_fund_row(
@@ -3416,7 +3446,7 @@ async fn trading_tables_rls_isolates_restricted_role() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
 
@@ -4216,7 +4246,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
 }
 
 /// (基準日, 試行時刻) の取得用ヘルパー。価格更新cronの選択・循環確認に使う
-async fn price_row(pool: &Db, code: &str) -> Option<(Option<NaiveDate>, chrono::DateTime<Utc>)> {
+async fn price_row(pool: &Db, code: &str) -> Option<(Option<Date>, time::OffsetDateTime)> {
     db::query(
         "SELECT price_as_of, updated_at FROM security_prices WHERE security_code = $1",
         vec![Bind::from(code)],
@@ -4253,19 +4283,18 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
         .await
         .expect("seed bulk_create failed");
 
-    let stale_as_of = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+    let stale_as_of = Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1).unwrap();
     let ts = |y, m, d| {
-        NaiveDate::from_ymd_opt(y, m, d)
+        Date::from_calendar_date(y, m, d)
             .unwrap()
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_utc()
+            .with_time(time::Time::MIDNIGHT)
+            .assume_utc()
     };
-    let bad_mark = ts(2020, 1, 1);
-    let good_mark = ts(2020, 6, 1);
-    let fresh_mark = ts(2019, 1, 1);
+    let bad_mark = ts(2020, time::Month::January, 1);
+    let good_mark = ts(2020, time::Month::June, 1);
+    let fresh_mark = ts(2019, time::Month::January, 1);
     // 最新済みの基準日は latest_close_date(now) 以上である必要があるため JST 当日
-    let fresh_as_of = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let fresh_as_of = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
 
     // 個人 CSV 価格は共有行を作らないため、確定済みの共有価格は直接 INSERT で置く
     for code in &bad_codes[..14] {
@@ -4288,7 +4317,9 @@ async fn stock_price_refresh_cycles_past_failing_codes() {
          VALUES ($1, 1100, $2, $3)",
         vec![
             Bind::from(GOOD),
-            Bind::from(NaiveDate::from_ymd_opt(2020, 6, 1).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2020, time::Month::try_from(6).unwrap(), 1).unwrap(),
+            ),
             Bind::from(good_mark),
         ],
     )
@@ -4389,7 +4420,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     .expect("bulk_create 失敗");
 
     let code: SecurityCode = "9904".parse().unwrap();
-    let as_of = |d| NaiveDate::from_ymd_opt(2020, 1, d).unwrap();
+    let as_of = |d| Date::from_calendar_date(2020, time::Month::January, d).unwrap();
 
     // 1/14 終値100・前日終値90 が確定済み
     stock_price::apply_close_price(
@@ -4456,7 +4487,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
         "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
         vec![Bind::from("9904")],
     )
-    .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
+    .fetch_one::<(Date, Option<db::Numeric>), _>(&pool)
     .await
     .expect("共有価格の取得に失敗");
     assert_eq!(stored_as_of, as_of(15));
@@ -4488,7 +4519,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
         "SELECT price_as_of, prev_close FROM security_prices WHERE security_code = $1",
         vec![Bind::from("9904")],
     )
-    .fetch_one::<(NaiveDate, Option<db::Numeric>), _>(&pool)
+    .fetch_one::<(Date, Option<db::Numeric>), _>(&pool)
     .await
     .expect("共有価格の取得に失敗");
     assert_eq!(stored_as_of, as_of(15));
@@ -4508,8 +4539,8 @@ async fn insert_fund_row(
     day_change: Option<rust_decimal::Decimal>,
     market_value: rust_decimal::Decimal,
     profit_loss: rust_decimal::Decimal,
-    price_as_of: NaiveDate,
-    created_at: chrono::DateTime<Utc>,
+    price_as_of: Date,
+    created_at: time::OffsetDateTime,
 ) {
     db::query(
         "INSERT INTO fund_balances (user_id, fund_name, account, dividends_course, shares, \
@@ -4544,7 +4575,7 @@ async fn view_fund_row(pool: &Db, user_id: UserId) -> FundBalance {
     .expect("fund_balances_view の取得に失敗")
 }
 
-async fn put_fund_price(pool: &Db, cd: &str, nav: &str, change: &str, as_of: NaiveDate) {
+async fn put_fund_price(pool: &Db, cd: &str, nav: &str, change: &str, as_of: Date) {
     db::query(
         "INSERT INTO fund_prices (association_fund_cd, nav, prev_day_change, price_as_of) \
          VALUES ($1, $2::numeric, $3::numeric, $4) \
@@ -4595,7 +4626,7 @@ async fn fund_name_normalize_unifies_width_space_and_paren() {
 async fn fund_nav_view_uses_shared_values_within_three_days() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000001', $1",
@@ -4615,7 +4646,7 @@ async fn fund_nav_view_uses_shared_values_within_three_days() {
         dec!(150000),
         dec!(50000),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     fund_price::apply_fund_nav(
@@ -4650,7 +4681,7 @@ async fn fund_nav_view_uses_shared_values_within_three_days() {
 async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let e = fund_price::expected_nav_date(Utc::now());
+    let e = fund_price::expected_nav_date(OffsetDateTime::now_utc());
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000003', $1",
@@ -4672,7 +4703,7 @@ async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
         dec!(105000),
         dec!(5000),
         e,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     put_fund_price(
@@ -4680,7 +4711,7 @@ async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
         "90000003",
         "11000",
         "100",
-        e - chrono::Duration::days(1),
+        e - time::Duration::days(1),
     )
     .await;
 
@@ -4702,12 +4733,11 @@ async fn fund_nav_view_prefers_fresh_csv_over_stale_shared() {
 async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let e = fund_price::expected_nav_date(Utc::now());
-    let far_past_ts = NaiveDate::from_ymd_opt(2020, 1, 1)
+    let e = fund_price::expected_nav_date(OffsetDateTime::now_utc());
+    let far_past_ts = Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1)
         .unwrap()
-        .and_hms_opt(0, 0, 0)
-        .unwrap()
-        .and_utc();
+        .with_time(time::Time::MIDNIGHT)
+        .assume_utc();
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000002', $1",
@@ -4735,7 +4765,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
         "90000002",
         "11000",
         "100",
-        e - chrono::Duration::days(4),
+        e - time::Duration::days(4),
     )
     .await;
 
@@ -4754,7 +4784,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
         "90000002",
         "11000",
         "100",
-        e - chrono::Duration::days(3),
+        e - time::Duration::days(3),
     )
     .await;
     let row = view_fund_row(&pool, user_id).await;
@@ -4769,7 +4799,7 @@ async fn fund_nav_view_falls_back_to_legacy_rule_when_both_are_stale() {
 async fn fund_nav_view_keeps_csv_for_unmapped_fund() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
     insert_fund_row(
         &pool,
         user_id,
@@ -4781,7 +4811,7 @@ async fn fund_nav_view_keeps_csv_for_unmapped_fund() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     put_fund_price(&pool, "90000099", "11000", "100", today).await;
@@ -4800,9 +4830,9 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
 
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let e = fund_price::expected_nav_date(Utc::now());
-    let far_past = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
-    let far_past_ts = far_past.and_hms_opt(0, 0, 0).unwrap().and_utc();
+    let e = fund_price::expected_nav_date(OffsetDateTime::now_utc());
+    let far_past = Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1).unwrap();
+    let far_past_ts = far_past.with_time(time::Time::MIDNIGHT).assume_utc();
 
     db::query(
         "INSERT INTO fund_codes (normalized_name, association_fund_cd, fund_name) VALUES \
@@ -4819,7 +4849,7 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
     // 3日ルールで必ず共有側になる
     for (name, cd, as_of) in [
         ("最新APIファンド", "90000011", e),
-        ("待ちAPIファンド", "90000012", e - chrono::Duration::days(1)),
+        ("待ちAPIファンド", "90000012", e - time::Duration::days(1)),
     ] {
         insert_fund_row(
             &pool,
@@ -4848,8 +4878,8 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
         Some(dec!(5)),
         dec!(100000),
         dec!(0),
-        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-        Utc::now() + chrono::Duration::days(1),
+        Date::from_calendar_date(2026, time::Month::try_from(1).unwrap(), 1).unwrap(),
+        OffsetDateTime::now_utc() + time::Duration::days(1),
     )
     .await;
     insert_fund_row(
@@ -4862,7 +4892,7 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
         Some(dec!(5)),
         dec!(100000),
         dec!(0),
-        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        Date::from_calendar_date(2026, time::Month::try_from(1).unwrap(), 1).unwrap(),
         far_past_ts,
     )
     .await;
@@ -4890,12 +4920,11 @@ async fn fund_nav_view_marks_latest_and_pending_by_expected_date() {
 async fn fund_summary_sums_only_latest_rows() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
-    let far_past_ts = NaiveDate::from_ymd_opt(2020, 1, 1)
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
+    let far_past_ts = Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1)
         .unwrap()
-        .and_hms_opt(0, 0, 0)
-        .unwrap()
-        .and_utc();
+        .with_time(time::Time::MIDNIGHT)
+        .assume_utc();
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000021', $1",
@@ -4916,7 +4945,7 @@ async fn fund_summary_sums_only_latest_rows() {
         dec!(200000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     put_fund_price(&pool, "90000021", "11000", "10", today).await;
@@ -4953,8 +4982,8 @@ async fn fund_summary_sums_only_latest_rows() {
         None,
         dec!(100000),
         dec!(0),
-        NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
-        Utc::now(),
+        Date::from_calendar_date(2020, time::Month::try_from(1).unwrap(), 1).unwrap(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     db::query(
@@ -4992,7 +5021,7 @@ async fn fund_summary_sums_only_latest_rows() {
 async fn fund_nav_status_counts_fetched_failed_and_pending() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
 
     // 取得できた(共有値があり失敗記録がない)
     db::query(
@@ -5013,7 +5042,7 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     put_fund_price(&pool, "90000031", "11000", "10", today).await;
@@ -5037,7 +5066,7 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     db::query(
@@ -5068,7 +5097,7 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
 
@@ -5106,7 +5135,7 @@ async fn fund_nav_status_counts_fetched_failed_and_pending() {
 async fn fund_nav_status_without_failure_has_no_reason() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
 
     db::query(
         "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000041', $1",
@@ -5126,13 +5155,11 @@ async fn fund_nav_status_without_failure_has_no_reason() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     put_fund_price(&pool, "90000041", "11000", "100", today).await;
-    let fixed = chrono::DateTime::parse_from_rfc3339("2026-10-26T14:05:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let fixed = OffsetDateTime::parse("2026-10-26T14:05:00Z", &Rfc3339).unwrap();
     db::query(
         "UPDATE fund_prices SET updated_at = $1 WHERE association_fund_cd = $2",
         vec![Bind::from(fixed), Bind::from("90000041")],
@@ -5174,12 +5201,8 @@ async fn fund_nav_status_failure_reason_prefers_latest_and_isolates_users() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
     let other_id = create_test_user(&pool).await;
-    let today = (Utc::now() + chrono::Duration::hours(9)).date_naive();
-    let at = |s: &str| {
-        chrono::DateTime::parse_from_rfc3339(s)
-            .unwrap()
-            .with_timezone(&Utc)
-    };
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
+    let at = |s: &str| OffsetDateTime::parse(s, &Rfc3339).unwrap();
 
     for (name, cd) in [
         ("口座またぎ失敗ファンド", "90000042"),
@@ -5211,7 +5234,7 @@ async fn fund_nav_status_failure_reason_prefers_latest_and_isolates_users() {
                 Bind::from(name),
                 Bind::from(account),
                 Bind::from(today),
-                Bind::from(Utc::now()),
+                Bind::from(OffsetDateTime::now_utc()),
             ],
         )
         .execute(&pool)
@@ -5229,7 +5252,7 @@ async fn fund_nav_status_failure_reason_prefers_latest_and_isolates_users() {
         dec!(100000),
         dec!(0),
         today,
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     )
     .await;
     for (cd, reason, failed_at) in [
@@ -5301,7 +5324,9 @@ async fn fund_nav_status_failure_reason_prefers_latest_and_isolates_users() {
 #[ignore = "requires Docker to run Postgres container"]
 async fn fund_nav_apply_keeps_newer_row() {
     let (pool, _node) = start_test_pool().await;
-    let as_of = |d: u32| NaiveDate::from_ymd_opt(2026, 1, d).unwrap();
+    let as_of = |d: u32| {
+        Date::from_calendar_date(2026, time::Month::January, u8::try_from(d).unwrap()).unwrap()
+    };
 
     let updated = fund_price::apply_fund_nav(
         &pool,
@@ -5328,7 +5353,7 @@ async fn fund_nav_apply_keeps_newer_row() {
     .await
     .expect("apply 失敗");
     assert_eq!(updated, 0);
-    let (stored_as_of, nav): (NaiveDate, db::Numeric) = db::query(
+    let (stored_as_of, nav): (Date, db::Numeric) = db::query(
         "SELECT price_as_of, nav FROM fund_prices WHERE association_fund_cd = $1",
         vec![Bind::from("90000031")],
     )
@@ -5355,10 +5380,9 @@ async fn fund_expected_nav_date_matches_rust_mirror() {
         "2026-10-26T09:00:00+09:00",
         "2026-10-26T23:01:00+09:00",
     ] {
-        let now = chrono::DateTime::parse_from_rfc3339(ts)
-            .unwrap()
-            .with_timezone(&Utc);
-        let (sql_e,): (NaiveDate,) = db::query(
+        let now = OffsetDateTime::parse(ts, &Rfc3339).unwrap();
+        let rust_now = now.to_offset(time::UtcOffset::from_hms(9, 0, 0).unwrap());
+        let (sql_e,): (Date,) = db::query(
             "SELECT fund_expected_nav_date($1::timestamptz)",
             vec![Bind::from(now)],
         )
@@ -5367,7 +5391,7 @@ async fn fund_expected_nav_date_matches_rust_mirror() {
         .expect("fund_expected_nav_date");
         assert_eq!(
             sql_e,
-            fund_price::expected_nav_date(now),
+            fund_price::expected_nav_date(rust_now),
             "{ts} で SQL/Rust の E が不一致"
         );
     }
@@ -5466,14 +5490,13 @@ async fn post_csv(
 fn csv_kind_timestamp(
     stats: &shared::csv_kind_stats::CsvKindStatsResponse,
     kind: &str,
-) -> chrono::DateTime<Utc> {
+) -> time::OffsetDateTime {
     stats
         .kinds
         .iter()
         .find(|stat| stat.kind == kind)
         .and_then(|stat| stat.latest_imported_at.as_deref())
-        .and_then(|timestamp| chrono::DateTime::parse_from_rfc3339(timestamp).ok())
-        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .and_then(|timestamp| OffsetDateTime::parse(timestamp, &Rfc3339).ok())
         .expect("取込時刻が存在する")
 }
 
@@ -5482,7 +5505,7 @@ fn csv_kind_timestamp(
 async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
     let (pool, _node) = start_test_pool().await;
     let (app, user_id, session) = csv_test_app(&pool).await;
-    let old_timestamp = Utc::now() - chrono::Duration::days(3);
+    let old_timestamp = OffsetDateTime::now_utc() - time::Duration::days(3);
     let fund_csv = concat!(
         "投資信託種別,口座区分,ファンド,分配金コース,保有数量[口],平均取得価額[円],取得総額[円],基準価額[円],時価評価額[円],評価損益[円]\n",
         "投資信託,特定,架空長期積立ファンド,再投資型,10000,10000,10000,11000,11000,1000"
@@ -5522,7 +5545,7 @@ async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
     ] {
         let first = post_csv(&app, session, path, &csv).await;
         assert_eq!(first.status(), StatusCode::CREATED, "{kind}");
-        let recorded: Option<chrono::DateTime<Utc>> = db::query_scalar(
+        let recorded: Option<time::OffsetDateTime> = db::query_scalar(
             "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
             vec![Bind::from(user_id), Bind::from(kind)],
         )
@@ -5553,7 +5576,7 @@ async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
         );
         assert!(result.errors.is_empty(), "{kind}: {:?}", result.errors);
 
-        let last_imported_at: chrono::DateTime<Utc> = db::query_scalar(
+        let last_imported_at: time::OffsetDateTime = db::query_scalar(
             "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
             vec![Bind::from(user_id), Bind::from(kind)],
         )
@@ -5582,9 +5605,7 @@ async fn csv_import_success_updates_history_when_no_rows_are_inserted() {
 async fn csv_import_failure_does_not_update_history() {
     let (pool, _node) = start_test_pool().await;
     let (app, user_id, session) = csv_test_app(&pool).await;
-    let old_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let old_timestamp = OffsetDateTime::parse("2026-10-24T02:15:00Z", &Rfc3339).unwrap();
 
     for (kind, path, csv, expected_status) in [
         (
@@ -5637,7 +5658,7 @@ async fn csv_import_failure_does_not_update_history() {
             assert_eq!((result.inserted, result.skipped), (0, 0));
             assert_ne!(result.errors, [] as [shared::csv_import::CsvRowError; 0]);
         }
-        let last_imported_at: chrono::DateTime<Utc> = db::query_scalar(
+        let last_imported_at: time::OffsetDateTime = db::query_scalar(
             "SELECT last_imported_at FROM csv_import_history WHERE user_id = $1 AND kind = $2",
             vec![Bind::from(user_id), Bind::from(kind)],
         )
@@ -5653,9 +5674,7 @@ async fn csv_import_failure_does_not_update_history() {
 async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
-    let expected = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let expected = OffsetDateTime::parse("2026-10-24T02:15:00Z", &Rfc3339).unwrap();
 
     dividend_svc::bulk_create(
         &pool,
@@ -5686,7 +5705,7 @@ async fn csv_kind_stats_falls_back_to_latest_created_at_without_history() {
             .count,
         2
     );
-    let recorded = expected - chrono::Duration::days(2);
+    let recorded = expected - time::Duration::days(2);
     db::query(
         "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
         vec![
@@ -5710,12 +5729,8 @@ async fn csv_import_history_is_scoped_by_user() {
     let (pool, _node) = start_test_pool().await;
     let (app, first_user, session) = csv_test_app(&pool).await;
     let second_user = create_test_user(&pool).await;
-    let first_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
-    let second_timestamp = chrono::DateTime::parse_from_rfc3339("2026-10-27T04:30:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let first_timestamp = OffsetDateTime::parse("2026-10-24T02:15:00Z", &Rfc3339).unwrap();
+    let second_timestamp = OffsetDateTime::parse("2026-10-27T04:30:00Z", &Rfc3339).unwrap();
 
     for (user_id, timestamp) in [
         (first_user, first_timestamp),
@@ -5798,9 +5813,7 @@ async fn csv_kind_stats_ignores_history_after_delete_all() {
     )
     .await
     .expect("配当データを作成できる");
-    let recorded = chrono::DateTime::parse_from_rfc3339("2026-10-24T02:15:00Z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let recorded = OffsetDateTime::parse("2026-10-24T02:15:00Z", &Rfc3339).unwrap();
     db::query(
         "INSERT INTO csv_import_history (user_id, kind, last_imported_at) VALUES ($1, $2, $3)",
         vec![
@@ -5840,12 +5853,12 @@ async fn csv_import_perf_10k_reports_timing() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
 
-    let base = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let base = Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 1).unwrap();
     let items: Vec<CreateDividendRequest> = (0..10_000)
         .map(|i| {
             let code = format!("C{:04}", i % 100);
             CreateDividendRequest {
-                settlement_date: base + chrono::Duration::days(i / 100),
+                settlement_date: base + time::Duration::days(i / 100),
                 product: "国内株式".to_string(),
                 account: "特定".parse().unwrap(),
                 security_code: code.clone(),
@@ -5882,8 +5895,8 @@ async fn csv_import_perf_10k_reports_timing() {
 
     let ds_items: Vec<CreateDomesticStockRequest> = (0..10_000)
         .map(|i| CreateDomesticStockRequest {
-            trade_date: base + chrono::Duration::days(i),
-            settlement_date: base + chrono::Duration::days(i),
+            trade_date: base + time::Duration::days(i),
+            settlement_date: base + time::Duration::days(i),
             security_code: format!("D{:04}", i % 100).parse().unwrap(),
             security_name: format!("架空銘柄D{:03}_{:05}", i % 200, i),
             account: "特定".parse().unwrap(),
@@ -6412,7 +6425,9 @@ async fn app_restricted_role_has_least_privilege() {
     db::query(
         "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
         vec![
-            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 24).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2025, time::Month::try_from(3).unwrap(), 24).unwrap(),
+            ),
             Bind::from("9931"),
             Bind::from("テスト株式会社"),
             Bind::from("プライム"),
@@ -6525,7 +6540,9 @@ async fn app_restricted_role_has_least_privilege() {
     let err = db::query(
         "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
         vec![
-            Bind::from(NaiveDate::from_ymd_opt(2025, 3, 25).unwrap()),
+            Bind::from(
+                Date::from_calendar_date(2025, time::Month::try_from(3).unwrap(), 25).unwrap(),
+            ),
             Bind::from("9932"),
             Bind::from("テスト株式会社"),
             Bind::from("プライム"),
@@ -6762,7 +6779,7 @@ async fn stage5b_definer_functions_and_app_enter() {
         "SELECT * FROM login_notify_peek_by_token($1)",
         vec![Bind::Bytes(hash_plain_b.clone())],
     )
-    .fetch_optional::<(UserId, chrono::DateTime<chrono::Utc>), _>(&mut tx)
+    .fetch_optional::<(UserId, OffsetDateTime), _>(&mut tx)
     .await
     .expect("参照関数の呼び出しに失敗");
     assert_eq!(
@@ -6774,7 +6791,7 @@ async fn stage5b_definer_functions_and_app_enter() {
         "SELECT * FROM login_notify_peek_by_token($1)",
         vec![Bind::Bytes(vec![92u8; 32])],
     )
-    .fetch_optional::<(UserId, chrono::DateTime<chrono::Utc>), _>(&mut tx)
+    .fetch_optional::<(UserId, OffsetDateTime), _>(&mut tx)
     .await
     .expect("参照関数の呼び出しに失敗");
     assert!(missing.is_none(), "未知のハッシュでは行を返さないはず");

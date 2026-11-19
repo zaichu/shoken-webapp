@@ -997,7 +997,7 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             &SecurityCode::from_raw("99999".into()),
             &ClosePrice {
                 close: rust_decimal::Decimal::new(12345, 2),
-                as_of: chrono::Utc::now().date_naive(),
+                as_of: time::OffsetDateTime::now_utc().date(),
                 prev_close: Some(rust_decimal::Decimal::new(12000, 2)),
             },
         )
@@ -1033,7 +1033,7 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
             &FundNav {
                 nav: rust_decimal::Decimal::new(125, 2),
                 prev_day_change: rust_decimal::Decimal::new(1, 2),
-                base_date: chrono::Utc::now().date_naive(),
+                base_date: time::OffsetDateTime::now_utc().date(),
             },
         )
         .await
@@ -1141,7 +1141,7 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         let replaced = stock_master::replace_master(
             db_pool,
             &[stock_master::StockRow {
-                date: chrono::Utc::now().date_naive(),
+                date: time::OffsetDateTime::now_utc().date(),
                 code: "9999".to_string(),
                 name: "架空の銘柄".to_string(),
                 market_category: "プライム".to_string(),

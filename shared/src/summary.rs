@@ -120,14 +120,40 @@ pub fn mutualfund_totals(rows: &[Mutualfund]) -> MutualfundSummary {
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
+    #[cfg(feature = "typed")]
+    use time::{Date, Month, OffsetDateTime};
+
+    #[cfg(feature = "typed")]
+    fn parse_date(value: &str) -> Date {
+        Date::parse(value, &time::format_description::well_known::Iso8601::DATE)
+            .expect("valid date")
+    }
 
     fn domestic(date: &str, account: &str, pnl: Decimal, taxes: Decimal) -> DomesticStock {
         DomesticStock {
             id: Default::default(),
             #[cfg(feature = "typed")]
             user_id: Default::default(),
-            trade_date: date.parse().expect("valid date"),
-            settlement_date: date.parse().expect("valid date"),
+            trade_date: {
+                #[cfg(feature = "typed")]
+                {
+                    parse_date(date)
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    date.to_string()
+                }
+            },
+            settlement_date: {
+                #[cfg(feature = "typed")]
+                {
+                    parse_date(date)
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    date.to_string()
+                }
+            },
             security_code: "1234".parse().expect("valid code"),
             security_name: "テスト".to_string(),
             account: account.parse().expect("valid account"),
@@ -138,8 +164,26 @@ mod tests {
             realized_profit_and_loss: pnl,
             taxes,
             realized_profit_and_loss_after_tax: pnl - taxes,
-            created_at: Default::default(),
-            updated_at: Default::default(),
+            created_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
+            updated_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
         }
     }
 
@@ -175,7 +219,16 @@ mod tests {
             id: Default::default(),
             #[cfg(feature = "typed")]
             user_id: Default::default(),
-            settlement_date: Default::default(),
+            settlement_date: {
+                #[cfg(feature = "typed")]
+                {
+                    Date::from_calendar_date(1970, Month::January, 1).expect("valid date")
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01".to_string()
+                }
+            },
             product: "国内株式".to_string(),
             account: "特定口座".parse().expect("valid account"),
             security_code: "1234".to_string(),
@@ -185,8 +238,26 @@ mod tests {
             dividends_before_tax: before_tax,
             taxes,
             net_amount_received: before_tax - taxes,
-            created_at: Default::default(),
-            updated_at: Default::default(),
+            created_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
+            updated_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
         }
     }
 
@@ -195,8 +266,26 @@ mod tests {
             id: Default::default(),
             #[cfg(feature = "typed")]
             user_id: Default::default(),
-            trade_date: Default::default(),
-            settlement_date: Default::default(),
+            trade_date: {
+                #[cfg(feature = "typed")]
+                {
+                    Date::from_calendar_date(1970, Month::January, 1).expect("valid date")
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01".to_string()
+                }
+            },
+            settlement_date: {
+                #[cfg(feature = "typed")]
+                {
+                    Date::from_calendar_date(1970, Month::January, 1).expect("valid date")
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01".to_string()
+                }
+            },
             fund_name: "テストファンド".to_string(),
             dividends: None,
             account: "特定口座".parse().expect("valid account"),
@@ -208,8 +297,26 @@ mod tests {
             realized_profit_and_loss: pnl,
             taxes,
             realized_profit_and_loss_after_tax: pnl - taxes,
-            created_at: Default::default(),
-            updated_at: Default::default(),
+            created_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
+            updated_at: {
+                #[cfg(feature = "typed")]
+                {
+                    OffsetDateTime::UNIX_EPOCH
+                }
+                #[cfg(not(feature = "typed"))]
+                {
+                    "1970-01-01T00:00:00Z".to_string()
+                }
+            },
         }
     }
 

@@ -1,6 +1,7 @@
 pub mod asset_balance;
 pub mod common;
 pub mod csv_import;
+pub(crate) mod date_serde;
 pub mod dividend;
 pub mod dividend_cache;
 pub mod domestic_stock;

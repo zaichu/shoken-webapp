@@ -2,13 +2,60 @@
 // utoipa の derive が型名をそのまま見るため、フィールド宣言は共通のまま型の実体だけを切り替える。
 // user_id は backend 専用（wire に出ない）なので typed 時のみ存在させる。
 #[cfg(feature = "typed")]
-pub use chrono::{DateTime, NaiveDate, Utc};
+pub use time::{Date as NaiveDate, OffsetDateTime};
 #[cfg(feature = "typed")]
 pub use uuid::Uuid;
 #[cfg(not(feature = "typed"))]
 pub type Uuid = String;
 #[cfg(not(feature = "typed"))]
 pub type NaiveDate = String;
+
+#[cfg(any(feature = "typed", test))]
+mod date_serde {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use time::Date;
+
+    const ISO_DATE: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[year]-[month padding:none]-[day padding:none]");
+
+    pub fn serialize<S>(date: &Date, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(date)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Date::parse(&value, ISO_DATE).map_err(serde::de::Error::custom)
+    }
+
+    pub mod option {
+        use super::*;
+
+        pub fn serialize<S>(date: &Option<Date>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            match date {
+                Some(date) => serializer.serialize_some(&date.to_string()),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            Option::<String>::deserialize(deserializer)?
+                .map(|value| Date::parse(&value, ISO_DATE).map_err(serde::de::Error::custom))
+                .transpose()
+        }
+    }
+}
 
 #[cfg(feature = "typed")]
 use crate::value::UserId;
@@ -25,7 +72,11 @@ pub struct DomesticStock {
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
     pub user_id: UserId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub trade_date: NaiveDate,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub settlement_date: NaiveDate,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     #[serde(deserialize_with = "crate::value::unchecked::security_code")]
@@ -49,11 +100,13 @@ pub struct DomesticStock {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub realized_profit_and_loss_after_tax: Decimal,
     #[cfg(feature = "typed")]
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub created_at: String,
     #[cfg(feature = "typed")]
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub updated_at: String,
 }
@@ -83,6 +136,8 @@ pub struct Dividend {
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
     pub user_id: UserId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub settlement_date: NaiveDate,
     pub product: String,
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
@@ -102,11 +157,13 @@ pub struct Dividend {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub net_amount_received: Decimal,
     #[cfg(feature = "typed")]
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub created_at: String,
     #[cfg(feature = "typed")]
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub updated_at: String,
 }
@@ -132,7 +189,11 @@ pub struct Mutualfund {
     #[cfg(feature = "typed")]
     #[serde(default, skip_serializing)]
     pub user_id: UserId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub trade_date: NaiveDate,
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub settlement_date: NaiveDate,
     pub fund_name: String,
     pub dividends: Option<String>,
@@ -156,11 +217,13 @@ pub struct Mutualfund {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub realized_profit_and_loss_after_tax: Decimal,
     #[cfg(feature = "typed")]
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub created_at: String,
     #[cfg(feature = "typed")]
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub updated_at: String,
 }
@@ -208,17 +271,22 @@ pub struct AssetBalance {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub daily_change: Decimal,
     /// 現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>, format = "date"))]
+    #[serde(default)]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde::option"))]
     pub price_as_of: Option<NaiveDate>,
     /// 前日終値。共有価格(security_prices)由来の行のみ持ち、
     /// 上場直後・取得失敗で前日終値がない銘柄は null（行の前日比は「—」・合計から除外）
     #[cfg_attr(feature = "utoipa", schema(value_type = Option<f64>))]
     pub prev_close: Option<Decimal>,
     #[cfg(feature = "typed")]
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub created_at: String,
     #[cfg(feature = "typed")]
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub updated_at: String,
 }
@@ -305,6 +373,8 @@ pub struct FundBalance {
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_return: Option<Decimal>,
     /// 出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub price_as_of: NaiveDate,
     /// 基準価額まわりの値の出どころ
     #[serde(default)]
@@ -315,13 +385,17 @@ pub struct FundBalance {
     pub nav_is_latest: bool,
     /// nav_is_latest の判定に使った「公表済みのはずの最新の基準価額の日」(JST)
     #[serde(default)]
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>, format = "date"))]
+    #[cfg_attr(feature = "typed", serde(with = "date_serde::option"))]
     pub expected_nav_date: Option<NaiveDate>,
     #[cfg(feature = "typed")]
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub created_at: String,
     #[cfg(feature = "typed")]
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
     #[cfg(not(feature = "typed"))]
     pub updated_at: String,
 }
@@ -379,6 +453,96 @@ mod tests {
     use super::*;
 
     #[test]
+    fn date_serde_helpers_keep_iso_date_wire_format() {
+        #[derive(Deserialize)]
+        struct DateField {
+            #[serde(with = "date_serde")]
+            date: time::Date,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct DateFields {
+            #[serde(with = "date_serde")]
+            date: time::Date,
+            #[serde(default, with = "date_serde::option")]
+            optional_date: Option<time::Date>,
+        }
+
+        let fields = DateFields {
+            date: time::Date::from_calendar_date(2024, time::Month::January, 15)
+                .expect("valid date"),
+            optional_date: Some(
+                time::Date::from_calendar_date(2024, time::Month::January, 17).expect("valid date"),
+            ),
+        };
+        let json = serde_json::to_value(&fields).expect("serialize dates");
+        assert_eq!(json["date"], "2024-01-15");
+        assert_eq!(json["optional_date"], "2024-01-17");
+
+        let decoded: DateFields = serde_json::from_value(json).expect("deserialize dates");
+        assert_eq!(decoded.date, fields.date);
+        assert_eq!(decoded.optional_date, fields.optional_date);
+
+        for unpadded in ["2024-1-5", "2024-01-5", "2024-1-05"] {
+            let value = serde_json::json!({"date": unpadded});
+            let decoded: DateField = serde_json::from_value(value).expect("deserialize date");
+            assert_eq!(decoded.date.to_string(), "2024-01-05", "{unpadded}");
+        }
+    }
+
+    #[cfg(feature = "typed")]
+    #[test]
+    fn asset_balance_accepts_missing_price_as_of() {
+        let value = serde_json::json!({
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "security_code": "1301",
+            "security_name": "極洋",
+            "shares": 1,
+            "average_purchase_price": 1,
+            "total_purchase_amount": 1,
+            "current_price": 1,
+            "daily_change": 0,
+            "prev_close": null,
+            "created_at": "2024-01-15T00:00:00Z",
+            "updated_at": "2024-01-15T00:00:00Z"
+        });
+
+        let balance: AssetBalance = serde_json::from_value(value).expect("missing date accepted");
+        assert_eq!(balance.price_as_of, None);
+    }
+
+    #[cfg(feature = "typed")]
+    #[test]
+    fn date_fields_keep_iso_date_wire_format() {
+        let stock: DomesticStock = serde_json::from_str(
+            r#"{
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "trade_date": "2024-01-15",
+                "settlement_date": "2024-01-17",
+                "security_code": "1301",
+                "security_name": "極洋",
+                "account": "特定",
+                "shares": 100,
+                "asked_price": 1500.5,
+                "proceeds": 150050,
+                "purchase_price": 1400.25,
+                "realized_profit_and_loss": 10000.1,
+                "taxes": 2031.5,
+                "realized_profit_and_loss_after_tax": 7968.6,
+                "created_at": "2024-01-15T01:23:45Z",
+                "updated_at": "2024-01-16T01:23:45Z"
+            }"#,
+        )
+        .expect("deserialize DTO with ISO dates");
+
+        let json = serde_json::to_value(&stock).expect("serialize DTO");
+        assert_eq!(json["trade_date"], "2024-01-15");
+        assert_eq!(json["settlement_date"], "2024-01-17");
+        assert_eq!(json["created_at"], "2024-01-15T01:23:45Z");
+        assert_eq!(json["updated_at"], "2024-01-16T01:23:45Z");
+    }
+
+    #[test]
     fn domestic_stock_omits_user_id_and_accepts_its_absence() {
         let stock: DomesticStock = serde_json::from_str(
             r#"{
@@ -405,6 +569,8 @@ mod tests {
         assert!(json.get("user_id").is_none());
         assert_eq!(json["trade_date"], "2024-01-15");
         assert_eq!(json["created_at"], "2024-01-15T01:23:45Z");
+        assert_eq!(json["updated_at"], "2024-01-16T01:23:45Z");
+        assert_eq!(json["settlement_date"], "2024-01-17");
         assert_eq!(json["id"], "550e8400-e29b-41d4-a716-446655440000");
     }
 }

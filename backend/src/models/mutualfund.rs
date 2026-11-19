@@ -1,9 +1,9 @@
 use crate::models::common;
 use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::value::Account;
+use time::Date;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
@@ -60,8 +60,10 @@ impl crate::db::FromRow for MutualfundSummary {
 /// 投資信託作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateMutualfundRequest {
-    pub trade_date: NaiveDate,
-    pub settlement_date: NaiveDate,
+    #[serde(with = "crate::models::date_serde")]
+    pub trade_date: Date,
+    #[serde(with = "crate::models::date_serde")]
+    pub settlement_date: Date,
     pub fund_name: String,
     pub dividends: Option<String>,
     #[schema(value_type = String)]
@@ -128,8 +130,10 @@ mod tests {
 
     fn base() -> CreateMutualfundRequest {
         CreateMutualfundRequest {
-            trade_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
-            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 19).expect("有効な日付 2024-01-19"),
+            trade_date: Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15)
+                .expect("有効な日付 2024-01-15"),
+            settlement_date: Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 19)
+                .expect("有効な日付 2024-01-19"),
             fund_name: "テストファンド".to_string(),
             dividends: Some("再投資型".to_string()),
             account: "特定".parse().expect("valid account"),
@@ -192,5 +196,18 @@ mod tests {
         params.search.include_facets = Some(true);
         assert!(params.should_include_summary());
         assert!(params.should_include_facets());
+    }
+
+    #[test]
+    fn create_request_keeps_iso_date_json_strings() {
+        let request = base();
+        let json = serde_json::to_value(&request).expect("serialize request");
+
+        assert_eq!(json["trade_date"], "2024-01-15");
+        assert_eq!(json["settlement_date"], "2024-01-19");
+        let decoded: CreateMutualfundRequest =
+            serde_json::from_value(json).expect("deserialize request");
+        assert_eq!(decoded.trade_date, request.trade_date);
+        assert_eq!(decoded.settlement_date, request.settlement_date);
     }
 }

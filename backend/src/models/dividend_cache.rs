@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 use shared::{dividend_per_share::DividendCacheStatus, value::SecurityCode};
+use time::OffsetDateTime;
 
 pub use shared::dividend_per_share::{
     DividendPerShareBatchRequest, DividendPerShareBatchResponse, DividendPerShareItem,
@@ -25,12 +25,16 @@ pub struct DividendCache {
     pub dividend_per_share: Option<Decimal>,
     /// ok: 有配当、zero: ゼロ配当、error: 取得失敗、pending: 未取得/更新待ち
     pub status: DividendCacheStatus,
-    pub fetched_at: Option<DateTime<Utc>>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub fetched_at: Option<OffsetDateTime>,
     /// TTL期限。この時刻を過ぎると再取得対象（NULL かつ pending 以外 = 即再取得対象）
-    pub stale_at: Option<DateTime<Utc>>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub stale_at: Option<OffsetDateTime>,
     pub provider: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
 }
 
 impl crate::db::FromRow for DividendCache {

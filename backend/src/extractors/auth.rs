@@ -79,9 +79,9 @@ mod tests {
         },
         axum::extract::FromRequestParts,
         axum::http::StatusCode,
-        chrono::Utc,
         shared::value::UserId,
         std::sync::Arc,
+        time::OffsetDateTime,
     };
 
     #[tokio::test]
@@ -130,8 +130,8 @@ mod tests {
             email: "test@example.com".to_string(),
             name: Some("Test User".to_string()),
             picture_url: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
         };
         assert_eq!(AuthenticatedUser(user.clone()).id(), user.id);
     }

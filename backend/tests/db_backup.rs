@@ -2,7 +2,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use backend::db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations};
-use chrono::NaiveDate;
 use shared::value::UserId;
 use std::fs;
 use std::io::Write;
@@ -12,6 +11,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use testcontainers::{ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
+use time::Date;
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
@@ -131,7 +131,9 @@ async fn seed_dummy(pool: &Db) -> Uuid {
         db::query(
             "INSERT INTO stock (date, code, name, market_category) VALUES ($1, $2, $3, $4)",
             vec![
-                Bind::from(NaiveDate::from_ymd_opt(2026, 10, 29).unwrap()),
+                Bind::from(
+                    Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 29).unwrap(),
+                ),
                 Bind::from(code),
                 Bind::from(name),
                 Bind::from("プライム"),

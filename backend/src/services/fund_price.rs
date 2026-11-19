@@ -4,10 +4,10 @@
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::{Decimal, prelude::Signed};
 use serde::Deserialize;
 use std::str::FromStr;
+use time::{Date, OffsetDateTime, Weekday};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
@@ -46,7 +46,7 @@ pub struct FundNav {
     /// 前日比(1万口あたり・円)。応答の cmp_prev_day
     pub prev_day_change: Decimal,
     /// 基準価額の基準日(応答の base_date)
-    pub base_date: NaiveDate,
+    pub base_date: Date,
 }
 
 /// 応答は result.status=200 かつ datasets 1件以上のときだけ値を持つ。
@@ -117,8 +117,11 @@ pub fn parse_mufg_nav(body: &str) -> Result<Option<FundNav>, ApiError> {
             _ => None,
         })
         .ok_or_else(|| reject("base_date がない"))?;
-    let base_date = NaiveDate::parse_from_str(&date_str, "%Y%m%d")
-        .map_err(|_| reject("base_date が日付でない"))?;
+    let base_date = Date::parse(
+        &date_str,
+        time::macros::format_description!("[year][month][day]"),
+    )
+    .map_err(|_| reject("base_date が日付でない"))?;
     let prev_day_change = as_decimal(dataset.cmp_prev_day.as_ref())
         .ok_or_else(|| reject("cmp_prev_day が数値でない"))?;
     let percentage_change = as_decimal(dataset.percentage_change.as_ref())
@@ -272,30 +275,30 @@ fn short_failure_reason(error: &ApiError) -> String {
 /// それより前は前の平日(土日は金曜)。祝日は扱わない。
 /// SQL の fund_expected_nav_date と同じ規則。表示側の「最新/更新待ち」判定は
 /// SQL 側が行い、こちらは更新対象の選定とテスト用
-pub fn expected_nav_date(now: DateTime<Utc>) -> NaiveDate {
-    let jst = now + chrono::Duration::hours(9);
-    let mut date = jst.date_naive();
+pub fn expected_nav_date(now: OffsetDateTime) -> Date {
+    let jst = now.to_offset(time::macros::offset!(+9));
+    let mut date = jst.date();
     if jst.hour() < 23 {
-        date -= chrono::Duration::days(1);
+        date -= time::Duration::days(1);
     }
-    date - chrono::Duration::days(match date.weekday() {
-        Weekday::Sat => 1,
-        Weekday::Sun => 2,
+    date - time::Duration::days(match date.weekday() {
+        Weekday::Saturday => 1,
+        Weekday::Sunday => 2,
         _ => 0,
     })
 }
 
 /// cron 更新で狙う基準日。基準価額の公表は当日の夕方なので、
 /// JST 19:00 過ぎの平日は当日を狙う(取れなければ次の回で拾う)
-fn nav_publication_date(now: DateTime<Utc>) -> NaiveDate {
-    let jst = now + chrono::Duration::hours(9);
-    let mut date = jst.date_naive();
+fn nav_publication_date(now: OffsetDateTime) -> Date {
+    let jst = now.to_offset(time::macros::offset!(+9));
+    let mut date = jst.date();
     if jst.hour() < 19 {
-        date -= chrono::Duration::days(1);
+        date -= time::Duration::days(1);
     }
-    date - chrono::Duration::days(match date.weekday() {
-        Weekday::Sat => 1,
-        Weekday::Sun => 2,
+    date - time::Duration::days(match date.weekday() {
+        Weekday::Saturday => 1,
+        Weekday::Sunday => 2,
         _ => 0,
     })
 }
@@ -305,7 +308,7 @@ fn nav_publication_date(now: DateTime<Utc>) -> NaiveDate {
 /// 1ファンドの失敗はほかの処理を止めず、前回値を残す。
 /// 戻り値は取得に成功したコード数（ログ用）
 pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
-    let target = nav_publication_date(Utc::now());
+    let target = nav_publication_date(OffsetDateTime::now_utc());
     let mut tx = pool.begin().await?;
     let codes: Vec<String> = crate::db::query(
         "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
@@ -404,18 +407,19 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
 #[expect(clippy::cast_possible_truncation)]
 pub fn should_fund_refresh_at(scheduled_ms: f64) -> bool {
-    DateTime::from_timestamp_millis(scheduled_ms as i64).is_some_and(|t| {
-        let jst = t + chrono::Duration::hours(9);
-        matches!(jst.hour(), 20 | 23) && jst.minute() == 0
-    })
+    OffsetDateTime::from_unix_timestamp_nanos(i128::from(scheduled_ms as i64) * 1_000_000)
+        .is_ok_and(|t| {
+            let jst = t + time::Duration::hours(9);
+            matches!(jst.hour(), 20 | 23) && jst.minute() == 0
+        })
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+    use time::Date;
 
     /// 実際の応答は { result: {status}, datasets: [ {nav,...} ] } の形
     fn nav_body(nav: &str, base_date: &str, cmp: &str, pct: &str) -> String {
@@ -435,7 +439,8 @@ mod tests {
             Some(FundNav {
                 nav: dec!(44943),
                 prev_day_change: dec!(369),
-                base_date: NaiveDate::from_ymd_opt(2026, 10, 20).unwrap(),
+                base_date: Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 20)
+                    .unwrap(),
             })
         );
     }
@@ -560,14 +565,25 @@ mod tests {
     #[test]
     fn test_expected_nav_date() {
         let jst = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
-            let utc = NaiveDate::from_ymd_opt(y, m, d)
-                .unwrap()
-                .and_hms_opt(h, mi, 0)
-                .unwrap()
-                - chrono::Duration::hours(9);
-            expected_nav_date(utc.and_utc())
+            let utc = Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+            .with_hms(u8::try_from(h).unwrap(), u8::try_from(mi).unwrap(), 0)
+            .unwrap()
+                - time::Duration::hours(9);
+            expected_nav_date(utc.assume_utc())
         };
-        let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        let date = |y: i32, m: u32, d: u32| {
+            Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+        };
 
         // 平日は JST 23:00 を境に前日/当日(2026-10-20 は火曜)
         assert_eq!(jst(2026, 10, 20, 9, 0), date(2026, 10, 19));
@@ -588,18 +604,32 @@ mod tests {
     #[test]
     fn test_nav_publication_date() {
         let jst = |y: i32, m: u32, d: u32, h: u32| {
-            let utc = NaiveDate::from_ymd_opt(y, m, d)
-                .unwrap()
-                .and_hms_opt(h, 0, 0)
-                .unwrap()
-                - chrono::Duration::hours(9);
-            nav_publication_date(utc.and_utc())
+            let utc = Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+            .with_hms(u8::try_from(h).unwrap(), 0, 0)
+            .unwrap()
+                - time::Duration::hours(9);
+            nav_publication_date(utc.assume_utc())
         };
-        let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        let date = |y: i32, m: u32, d: u32| {
+            Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+        };
 
         // 更新回(JST 20:00/23:00)では平日当日を狙い、土日の回は金曜を狙う
         assert_eq!(jst(2026, 10, 20, 20), date(2026, 10, 20));
         assert_eq!(jst(2026, 10, 20, 23), date(2026, 10, 20));
+        assert_eq!(jst(2026, 10, 20, 18), date(2026, 10, 19));
+        assert_eq!(jst(2026, 10, 20, 19), date(2026, 10, 20));
+        assert_eq!(jst(2026, 10, 25, 20), date(2026, 10, 23));
         assert_eq!(jst(2026, 10, 24, 20), date(2026, 10, 23));
         assert_eq!(jst(2026, 10, 26, 20), date(2026, 10, 26));
         // 公表前(夕方前)は前の平日を狙う
@@ -611,13 +641,18 @@ mod tests {
     fn test_should_fund_refresh_at_runs_at_jst_20_and_23() {
         // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
         let ms = |y: i32, mo: u32, d: u32, h: u32, mi: u32| {
-            (NaiveDate::from_ymd_opt(y, mo, d)
-                .unwrap()
-                .and_hms_opt(h, mi, 0)
-                .unwrap()
-                - chrono::Duration::hours(9))
-            .and_utc()
-            .timestamp_millis() as f64
+            (Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(mo).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+            .with_hms(u8::try_from(h).unwrap(), u8::try_from(mi).unwrap(), 0)
+            .unwrap()
+                - time::Duration::hours(9))
+            .assume_utc()
+            .unix_timestamp_nanos() as f64
+                / 1_000_000.0
         };
         // JST 20:00 と 23:00 ちょうどだけ実行
         assert!(should_fund_refresh_at(ms(2026, 10, 20, 20, 0)));
@@ -636,13 +671,14 @@ mod tests {
         assert!(!should_fund_refresh_at(f64::INFINITY));
         assert!(!should_fund_refresh_at(f64::NEG_INFINITY));
         assert!(!should_fund_refresh_at(-1.0));
-        let base = (NaiveDate::from_ymd_opt(2026, 10, 20)
+        let base = (Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 20)
             .unwrap()
-            .and_hms_opt(20, 0, 0)
+            .with_hms(20, 0, 0)
             .unwrap()
-            - chrono::Duration::hours(9))
-        .and_utc()
-        .timestamp_millis();
+            - time::Duration::hours(9))
+        .assume_utc()
+        .unix_timestamp_nanos()
+            / 1_000_000;
         assert!(should_fund_refresh_at(base as f64));
         assert_eq!(
             should_fund_refresh_at(base as f64 + 0.9),

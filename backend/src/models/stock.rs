@@ -1,13 +1,14 @@
 use crate::models::common;
-use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use shared::value::SecurityCode;
+use time::Date;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct Stock {
-    pub date: NaiveDate,
+    #[serde(with = "crate::models::date_serde")]
+    pub date: Date,
     #[schema(value_type = String)]
     pub code: SecurityCode,
     pub name: String,
@@ -73,10 +74,11 @@ impl Validate for Stock {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use {super::*, chrono::NaiveDate};
+    use {super::*, time::Date};
     fn make_stock(code: &str, name: &str, market_category: &str) -> Stock {
         Stock {
-            date: NaiveDate::from_ymd_opt(2025, 3, 24).expect("有効な日付 2025-03-24"),
+            date: Date::from_calendar_date(2025, time::Month::try_from(3).unwrap(), 24)
+                .expect("有効な日付 2025-03-24"),
             code: code.parse().expect("有効な銘柄コード"),
             name: name.to_string(),
             market_category: market_category.to_string(),

@@ -1,11 +1,11 @@
 //! `/api/v1/dividend-per-share-estimates` のバッチ DTO とキャッシュ状態。
 //! backend・frontend 両方が同じ wire 型を使うため shared に置く。
 
-#[cfg(feature = "typed")]
-use crate::domain::{DateTime, Utc};
 use crate::value::SecurityCode;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+#[cfg(feature = "typed")]
+use time::OffsetDateTime;
 
 /// 配当キャッシュの状態。DB は VARCHAR(20)、wire は小文字文字列のまま
 ///
@@ -127,7 +127,8 @@ pub struct DividendPerShareItem {
     /// ok / zero / pending / error
     pub status: DividendCacheStatus,
     #[cfg(feature = "typed")]
-    pub fetched_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub fetched_at: Option<OffsetDateTime>,
     #[cfg(not(feature = "typed"))]
     pub fetched_at: Option<String>,
     pub is_stale: bool,
