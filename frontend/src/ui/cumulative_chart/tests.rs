@@ -108,15 +108,6 @@ fn cumulative_sums_accumulate_monthly_amounts() {
 }
 
 #[test]
-fn yoy_difference_returns_none_without_previous() {
-    assert_eq!(yoy_difference(20_000.0, Some(14_000.0)), Some(6_000.0));
-    assert_eq!(yoy_difference(10_000.0, Some(14_000.0)), Some(-4_000.0));
-    assert_eq!(yoy_difference(0.0, Some(0.0)), Some(0.0));
-    // 前年なしのときは差を出さない
-    assert_eq!(yoy_difference(20_000.0, None), None);
-}
-
-#[test]
 fn table_current_text_hides_future_months() {
     let sums = cumulative_sums(&[
         0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,

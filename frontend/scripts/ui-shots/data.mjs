@@ -229,28 +229,43 @@ export function fundBalances() {
   };
 }
 
-// 配当。ホームの前年同期比較があるため年を指定して取り分ける
+// 配当。ホームの累計グラフを比較しやすい月別分布にする
 export function dividends(year = 2026) {
-  const rows = STOCK_NAMES.map((security_name, index) => {
-    const unit_price = decimal(index >= 34 ? 1500 : 20, index * 1.5);
-    const shares = stockShares(index);
-    const dividends_before_tax = Number((unit_price * shares).toFixed(2));
-    const taxes = taxOf(dividends_before_tax);
-    return {
-      id: `dividend-${year}-${index + 1}`,
-      settlement_date: settlementDate(index, year),
-      product: DIVIDEND_PRODUCTS[index % DIVIDEND_PRODUCTS.length],
-      account: ACCOUNTS[index % ACCOUNTS.length],
-      security_code: String(9901 + index),
-      security_name,
-      unit_price,
-      shares,
-      dividends_before_tax,
-      taxes,
-      net_amount_received: Number((dividends_before_tax - taxes).toFixed(2)),
-      created_at: `${year}-01-01T00:00:00Z`,
-      updated_at: `${year}-01-01T00:00:00Z`,
-    };
+  const current = [0, 1800, 21500, 2600, 1400, 34200, 2300, 0, 17800, 2900, 1100, null];
+  const previous = [0, 1500, 18200, 2100, 1200, 29800, 2000, 0, 15200, 2500, 900, 27600];
+  const amounts = year === 2026 ? current : previous;
+  const rows = amounts.flatMap((net_amount_received, monthIndex) => {
+    if (net_amount_received === null || net_amount_received === 0) return [];
+    const chunks = monthIndex === 2 || monthIndex === 5 || monthIndex === 8 || monthIndex === 11 ? 5 : 3;
+    let allocatedNet = 0;
+    return Array.from({ length: chunks }, (_, chunkIndex) => {
+      const account = chunkIndex === 0 ? 'NISA成長投資枠' : '特定';
+      const securityIndex = monthIndex === 10 && chunkIndex === chunks - 1
+        ? 34
+        : (monthIndex * chunks + chunkIndex) % STOCK_NAMES.length;
+      const isLast = chunkIndex === chunks - 1;
+      const net = isLast
+        ? Number((net_amount_received - allocatedNet).toFixed(2))
+        : Number((net_amount_received / chunks).toFixed(2));
+      allocatedNet = Number((allocatedNet + net).toFixed(2));
+      const gross = account === '特定' ? Number((net / (1 - 0.20315)).toFixed(2)) : net;
+      const taxes = Number((gross - net).toFixed(2));
+      return {
+        id: `dividend-${year}-${monthIndex + 1}-${chunkIndex + 1}`,
+        settlement_date: `${year}-${String(monthIndex + 1).padStart(2, '0')}-15`,
+        product: DIVIDEND_PRODUCTS[monthIndex % DIVIDEND_PRODUCTS.length],
+        account,
+        security_code: String(9901 + securityIndex),
+        security_name: STOCK_NAMES[securityIndex],
+        unit_price: gross,
+        shares: 1,
+        dividends_before_tax: gross,
+        taxes,
+        net_amount_received: net,
+        created_at: `${year}-01-01T00:00:00Z`,
+        updated_at: `${year}-01-01T00:00:00Z`,
+      };
+    });
   });
   const sum = (key) => Number(rows.reduce((total, row) => total + row[key], 0).toFixed(2));
   return {
@@ -359,8 +374,8 @@ export function dividendEstimates() {
   return {
     items: STOCK_NAMES.map((_, index) => ({
       security_code: String(9901 + index),
-      dividend_per_share: index % 4 === 0 ? 0 : decimal(20, index * 1.5),
-      status: index % 4 === 0 ? 'zero' : 'ok',
+      dividend_per_share: index === 0 ? 5600 : 0,
+      status: index === 0 ? 'ok' : 'zero',
     })),
   };
 }

@@ -166,18 +166,6 @@ pub(crate) fn monthly_net_totals(rows: &[Dividend]) -> [Decimal; 12] {
     totals
 }
 
-pub(crate) fn sum_month_range(totals: &[Decimal; 12], from: u32, to: u32) -> Decimal {
-    let from = from.clamp(1, 12);
-    let to = to.clamp(1, 12);
-    if from > to {
-        return Decimal::ZERO;
-    }
-    totals[(from - 1) as usize..to as usize]
-        .iter()
-        .copied()
-        .sum()
-}
-
 /// 実効税率 = Σ税額 ÷ Σ税引前。配当に NISA(税0)と課税口座が混ざるため、
 /// 予想の税引後換算には実績の加重平均を使う。税引前合計が 0 なら算出不可
 pub(crate) fn effective_tax_rate(primary: &[Dividend], fallback: &[Dividend]) -> Option<Decimal> {
@@ -197,7 +185,7 @@ pub(crate) fn effective_tax_rate(primary: &[Dividend], fallback: &[Dividend]) ->
     Some(tax / before)
 }
 
-/// 今年の配当金カードの表示モデル。`current_month` は 1..=12。
+/// 今年の配当金カードの表示モデル。
 pub(crate) struct DividendCardModel {
     /// 今年の税引後受取額
     pub(crate) received: Decimal,
@@ -205,12 +193,6 @@ pub(crate) struct DividendCardModel {
     pub(crate) forecast_net: Option<f64>,
     /// 予想に対する受取の割合(0..1 超過あり)
     pub(crate) progress: Option<f64>,
-    /// 残り = 予想 - 受取
-    pub(crate) remaining: Option<f64>,
-    /// 前年の残り期間(今月より後の月)の入金。前年の取得に失敗したときは None
-    pub(crate) previous_remaining: Option<Decimal>,
-    /// 前年同期(1月〜今月)の入金との差 = 受取 - 前年同期。前年の取得に失敗したときは None
-    pub(crate) yoy_diff: Option<Decimal>,
     /// 月別の(今年, 前年)入金額
     pub(crate) monthly: Vec<MonthlyDividends>,
 }
@@ -225,11 +207,7 @@ pub(crate) fn build_dividend_card(
     current_rows: &[Dividend],
     previous_rows: Option<&[Dividend]>,
     forecast_gross: Option<f64>,
-    current_month: u32,
 ) -> DividendCardModel {
-    // 前年の取得に失敗(None)したときは前年系列を空に倒し、前年比較の数値は出さない。
-    // 失敗由来の 0 を実績として表示しないため
-    let previous_known = previous_rows.is_some();
     let previous_rows = previous_rows.unwrap_or(&[]);
     let received: Decimal = current_rows.iter().map(|row| row.net_amount_received).sum();
     let rate = effective_tax_rate(current_rows, previous_rows).unwrap_or(TAX_RATE);
@@ -238,15 +216,7 @@ pub(crate) fn build_dividend_card(
     let progress = forecast_net
         .filter(|forecast| *forecast > 0.0)
         .map(|forecast| received_f64 / forecast);
-    let remaining = forecast_net.map(|forecast| forecast - received_f64);
     let previous_totals = monthly_net_totals(previous_rows);
-    let current_month = current_month.clamp(1, 12);
-    let previous_ytd = sum_month_range(&previous_totals, 1, current_month);
-    let previous_remaining = if current_month >= 12 {
-        Decimal::ZERO
-    } else {
-        sum_month_range(&previous_totals, current_month + 1, 12)
-    };
     let current_totals = monthly_net_totals(current_rows);
     let monthly = (1..=12u32)
         .map(|month| MonthlyDividends {
@@ -259,9 +229,6 @@ pub(crate) fn build_dividend_card(
         received,
         forecast_net,
         progress,
-        remaining,
-        previous_remaining: previous_known.then_some(previous_remaining),
-        yoy_diff: previous_known.then_some(received - previous_ytd),
         monthly,
     }
 }
@@ -273,8 +240,6 @@ pub(crate) struct ProgressDisplay {
     pub(crate) text: String,
     /// バーの幅(%)。0..=100 に丸める
     pub(crate) bar_pct: f64,
-    /// 予想を超えたか
-    pub(crate) over: bool,
 }
 
 pub(crate) fn progress_display(progress: Option<f64>) -> ProgressDisplay {
@@ -282,39 +247,15 @@ pub(crate) fn progress_display(progress: Option<f64>) -> ProgressDisplay {
         || ProgressDisplay {
             text: labels::MISSING.to_string(),
             bar_pct: 0.0,
-            over: false,
         },
         |value| {
             let pct = value * 100.0;
             ProgressDisplay {
                 text: format::format_integer_percent(pct),
                 bar_pct: pct.clamp(0.0, 100.0),
-                over: value > 1.0,
             }
         },
     )
-}
-
-/// 「残り」欄の表示文。受取が予想を超えたとき負の残りではなく
-/// 「予想を N 上回り」に書き分ける
-pub(crate) fn remaining_label(remaining: Option<f64>) -> (&'static str, String, &'static str) {
-    match remaining {
-        Some(value) if value < 0.0 => (
-            labels::HOME_REMAINING_OVER_PREFIX,
-            asset_balance::format_valuation_amount(Some(-value)),
-            labels::HOME_REMAINING_OVER_SUFFIX,
-        ),
-        Some(value) => (
-            labels::HOME_REMAINING_PREFIX,
-            asset_balance::format_valuation_amount(Some(value)),
-            "",
-        ),
-        None => (
-            labels::HOME_REMAINING_PREFIX,
-            labels::MISSING.to_string(),
-            "",
-        ),
-    }
 }
 
 /// 内訳チャートの1区分

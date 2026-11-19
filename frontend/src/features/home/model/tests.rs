@@ -161,7 +161,7 @@ fn row_summaries_skip_unpriced_stocks() {
 }
 
 #[test]
-fn monthly_totals_and_year_comparison() {
+fn monthly_totals_sum_settlement_months() {
     let rows = vec![
         dividend("2025-01-15", 1000),
         dividend("2025-01-20", 2000),
@@ -172,15 +172,10 @@ fn monthly_totals_and_year_comparison() {
     assert_eq!(totals[0], dec!(3000));
     assert_eq!(totals[2], dec!(3000));
     assert_eq!(totals[11], dec!(5000));
-    // 前年同期(1月〜2月)と残り期間(3月〜12月)の分け方
-    assert_eq!(sum_month_range(&totals, 1, 2), dec!(3000));
-    assert_eq!(sum_month_range(&totals, 3, 12), dec!(8000));
-    assert_eq!(sum_month_range(&totals, 12, 3), dec!(0));
 }
 
 #[test]
-fn dividend_card_compares_with_same_period() {
-    // 10月時点: 今年 1-10月の入金 vs 前年 1-10月の入金。前年の11-12月は「残り期間」
+fn dividend_card_keeps_monthly_current_and_previous_values() {
     let current = vec![dividend("2026-03-10", 12000), dividend("2026-09-15", 8000)];
     let previous = vec![
         dividend("2025-02-10", 5000),
@@ -188,14 +183,11 @@ fn dividend_card_compares_with_same_period() {
         dividend("2025-11-10", 9000),
         dividend("2025-12-10", 1000),
     ];
-    let card = build_dividend_card(&current, Some(&previous), Some(40_000.0), 10);
+    let card = build_dividend_card(&current, Some(&previous), Some(40_000.0));
     assert_eq!(card.received, dec!(20000));
-    assert_eq!(card.yoy_diff, Some(dec!(12000)));
-    assert_eq!(card.previous_remaining, Some(dec!(10000)));
     // 予想(税引後) = 40000 × (1 - 実効税率 0.2)
     assert_eq!(card.forecast_net, Some(32_000.0));
     assert_eq!(card.progress, Some(0.625));
-    assert_eq!(card.remaining, Some(12_000.0));
     assert_eq!(card.monthly.len(), 12);
     assert_eq!(card.monthly[8].current, dec!(8000));
 }
@@ -204,10 +196,10 @@ fn dividend_card_compares_with_same_period() {
 fn dividend_card_applies_effective_tax_rate() {
     // 税引前 1000 に対し税 200(=20%)の実績 → 予想は 80% に換算
     let current = vec![dividend_with_tax("2026-01-10", 800, 1000, 200)];
-    let card = build_dividend_card(&current, Some(&[]), Some(10_000.0), 2);
+    let card = build_dividend_card(&current, Some(&[]), Some(10_000.0));
     assert_eq!(card.forecast_net, Some(8_000.0));
     // 実績が無い年は法定税率(20.315%)に倒す
-    let card = build_dividend_card(&[], Some(&[]), Some(10_000.0), 2);
+    let card = build_dividend_card(&[], Some(&[]), Some(10_000.0));
     assert_eq!(card.forecast_net, Some(10_000.0 * (1.0 - 0.20315)));
 }
 
@@ -222,25 +214,18 @@ fn effective_tax_rate_blends_accounts() {
 
 #[test]
 fn dividend_card_handles_empty_and_zero() {
-    let card = build_dividend_card(&[], Some(&[]), None, 5);
+    let card = build_dividend_card(&[], Some(&[]), None);
     assert_eq!(card.received, dec!(0));
     assert!(card.forecast_net.is_none());
     assert!(card.progress.is_none());
-    assert!(card.remaining.is_none());
-    assert_eq!(card.yoy_diff, Some(dec!(0)));
-    // 12月では前年の残り期間が無い
-    let card = build_dividend_card(&[], Some(&[dividend("2025-12-01", 3000)]), None, 12);
-    assert_eq!(card.previous_remaining, Some(dec!(0)));
-    assert_eq!(card.yoy_diff, Some(dec!(-3000)));
+    build_dividend_card(&[], Some(&[dividend("2025-12-01", 3000)]), None);
 }
 
 #[test]
 fn dividend_card_hides_yoy_when_previous_fetch_failed() {
     // 前年の取得失敗は「前年0円」とは別物。前年比較の数値は出さず、
     // 月別グラフの前年系列だけ 0 に倒す
-    let card = build_dividend_card(&[dividend("2026-03-10", 12000)], None, None, 10);
-    assert!(card.yoy_diff.is_none());
-    assert!(card.previous_remaining.is_none());
+    let card = build_dividend_card(&[dividend("2026-03-10", 12000)], None, None);
     assert!(card.monthly.iter().all(|pair| pair.previous.is_zero()));
     assert_eq!(card.monthly[2].current, dec!(12000));
 }
@@ -346,38 +331,21 @@ fn annual_forecast_uses_per_share_and_shares() {
 }
 
 #[test]
-fn progress_display_caps_bar_and_flags_over() {
-    // 予想なしは「—」、バーは 0、超え扱いにしない
+fn progress_display_caps_bar_and_preserves_actual_percentage() {
+    // 予想なしは「—」、バーは 0
     let none = progress_display(None);
     assert_eq!(none.text, labels::MISSING);
     assert_eq!(none.bar_pct, 0.0);
-    assert!(!none.over);
     // 0% はそのまま
     let zero = progress_display(Some(0.0));
-    assert!(!zero.over);
     assert_eq!(zero.bar_pct, 0.0);
-    // 100% ちょうどは超え扱いにしない
+    // 100% はそのまま
     let full = progress_display(Some(1.0));
-    assert!(!full.over);
     assert_eq!(full.bar_pct, 100.0);
-    // 超えたらバーは満タンで止め、超えの印を立てる(計算は受取÷予想のまま)
+    // 100%を超えても数値を維持し、バー幅だけ100%に止める
     let over = progress_display(Some(16.11));
-    assert!(over.over);
     assert_eq!(over.bar_pct, 100.0);
     assert_eq!(over.text, format::format_integer_percent(1611.0));
-}
-
-#[test]
-fn remaining_label_writes_overage_as_exceeding() {
-    // 受取が予想を超えたら負の残りではなく「上回り」に書き分ける
-    let (prefix, amount, suffix) = remaining_label(Some(-17_500.0));
-    assert_eq!(amount, "¥17,500");
-    assert!(!prefix.is_empty());
-    assert!(!suffix.is_empty());
-    let (_, amount, suffix) = remaining_label(Some(12_000.0));
-    assert_eq!(amount, "¥12,000");
-    assert!(suffix.is_empty());
-    assert_eq!(remaining_label(None).1, labels::MISSING);
 }
 
 #[test]

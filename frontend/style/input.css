@@ -1681,28 +1681,6 @@
     @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
   }
 
-  /* 受取の累計の折れ線。今年=実線の青、前年=点線の灰。凡例は線と同じ見た目で上に置く */
-  .home-cum-legend {
-    @apply mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-cell text-text-muted;
-  }
-
-  .home-cum-legend-item {
-    @apply flex items-center gap-1.5;
-  }
-
-  .home-cum-key {
-    @apply inline-block h-0 w-6 shrink-0 border-t-[3px];
-  }
-
-  .home-cum-key-solid {
-    border-color: var(--color-chart-1);
-  }
-
-  .home-cum-key-dash {
-    border-top-style: dashed;
-    border-color: var(--color-text-muted);
-  }
-
   .home-chart-plot {
     @apply relative mt-1 h-55 max-sm:h-28;
   }
@@ -1719,12 +1697,34 @@
     @apply flex gap-1.5;
   }
 
+  .home-cum-layout {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0 var(--space-card);
+  }
+
+  .home-cum-summary-axis {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .home-cum-summary-main {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .home-cum-layout > .home-chart {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   .home-cum-main {
     @apply min-w-0 flex-1;
   }
 
   .home-cum-axis {
-    @apply relative h-55 w-12 shrink-0 max-sm:h-28;
+    @apply relative mt-1 h-55 w-12 shrink-0 max-sm:h-28;
   }
 
   .home-cum-tick {
@@ -1733,6 +1733,20 @@
 
   .home-cum-lines {
     @apply pointer-events-none absolute inset-0 h-full w-full;
+  }
+
+  .home-cum-summary {
+    @apply flex flex-wrap items-center gap-x-3 text-eyebrow leading-tight text-text;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .home-cum-summary-current,
+  .home-cum-summary-previous {
+    @apply whitespace-nowrap;
+  }
+
+  .home-cum-summary-current-dot {
+    color: var(--color-chart-1);
   }
 
   .home-cum-line-current {
@@ -1822,11 +1836,6 @@
     right: 0;
     left: auto;
     translate: none;
-  }
-
-  /* 右端の点の前年同期比。線の近くの右端に置く */
-  .home-cum-yoy {
-    @apply mt-1.5 text-right text-cell text-text-muted;
   }
 
   /* 読み上げ用の表。幅を 1px に固定し、狭い画面で横スクロールを出さない */

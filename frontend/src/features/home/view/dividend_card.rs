@@ -6,7 +6,7 @@ use crate::session;
 use crate::ui::cumulative_chart::CumulativeChart;
 use crate::ui::home::{
     HomeCardError, HomeCardHead, HomeCardSkeleton, HomeChartSection, HomeDetailCard,
-    HomeDividendHead, HomeDividendNote,
+    HomeDividendHead,
 };
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -40,8 +40,8 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                 }
                 let current_rows = current.flatten().unwrap_or_default();
                 // 前年側の失敗はグラフの前年系列を 0 に倒して今年分は見せる。
-                // 前年比較の数値は model 側で None になり「—」表示になる
                 let previous_rows = previous.flatten();
+                let has_previous = previous_rows.is_some();
                 let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
                 let stocks = stocks_of(&assets).unwrap_or(&[]);
                 let forecast = maps.and_then(|maps| {
@@ -49,13 +49,11 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                 });
                 let forecast_pending = maps.is_some_and(model::has_pending_estimate);
                 let now = js_sys::Date::new_0();
-                let current_month = now.get_month() + 1;
                 let year = now.get_full_year();
                 let model = model::build_dividend_card(
                     &current_rows,
                     previous_rows.as_deref(),
                     forecast,
-                    current_month,
                 );
                 view! {
                     <DividendCardBody
@@ -63,6 +61,7 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                         year=year
                         previous_year=year - 1
                         pending=forecast_pending
+                        has_previous=has_previous
                     />
                 }
                     .into_any()
@@ -77,6 +76,7 @@ fn DividendCardBody(
     year: u32,
     previous_year: u32,
     pending: bool,
+    has_previous: bool,
 ) -> impl IntoView {
     let received_value = Some(asset_balance::dec_to_f64(&model.received));
     let received = asset_balance::format_signed_valuation_amount(received_value);
@@ -85,21 +85,7 @@ fn DividendCardBody(
         |v| asset_balance::format_valuation_amount(Some(v)),
     );
     let progress = model::progress_display(model.progress);
-    let (remaining_prefix, remaining_amount, remaining_suffix) =
-        model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
-    let previous_span = labels::previous_dividend_span(current_month);
-    let previous_remaining = model
-        .previous_remaining
-        .filter(|_| !previous_span.is_empty())
-        .map(|remaining| {
-            asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&remaining)))
-        });
-    let yoy_value = model.yoy_diff.map(|diff| asset_balance::dec_to_f64(&diff));
-    let yoy_text = yoy_value.map_or_else(
-        || labels::MISSING.to_string(),
-        |value| asset_balance::format_signed_valuation_amount(Some(value)),
-    );
     view! {
         <HomeDividendHead
             received_text=received
@@ -114,22 +100,12 @@ fn DividendCardBody(
                 style:width=format!("{}%", progress.bar_pct)
             />
         </div>
-        <HomeDividendNote
-            prefix=remaining_prefix
-            remaining=remaining_amount
-            suffix=remaining_suffix
-            previous=previous_remaining.map(|amount| (previous_span.clone(), amount))
-            yoy_text=yoy_text
-            yoy_negative=asset_balance::is_negative_valuation(yoy_value)
-            yoy_positive=asset_balance::is_positive_valuation(yoy_value)
-            over=progress.over
-        />
         <DividendMonthlyChart
             monthly=model.monthly
             year=year
             previous_year=previous_year
             current_month=current_month
-            has_previous=model.previous_remaining.is_some()
+            has_previous=has_previous
         />
     }
 }
