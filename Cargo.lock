@@ -175,7 +175,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "bytes",
- "chrono",
  "crc",
  "csv",
  "deadpool-postgres",
@@ -1725,12 +1724,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "851ca9db4932932d69f3ea811b1abe63087a0f740a47692619dd40d4899b68be"
 dependencies = [
  "bytes",
- "chrono",
  "fallible-iterator",
  "postgres-derive",
  "postgres-protocol",
  "serde_core",
  "serde_json",
+ "time",
  "uuid",
 ]
 
@@ -2307,13 +2306,13 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "chrono",
  "postgres-types",
  "proptest",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
  "serde_json",
+ "time",
  "utoipa",
  "uuid",
  "validator",

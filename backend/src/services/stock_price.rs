@@ -4,12 +4,12 @@
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
 #[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
+use time::{Date, OffsetDateTime, Weekday};
 
 /// Yahoo Finance chart API（非公式）。`<code>.T` は東証銘柄。
 const CHART_BASE_URL: &str = "https://query2.finance.yahoo.com/v8/finance/chart";
@@ -45,7 +45,7 @@ macro_rules! svc_log {
 pub struct ClosePrice {
     pub close: Decimal,
     /// 終値の基準日（JST）
-    pub as_of: NaiveDate,
+    pub as_of: Date,
     /// 直前の取引日の終値。取得できたときだけ daily_change を更新する
     pub prev_close: Option<Decimal>,
 }
@@ -80,7 +80,7 @@ struct Quote {
 /// chart API のレスポンス文字列から終値・基準日・前日終値を取り出す。
 /// 日中バーを含まない日足（interval=1d）を想定し、max_as_of 以前のバーから
 /// null でない終値を持つ最後のバーを採用する
-pub fn parse_chart_close(body: &str, max_as_of: NaiveDate) -> Result<ClosePrice, ApiError> {
+pub fn parse_chart_close(body: &str, max_as_of: Date) -> Result<ClosePrice, ApiError> {
     let response: ChartResponse = serde_json::from_str(body).map_err(UpstreamError::Decode)?;
     if response.chart.error.is_some() {
         return Err(ApiError::Internal("chart API がエラーを返した"));
@@ -101,10 +101,12 @@ pub fn parse_chart_close(body: &str, max_as_of: NaiveDate) -> Result<ClosePrice,
         .ok_or_else(no_data)?;
 
     let bar_date = |ts: i64| {
-        DateTime::from_timestamp(ts, 0).map(|t| (t + chrono::Duration::hours(9)).date_naive())
+        OffsetDateTime::from_unix_timestamp(ts)
+            .ok()
+            .map(|t| (t + time::Duration::hours(9)).date())
     };
     // 場中の暫定値は max_as_of より後の日付なのでここで弾かれる
-    let bars: Vec<(NaiveDate, f64)> = timestamps
+    let bars: Vec<(Date, f64)> = timestamps
         .iter()
         .zip(closes.iter())
         .filter_map(|(ts, close)| Some((bar_date(*ts)?, (*close)?)))
@@ -135,7 +137,7 @@ fn chart_status_error(status: u16, body: String) -> ApiError {
 fn fetch_close_price(
     _base_url: &str,
     _code: &SecurityCode,
-    _max_as_of: NaiveDate,
+    _max_as_of: Date,
 ) -> impl Future<Output = Result<ClosePrice, ApiError>> {
     std::future::ready(Err(ApiError::Internal(
         "Yahoo Finance への接続は Workers 環境でのみ利用できます",
@@ -146,7 +148,7 @@ fn fetch_close_price(
 async fn fetch_close_price(
     base_url: &str,
     code: &SecurityCode,
-    max_as_of: NaiveDate,
+    max_as_of: Date,
 ) -> Result<ClosePrice, ApiError> {
     use worker::{Fetch, Headers, Method, Request, RequestInit};
 
@@ -204,21 +206,21 @@ pub async fn apply_close_price(
 }
 
 /// 1つ前の平日を返す（土日・月曜は直前の金曜。祝日は扱わない）
-fn prev_weekday(date: NaiveDate) -> NaiveDate {
-    date - chrono::Duration::days(match date.weekday() {
-        Weekday::Sat => 1,
-        Weekday::Sun => 2,
-        Weekday::Mon => 3,
+fn prev_weekday(date: Date) -> Date {
+    date - time::Duration::days(match date.weekday() {
+        Weekday::Saturday => 1,
+        Weekday::Sunday => 2,
+        Weekday::Monday => 3,
         _ => 1,
     })
 }
 
 /// 最新の終値が確定している基準日。場中のバーは暫定値のため取引日の
 /// 16:00（引け 15:30 + 余裕）までは直前の取引日を、以降は当日を返す
-fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
-    let jst = now + chrono::Duration::hours(9);
-    let live = jst.date_naive();
-    if matches!(live.weekday(), Weekday::Sat | Weekday::Sun) || jst.hour() < 16 {
+fn latest_close_date(now: OffsetDateTime) -> Date {
+    let jst = now + time::Duration::hours(9);
+    let live = jst.date();
+    if matches!(live.weekday(), Weekday::Saturday | Weekday::Sunday) || jst.hour() < 16 {
         prev_weekday(live)
     } else {
         live
@@ -230,7 +232,7 @@ fn latest_close_date(now: DateTime<Utc>) -> NaiveDate {
 /// 失敗した銘柄は前回値を残し、全件失敗時は取得元の変更を疑ってエラーログに出す。
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
-    let latest = latest_close_date(Utc::now());
+    let latest = latest_close_date(OffsetDateTime::now_utc());
     let mut tx = pool.begin().await?;
     let codes: Vec<SecurityCode> = crate::db::query(
         "SELECT security_code FROM public.scheduled_stock_price_targets_v2($1, $2)",
@@ -318,16 +320,16 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
 #[expect(clippy::cast_possible_truncation)]
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
-    DateTime::from_timestamp_millis(scheduled_ms as i64)
-        .is_some_and(|t| t.minute().is_multiple_of(5))
+    OffsetDateTime::from_unix_timestamp_nanos(i128::from(scheduled_ms as i64) * 1_000_000)
+        .is_ok_and(|t| t.minute().is_multiple_of(5))
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+    use time::Date;
 
     /// 東証の日足タイムスタンプ（9:00 JST = 0:00 UTC）からなる応答の雛形
     fn chart_body(bars: &[(i64, Option<f64>)]) -> String {
@@ -348,7 +350,7 @@ mod tests {
     const T20240117: i64 = T20240116 + 86400;
     const T20240118: i64 = T20240116 + 86400 * 2;
     const T20240119: i64 = T20240116 + 86400 * 3;
-    const MAX: NaiveDate = NaiveDate::MAX;
+    const MAX: Date = Date::MAX;
 
     #[test]
     fn test_parse_chart_close_uses_last_finalized_close() {
@@ -367,7 +369,10 @@ mod tests {
         assert_eq!(price.close, dec!(3300.0));
         assert_eq!(price.prev_close, Some(dec!(3200.25)));
         // JST のバー日付で基準日を記録する
-        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 19).unwrap());
+        assert_eq!(
+            price.as_of,
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 19).unwrap()
+        );
     }
 
     #[test]
@@ -379,12 +384,15 @@ mod tests {
                 (T20240117, Some(3100.5)),
                 (T20240118, Some(3200.25)),
             ]),
-            NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap(),
         )
         .expect("parse");
 
         assert_eq!(price.close, dec!(3100.5));
-        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 17).unwrap());
+        assert_eq!(
+            price.as_of,
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap()
+        );
         assert_eq!(price.prev_close, Some(dec!(3000.0)));
     }
 
@@ -402,7 +410,10 @@ mod tests {
         .expect("parse");
 
         assert_eq!(price.close, dec!(3100.5));
-        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 17).unwrap());
+        assert_eq!(
+            price.as_of,
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap()
+        );
         assert_eq!(price.prev_close, Some(dec!(3000.0)));
     }
 
@@ -416,12 +427,15 @@ mod tests {
                 (T20240118, Some(3200.25)),
                 (T20240119, Some(3300.0)),
             ]),
-            NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap(),
         )
         .expect("parse");
 
         assert_eq!(price.close, dec!(3100.5));
-        assert_eq!(price.as_of, NaiveDate::from_ymd_opt(2024, 1, 17).unwrap());
+        assert_eq!(
+            price.as_of,
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap()
+        );
         assert_eq!(price.prev_close, Some(dec!(3000.0)));
     }
 
@@ -469,7 +483,7 @@ mod tests {
         assert!(
             parse_chart_close(
                 &chart_body(&[(T20240118, Some(3200.25))]),
-                NaiveDate::from_ymd_opt(2024, 1, 17).unwrap(),
+                Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 17).unwrap(),
             )
             .is_err()
         );
@@ -507,14 +521,25 @@ mod tests {
     fn test_latest_close_date() {
         // JST の日時を渡す（内部で UTC に直して評価する）
         let jst = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
-            let utc = NaiveDate::from_ymd_opt(y, m, d)
-                .unwrap()
-                .and_hms_opt(h, mi, 0)
-                .unwrap()
-                - chrono::Duration::hours(9);
-            latest_close_date(utc.and_utc())
+            let utc = Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+            .with_hms(u8::try_from(h).unwrap(), u8::try_from(mi).unwrap(), 0)
+            .unwrap()
+                - time::Duration::hours(9);
+            latest_close_date(utc.assume_utc())
         };
-        let date = |y: i32, m: u32, d: u32| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        let date = |y: i32, m: u32, d: u32| {
+            Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+        };
 
         // 取引日の 16:00 までは直前の取引日、16:00 以降は当日が確定する
         assert_eq!(jst(2026, 10, 26, 8, 59), date(2026, 10, 23));
@@ -533,11 +558,15 @@ mod tests {
 
         // 日付をまたぐ UTC 時刻でも JST で判定する
         let utc = |y: i32, m: u32, d: u32, h: u32, mi: u32| {
-            NaiveDate::from_ymd_opt(y, m, d)
-                .unwrap()
-                .and_hms_opt(h, mi, 0)
-                .unwrap()
-                .and_utc()
+            Date::from_calendar_date(
+                y,
+                time::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                u8::try_from(d).unwrap(),
+            )
+            .unwrap()
+            .with_hms(u8::try_from(h).unwrap(), u8::try_from(mi).unwrap(), 0)
+            .unwrap()
+            .assume_utc()
         };
         assert_eq!(
             latest_close_date(utc(2026, 10, 25, 15, 0)),
@@ -558,12 +587,17 @@ mod tests {
     fn test_should_refresh_at_runs_every_five_minutes() {
         // epoch ミリ秒は f64 でも 2^53 未満では正確に表せるため精度は落ちない
         let ms = |h: u32, m: u32, s: u32| {
-            NaiveDate::from_ymd_opt(2026, 10, 14)
+            Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 14)
                 .unwrap()
-                .and_hms_opt(h, m, s)
+                .with_hms(
+                    u8::try_from(h).unwrap(),
+                    u8::try_from(m).unwrap(),
+                    u8::try_from(s).unwrap(),
+                )
                 .unwrap()
-                .and_utc()
-                .timestamp_millis() as f64
+                .assume_utc()
+                .unix_timestamp_nanos() as f64
+                / 1_000_000.0
         };
         assert!(should_refresh_at(ms(0, 0, 0)));
         assert!(should_refresh_at(ms(15, 5, 0)));

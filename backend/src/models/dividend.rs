@@ -1,9 +1,9 @@
 use crate::models::common;
 use crate::models::common::{SearchParamsAccessor, SearchQueryParams};
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::value::Account;
+use time::Date;
 use utoipa::ToSchema;
 use validator::{Validate, ValidationErrors};
 
@@ -72,7 +72,8 @@ impl SearchParamsAccessor for DividendSearchQueryParams {
 /// 配当金作成リクエスト
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateDividendRequest {
-    pub settlement_date: NaiveDate,
+    #[serde(with = "crate::models::date_serde")]
+    pub settlement_date: Date,
     pub product: String,
     #[schema(value_type = String)]
     pub account: Account,
@@ -122,7 +123,8 @@ mod tests {
     use {super::*, rust_decimal_macros::dec};
     fn base() -> CreateDividendRequest {
         CreateDividendRequest {
-            settlement_date: NaiveDate::from_ymd_opt(2024, 1, 15).expect("有効な日付 2024-01-15"),
+            settlement_date: Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15)
+                .expect("有効な日付 2024-01-15"),
             product: "国内株式".to_string(),
             account: "特定".parse().expect("valid account"),
             security_code: "9931".to_string(),
@@ -181,5 +183,16 @@ mod tests {
             .validate()
             .is_ok()
         );
+    }
+
+    #[test]
+    fn create_request_keeps_iso_date_json_string() {
+        let request = base();
+        let json = serde_json::to_value(&request).expect("serialize request");
+
+        assert_eq!(json["settlement_date"], "2024-01-15");
+        let decoded: CreateDividendRequest =
+            serde_json::from_value(json).expect("deserialize request");
+        assert_eq!(decoded.settlement_date, request.settlement_date);
     }
 }

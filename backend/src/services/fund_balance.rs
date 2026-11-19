@@ -19,11 +19,11 @@ use crate::services::domain::search::Search;
 use crate::services::domain::search_filters;
 use crate::services::domain::search_filters::{FilterField, SearchFilter};
 use crate::services::domain::{Domain, WriteMode};
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use shared::domain::FundNavStatus;
 use shared::normalize::normalize_security_name;
 use shared::value::{Account, UserId};
+use time::OffsetDateTime;
 
 /// 投資信託残高（保有ファンド）ドメイン
 pub struct FundBalanceDomain;
@@ -110,7 +110,7 @@ const NAV_STATUS_SQL: &str = "SELECT MAX(fp.updated_at) AS updated_at, \
 
 /// 自動更新の状態の集計行
 struct NavStatusRow {
-    updated_at: Option<DateTime<Utc>>,
+    updated_at: Option<OffsetDateTime>,
     fetched_count: i64,
     failed_count: i64,
     fund_count: i64,
@@ -147,10 +147,12 @@ async fn fetch_nav_status(tx: &mut Tx, user_id: UserId) -> Result<FundNavStatus,
 }
 
 /// 基準価額の自動更新の時刻(JST)を "YYYY-MM-DD HH:MM" にする
-fn jst_minute(value: DateTime<Utc>) -> String {
-    (value + chrono::Duration::hours(9))
-        .format("%Y-%m-%d %H:%M")
-        .to_string()
+fn jst_minute(value: OffsetDateTime) -> String {
+    (value + time::Duration::hours(9))
+        .format(time::macros::format_description!(
+            "[year]-[month]-[day] [hour]:[minute]"
+        ))
+        .unwrap_or_default()
 }
 
 impl Search for FundBalanceDomain {
@@ -368,6 +370,13 @@ mod tests {
     const ROW_BAD_SHARES: &str = "\"投資信託\",\"特定\",\"架空テストファンド\",\"再投資型\",\"N/A\",\"-\",\"-\",\"10,000\",\"1,000,000\",\"10,500\",\"35\",\"210\",\"1,050,000\",\"50,000\",\"5.00\",\"50,000\",\"-\",\"-\",\"-\",\"-\",\"-\"";
     const TOTAL_ROW: &str = "\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"19,982,000\",\"1,234,567\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"";
     const ACCOUNT_TOTAL_ROW: &str = "\"\",\"特定合計\",\"\",\"\",\"\",\"\",\"\",\"\",\"3,000,000\",\"\",\"\",\"\",\"3,150,000\",\"150,000\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"";
+
+    #[test]
+    fn jst_minute_formats_utc_timestamp_as_japan_time() {
+        let utc = OffsetDateTime::from_unix_timestamp(1_705_281_825).unwrap();
+
+        assert_eq!(jst_minute(utc), "2024-01-15 10:23");
+    }
 
     fn make_fund_csv(rows: &[&str]) -> String {
         format!("{FUND_CSV_HEADER}\n{}", rows.join("\n"))

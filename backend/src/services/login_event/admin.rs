@@ -4,14 +4,15 @@ use crate::db::{self, Bind, Db, DbError};
 use crate::errors::ApiError;
 use crate::models::common::{PaginatedSearchResponse, SearchQueryParams};
 use crate::services::domain::search_filters;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared::value::UserId;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AdminLoginEntry {
-    pub occurred_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub occurred_at: OffsetDateTime,
     pub email: String,
     pub result: String,
     pub country: Option<String>,
@@ -316,7 +317,7 @@ mod tests {
     #[test]
     fn response_exposes_only_login_display_fields() {
         let entry = AdminLoginEntry {
-            occurred_at: Utc::now(),
+            occurred_at: OffsetDateTime::now_utc(),
             email: "login@example.com".into(),
             result: "success".into(),
             country: None,

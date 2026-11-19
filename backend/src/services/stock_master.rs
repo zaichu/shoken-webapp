@@ -4,15 +4,15 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
 use crate::services::jquants::{EquitiesMasterResponse, JQuantsClient};
-use chrono::{DateTime, NaiveDate, Utc};
 use std::collections::HashSet;
+use time::{Date, OffsetDateTime};
 
 /// market_data_provider_rate_control.provider の銘柄マスタ更新用キー
 const MASTER_PROVIDER: &str = "jquants-equities-master";
 
 /// stock テーブルの1行分。J-Quants の5桁コードは先頭4桁へ縮約済み
 pub struct StockRow {
-    pub date: NaiveDate,
+    pub date: Date,
     pub code: String,
     pub name: String,
     pub market_category: String,
@@ -34,7 +34,11 @@ fn map_master(response: &EquitiesMasterResponse) -> Vec<StockRow> {
         .filter(|row| seen.insert(row.code[..4].to_string()))
         .filter_map(|row| {
             Some(StockRow {
-                date: NaiveDate::parse_from_str(&row.date, "%Y-%m-%d").ok()?,
+                date: Date::parse(
+                    &row.date,
+                    &&time::format_description::well_known::Iso8601::DATE,
+                )
+                .ok()?,
                 code: row.code[..4].to_string(),
                 name: row.company_name.clone(),
                 market_category: row.market_name.clone(),
@@ -48,7 +52,7 @@ fn map_master(response: &EquitiesMasterResponse) -> Vec<StockRow> {
 
 /// UNNEST 用の列ベクタ。`rows` を1回だけ走査して組み立てる
 struct MasterColumns {
-    dates: Vec<NaiveDate>,
+    dates: Vec<Date>,
     codes: Vec<String>,
     names: Vec<String>,
     markets: Vec<String>,
@@ -119,13 +123,13 @@ pub async fn replace_master(pool: &Db, rows: &[StockRow]) -> Result<usize, ApiEr
 /// ならないため、こちらで記録する時刻で判定する。枠の行が無い(None)は初回として
 /// 実行する。stock が空の初回投入もこの経路で起きる(更新は成功すれば必ず行を残すため、
 /// stock 空のまま枠が未来なのは失敗待ち・実行中だけで、待つのが正しい)
-fn should_refresh(next_available_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+fn should_refresh(next_available_at: Option<OffsetDateTime>, now: OffsetDateTime) -> bool {
     next_available_at.is_none_or(|at| at <= now)
 }
 
 /// 更新枠の「次に更新してよい時刻」を読む。行が無ければ None(=初回)
-async fn refresh_gate_next_available_at(pool: &Db) -> Result<Option<DateTime<Utc>>, ApiError> {
-    crate::db::query_scalar::<DateTime<Utc>>(
+async fn refresh_gate_next_available_at(pool: &Db) -> Result<Option<OffsetDateTime>, ApiError> {
+    crate::db::query_scalar::<OffsetDateTime>(
         "SELECT next_available_at FROM market_data_provider_rate_control WHERE provider = $1",
         vec![Bind::from(MASTER_PROVIDER)],
     )
@@ -153,11 +157,11 @@ async fn postpone_refresh_slot(pool: &Db) -> Result<(), ApiError> {
 }
 
 /// `scheduled_ms`(UTC エポックミリ秒)から UTC 時刻を得る。
-/// `Utc::now()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
+/// `OffsetDateTime::now_utc()` には依存しない(テスト可能なように scheduled イベント時刻のみを使う)
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None になる
 #[expect(clippy::cast_possible_truncation)]
-const fn scheduled_time(scheduled_ms: f64) -> Option<DateTime<Utc>> {
-    DateTime::from_timestamp_millis(scheduled_ms as i64)
+fn scheduled_time(scheduled_ms: f64) -> Option<OffsetDateTime> {
+    OffsetDateTime::from_unix_timestamp_nanos(i128::from(scheduled_ms as i64) * 1_000_000).ok()
 }
 
 /// market_data_provider_rate_control の行(次に更新してよい時刻)で更新要否を判定し、
@@ -206,7 +210,6 @@ pub async fn maybe_refresh(
 mod tests {
     use super::*;
     use crate::services::jquants::EquitiesMasterData;
-    use chrono::TimeZone;
 
     fn master_row(code: &str, name: &str) -> EquitiesMasterData {
         EquitiesMasterData {
@@ -271,7 +274,10 @@ mod tests {
         let rows = map_master(&response(vec![row]));
         assert_eq!(rows.len(), 1);
         let r = &rows[0];
-        assert_eq!(r.date, NaiveDate::from_ymd_opt(2026, 10, 15).unwrap());
+        assert_eq!(
+            r.date,
+            Date::from_calendar_date(2026, time::Month::try_from(10).unwrap(), 15).unwrap()
+        );
         assert_eq!(r.name, "架空水産");
         assert_eq!(r.market_category, "プライム");
         assert_eq!(r.industry_category_17, None);
@@ -303,10 +309,8 @@ mod tests {
         assert!(empty.codes.is_empty());
     }
 
-    fn fixed_now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 10, 18, 12, 0, 0)
-            .single()
-            .expect("固定時刻の生成に失敗")
+    fn fixed_now() -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(1792324800).expect("固定時刻の生成に失敗")
     }
 
     #[test]
@@ -319,11 +323,8 @@ mod tests {
     fn test_should_refresh_future_slot_skips() {
         let now = fixed_now();
         // 未来の枠は失敗待ち・実行中・直前の成功いずれかなので待つ
-        assert!(!should_refresh(
-            Some(now + chrono::Duration::minutes(1)),
-            now
-        ));
-        assert!(!should_refresh(Some(now + chrono::Duration::days(7)), now));
+        assert!(!should_refresh(Some(now + time::Duration::minutes(1)), now));
+        assert!(!should_refresh(Some(now + time::Duration::days(7)), now));
     }
 
     #[test]
@@ -331,16 +332,16 @@ mod tests {
         let now = fixed_now();
         // ちょうど・過去は実行する
         assert!(should_refresh(Some(now), now));
-        assert!(should_refresh(
-            Some(now - chrono::Duration::seconds(1)),
-            now
-        ));
+        assert!(should_refresh(Some(now - time::Duration::seconds(1)), now));
     }
 
     #[test]
     fn test_scheduled_time_boundary_floats() {
         // 範囲外の f64 は飽和する。NaN は 0（epoch）に飽和する
-        assert_eq!(scheduled_time(f64::NAN), DateTime::from_timestamp_millis(0));
+        assert_eq!(
+            scheduled_time(f64::NAN),
+            OffsetDateTime::from_unix_timestamp_nanos(0).ok()
+        );
         assert_eq!(scheduled_time(f64::INFINITY), None);
         assert_eq!(scheduled_time(f64::NEG_INFINITY), None);
         assert!(scheduled_time(-1.0).is_some());

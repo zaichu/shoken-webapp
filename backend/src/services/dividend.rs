@@ -218,8 +218,7 @@ pub async fn bulk_create(
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
-    let settlement_dates: Vec<chrono::NaiveDate> =
-        items.iter().map(|i| i.settlement_date).collect();
+    let settlement_dates: Vec<time::Date> = items.iter().map(|i| i.settlement_date).collect();
     let products: Vec<String> = items.iter().map(|i| i.product.clone()).collect();
     let accounts: Vec<String> = items
         .iter()

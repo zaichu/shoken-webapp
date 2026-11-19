@@ -171,7 +171,7 @@ pub async fn delete_account(
     if !verify_account_delete_confirmation(
         confirmation.value(),
         &session_id.to_string(),
-        chrono::Utc::now().timestamp(),
+        time::OffsetDateTime::now_utc().unix_timestamp(),
     ) {
         return Err(ApiError::Validation(
             "アカウント削除確認が無効です".to_string(),
@@ -216,8 +216,10 @@ pub async fn create_account_deletion_confirmation(
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
     let session_id = crate::handlers::v1::auth::oauth::get_session_id_from_jar(&jar)?;
-    let confirmation =
-        issue_account_delete_confirmation(&session_id.to_string(), chrono::Utc::now().timestamp())?;
+    let confirmation = issue_account_delete_confirmation(
+        &session_id.to_string(),
+        time::OffsetDateTime::now_utc().unix_timestamp(),
+    )?;
     let is_secure = state.config.secure_cookie;
     let jar = jar.add(build_account_delete_confirmation_cookie(
         confirmation,
@@ -271,8 +273,8 @@ mod tests {
             email: "test@example.com".to_string(),
             name: Some("Test User".to_string()),
             picture_url: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: time::OffsetDateTime::now_utc(),
+            updated_at: time::OffsetDateTime::now_utc(),
         }
     }
 
@@ -378,7 +380,7 @@ mod tests {
     #[test]
     fn test_account_delete_confirmation_issue_and_verify() {
         let session = uuid::Uuid::new_v4().to_string();
-        let now = chrono::Utc::now().timestamp();
+        let now = time::OffsetDateTime::now_utc().unix_timestamp();
 
         let value = issue_account_delete_confirmation(&session, now).unwrap();
         assert!(
@@ -467,7 +469,7 @@ mod tests {
             verify_account_delete_confirmation(
                 &value,
                 &session_id.to_string(),
-                chrono::Utc::now().timestamp()
+                time::OffsetDateTime::now_utc().unix_timestamp()
             ),
             "発行された Cookie は発行元セッションで受理されること"
         );
@@ -497,12 +499,12 @@ mod tests {
 
         let expired = issue_account_delete_confirmation(
             &session_id.to_string(),
-            chrono::Utc::now().timestamp() - 601,
+            time::OffsetDateTime::now_utc().unix_timestamp() - 601,
         )
         .unwrap();
         let other_session = issue_account_delete_confirmation(
             &uuid::Uuid::new_v4().to_string(),
-            chrono::Utc::now().timestamp(),
+            time::OffsetDateTime::now_utc().unix_timestamp(),
         )
         .unwrap();
         for (case, cookie_value) in [

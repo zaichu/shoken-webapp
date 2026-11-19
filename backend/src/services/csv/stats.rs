@@ -1,8 +1,8 @@
 use crate::db::{Bind, Db};
 use crate::errors::ApiError;
-use chrono::{DateTime, Utc};
 use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 use shared::value::UserId;
+use time::OffsetDateTime;
 
 /// 5表の件数・最終作成日時と履歴の最終取込日時を1回の問い合わせで取る。
 /// 履歴結合・順序は `ORDER BY ord` で固定し、表示順の決定は SQL が担う
@@ -33,8 +33,8 @@ const KIND_LABELS: [(&str, &str); 5] = [
 struct CsvKindStatRow {
     kind: String,
     count: i64,
-    max_created_at: Option<DateTime<Utc>>,
-    last_imported_at: Option<DateTime<Utc>>,
+    max_created_at: Option<OffsetDateTime>,
+    last_imported_at: Option<OffsetDateTime>,
 }
 
 impl crate::db::FromRow for CsvKindStatRow {
@@ -52,15 +52,17 @@ impl crate::db::FromRow for CsvKindStatRow {
 /// 件数0(未取込・全削除後)は履歴が残っていても日時なしにする
 fn resolve_latest(
     count: i64,
-    max_created_at: Option<DateTime<Utc>>,
-    last_imported_at: Option<DateTime<Utc>>,
+    max_created_at: Option<OffsetDateTime>,
+    last_imported_at: Option<OffsetDateTime>,
 ) -> Option<String> {
     if count == 0 {
         return None;
     }
-    last_imported_at
-        .or(max_created_at)
-        .map(|timestamp| timestamp.to_rfc3339())
+    last_imported_at.or(max_created_at).map(|timestamp| {
+        timestamp
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap_or_default()
+    })
 }
 
 pub async fn collect_csv_kind_stats(
@@ -92,11 +94,10 @@ pub async fn collect_csv_kind_stats(
 mod tests {
     use super::*;
 
-    fn timestamp(value: &str) -> Option<DateTime<Utc>> {
+    fn timestamp(value: &str) -> Option<OffsetDateTime> {
         Some(
-            chrono::DateTime::parse_from_rfc3339(value)
-                .unwrap()
-                .with_timezone(&Utc),
+            time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+                .unwrap(),
         )
     }
 
@@ -107,13 +108,13 @@ mod tests {
             timestamp("2026-10-24T02:15:00Z"),
             timestamp("2026-10-27T04:30:00Z"),
         );
-        assert_eq!(latest.as_deref(), Some("2026-10-27T04:30:00+00:00"));
+        assert_eq!(latest.as_deref(), Some("2026-10-27T04:30:00Z"));
     }
 
     #[test]
     fn falls_back_to_max_created_at_without_history() {
         let latest = resolve_latest(2, timestamp("2026-10-24T02:15:00Z"), None);
-        assert_eq!(latest.as_deref(), Some("2026-10-24T02:15:00+00:00"));
+        assert_eq!(latest.as_deref(), Some("2026-10-24T02:15:00Z"));
     }
 
     #[test]

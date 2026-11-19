@@ -153,9 +153,8 @@ pub async fn bulk_create(
     limit: RowLimit,
 ) -> Result<BulkCreateResponse, ApiError> {
     let user_ids = bulk::user_ids_for_bulk_insert(user_id, items.len());
-    let trade_dates: Vec<chrono::NaiveDate> = items.iter().map(|i| i.trade_date).collect();
-    let settlement_dates: Vec<chrono::NaiveDate> =
-        items.iter().map(|i| i.settlement_date).collect();
+    let trade_dates: Vec<time::Date> = items.iter().map(|i| i.trade_date).collect();
+    let settlement_dates: Vec<time::Date> = items.iter().map(|i| i.settlement_date).collect();
     let security_codes: Vec<String> = items
         .iter()
         .map(|i| i.security_code.as_str().to_owned())
@@ -298,8 +297,8 @@ mod tests {
     use crate::models::csv_import::CsvPreviewResponse;
     use crate::services::csv::import::CsvImport;
     use crate::services::domain::search;
-    use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+    use time::Date;
     use uuid::Uuid;
 
     const HEADER: &str = "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
@@ -397,8 +396,10 @@ mod tests {
 
     fn make_test_item() -> CreateDomesticStockRequest {
         CreateDomesticStockRequest {
-            trade_date: NaiveDate::from_ymd_opt(2026, 2, 12).unwrap(),
-            settlement_date: NaiveDate::from_ymd_opt(2026, 2, 16).unwrap(),
+            trade_date: Date::from_calendar_date(2026, time::Month::try_from(2).unwrap(), 12)
+                .unwrap(),
+            settlement_date: Date::from_calendar_date(2026, time::Month::try_from(2).unwrap(), 16)
+                .unwrap(),
             security_code: "9913".parse().unwrap(),
             security_name: "架空電力西".to_string(),
             account: "特定".parse().unwrap(),
@@ -444,7 +445,7 @@ mod tests {
     }
 
     fn make_summary_item(
-        trade_date: NaiveDate,
+        trade_date: Date,
         account: &str,
         security_code: &str,
         realized_profit_and_loss: Decimal,
@@ -483,8 +484,8 @@ mod tests {
         .await
         .unwrap();
 
-        let day1 = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
-        let day2 = NaiveDate::from_ymd_opt(2026, 2, 11).unwrap();
+        let day1 = Date::from_calendar_date(2026, time::Month::try_from(2).unwrap(), 10).unwrap();
+        let day2 = Date::from_calendar_date(2026, time::Month::try_from(2).unwrap(), 11).unwrap();
 
         // day1: 特定口座 +10000 / +5000（合計 +15000、税額 floor(15000*0.20315)=3047）、NISA +2000（非課税）
         // day2: 特定口座 -3000（マイナスのため非課税）

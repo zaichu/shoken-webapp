@@ -2,9 +2,9 @@ use crate::{
     db::{Bind, Db, DbError, Tx},
     errors::ApiError,
 };
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared::value::UserId;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 use super::client_info::ClientInfo;
@@ -15,7 +15,8 @@ pub const DEFAULT_HISTORY_LIMIT: i64 = 50;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct LoginHistoryEntry {
-    pub occurred_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub occurred_at: OffsetDateTime,
     pub result: String,
     pub country: Option<String>,
     pub region: Option<String>,
@@ -161,7 +162,7 @@ mod tests {
     #[test]
     fn history_response_carries_no_secret_fields() {
         let entry = LoginHistoryEntry {
-            occurred_at: chrono::Utc::now(),
+            occurred_at: time::OffsetDateTime::now_utc(),
             result: "success".to_string(),
             country: Some("JP".to_string()),
             region: Some("Tokyo".to_string()),
@@ -174,6 +175,21 @@ mod tests {
         for forbidden in ["device_hash", "device_id", "token", "ip"] {
             assert!(!history_text.contains(forbidden), "{forbidden}");
         }
+    }
+
+    #[test]
+    fn history_response_keeps_rfc3339_timestamp_string() {
+        let entry = LoginHistoryEntry {
+            occurred_at: OffsetDateTime::from_unix_timestamp(1_705_281_825).unwrap(),
+            result: "success".to_string(),
+            country: None,
+            region: None,
+            browser: None,
+            os: None,
+        };
+
+        let json = serde_json::to_value(entry).unwrap();
+        assert_eq!(json["occurred_at"], "2024-01-15T01:23:45Z");
     }
 
     #[tokio::test]

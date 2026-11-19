@@ -7,11 +7,11 @@ use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
 use crate::models::dividend_cache::{DividendCache, DividendPerShareItem};
 use crate::services::jquants::JQuantsClient;
-use chrono::Utc;
 use rust_decimal::prelude::ToPrimitive;
 use shared::dividend_per_share::DividendCacheStatus;
 use shared::value::SecurityCode;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use logic::compute_is_stale;
 use persistence::{fetch_and_cache, update_cache_error};
@@ -166,7 +166,7 @@ async fn fetch_cached_items(
     .fetch_all(pool)
     .await?;
 
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
 
     let cache_map: std::collections::HashMap<&str, &DividendCache> = cached
         .iter()
@@ -262,7 +262,7 @@ pub async fn drain_refresh_queue(
 fn build_batch_items<'a>(
     codes: &'a [SecurityCode],
     cache_map: &std::collections::HashMap<&str, &DividendCache>,
-    now: chrono::DateTime<chrono::Utc>,
+    now: OffsetDateTime,
 ) -> (Vec<DividendPerShareItem>, Vec<SecurityCode>) {
     // items は元の codes 順で構築し API の返却件数を維持する
     // refresh_codes は初出現順を保持しつつ重複を除去する（更新優先度順を維持するため）
@@ -306,7 +306,7 @@ fn count_requested_and_cached(
 /// 1リクエスト = 12秒間隔（60秒 / 5回）を全インスタンスで原子的に保証
 pub async fn acquire_rate_slot(pool: &Db) -> Result<u64, ApiError> {
     // UPSERT でスロットを予約し、前のスロット開始時刻を返す
-    let slot_time = crate::db::query_scalar::<Option<chrono::DateTime<Utc>>>(
+    let slot_time = crate::db::query_scalar::<Option<time::OffsetDateTime>>(
         "SELECT public.rate_control_acquire_jquants_v2()",
         vec![],
     )
@@ -315,9 +315,9 @@ pub async fn acquire_rate_slot(pool: &Db) -> Result<u64, ApiError> {
 
     let mut waited_ms = 0;
     if let Some(slot_time) = slot_time {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         if slot_time > now {
-            let wait_ms = u64::try_from((slot_time - now).num_milliseconds().max(0)).unwrap_or(0);
+            let wait_ms = u64::try_from((slot_time - now).whole_milliseconds().max(0)).unwrap_or(0);
             if wait_ms > 0 {
                 waited_ms = wait_ms;
                 sleep_millis(wait_ms).await;
@@ -355,22 +355,22 @@ async fn push_rate_control_cooldown(pool: &Db) -> Result<(), ApiError> {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use chrono::{Duration, TimeZone};
+    use time::Duration;
 
     fn make_cache(
         code: &str,
         status: DividendCacheStatus,
-        stale_at: Option<chrono::DateTime<Utc>>,
+        stale_at: Option<time::OffsetDateTime>,
     ) -> DividendCache {
         DividendCache {
             security_code: code.parse().unwrap(),
             dividend_per_share: Some(rust_decimal_macros::dec!(30.0)),
             status,
-            fetched_at: Some(Utc::now()),
+            fetched_at: Some(OffsetDateTime::now_utc()),
             stale_at,
             provider: "jquants".to_string(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
         }
     }
 
@@ -381,10 +381,8 @@ mod tests {
             .collect()
     }
 
-    fn fixed_now() -> chrono::DateTime<Utc> {
-        Utc.with_ymd_and_hms(2024, 1, 10, 0, 0, 0)
-            .single()
-            .expect("固定時刻の生成に失敗")
+    fn fixed_now() -> time::OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(1704844800).expect("固定時刻の生成に失敗")
     }
 
     fn code(s: &str) -> SecurityCode {

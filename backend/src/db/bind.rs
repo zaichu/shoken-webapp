@@ -4,10 +4,10 @@
 
 use crate::db::numeric::Numeric;
 use bytes::BytesMut;
-use chrono::{DateTime, NaiveDate, Utc};
 use postgres_types::{IsNull, ToSql, Type, to_sql_checked};
 use rust_decimal::Decimal;
 use std::error::Error;
+use time::{Date, OffsetDateTime};
 use uuid::Uuid;
 
 /// `$n` プレースホルダに渡す値。配列やドメイン newtype は `Custom` に包む
@@ -19,8 +19,8 @@ pub enum Bind {
     Decimal(Decimal),
     Str(String),
     Bytes(Vec<u8>),
-    Date(NaiveDate),
-    Timestamp(DateTime<Utc>),
+    Date(Date),
+    Timestamp(OffsetDateTime),
     Uuid(Uuid),
     /// variant から宣言型を決められない値（配列・newtype 等）を `ty` 付きで包む
     Custom {
@@ -125,14 +125,14 @@ impl From<&str> for Bind {
     }
 }
 
-impl From<NaiveDate> for Bind {
-    fn from(v: NaiveDate) -> Self {
+impl From<Date> for Bind {
+    fn from(v: Date) -> Self {
         Self::Date(v)
     }
 }
 
-impl From<DateTime<Utc>> for Bind {
-    fn from(v: DateTime<Utc>) -> Self {
+impl From<OffsetDateTime> for Bind {
+    fn from(v: OffsetDateTime) -> Self {
         Self::Timestamp(v)
     }
 }
@@ -151,8 +151,8 @@ impl From<Vec<shared::value::UserId>> for Bind {
     }
 }
 
-impl From<Vec<NaiveDate>> for Bind {
-    fn from(v: Vec<NaiveDate>) -> Self {
+impl From<Vec<Date>> for Bind {
+    fn from(v: Vec<Date>) -> Self {
         Self::custom(Type::DATE_ARRAY, v)
     }
 }
@@ -234,10 +234,22 @@ mod tests {
         assert_eq!(Bind::from("x").declared_type(), Type::TEXT);
         assert_eq!(Bind::Bytes(vec![1]).declared_type(), Type::BYTEA);
         assert_eq!(
-            Bind::from(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()).declared_type(),
+            Bind::from(
+                Date::from_calendar_date(2025, time::Month::try_from(1).unwrap(), 1).unwrap()
+            )
+            .declared_type(),
             Type::DATE
         );
-        assert_eq!(Bind::from(Utc::now()).declared_type(), Type::TIMESTAMPTZ);
+        assert_eq!(
+            Bind::from(OffsetDateTime::now_utc()).declared_type(),
+            Type::TIMESTAMPTZ
+        );
+        let timestamp = Bind::from(OffsetDateTime::from_unix_timestamp(1705281825).unwrap());
+        assert_eq!(timestamp.declared_type(), Type::TIMESTAMPTZ);
+        let date = Bind::from(
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15).unwrap(),
+        );
+        assert_eq!(date.declared_type(), Type::DATE);
         assert_eq!(Bind::from(Uuid::nil()).declared_type(), Type::UUID);
     }
 
@@ -248,7 +260,7 @@ mod tests {
         let user_ids: Vec<UserId> = vec![UserId::from(Uuid::nil())];
         assert_eq!(Bind::from(user_ids).declared_type(), Type::UUID_ARRAY);
         assert_eq!(
-            Bind::from(vec![NaiveDate::MAX]).declared_type(),
+            Bind::from(vec![Date::MAX]).declared_type(),
             Type::DATE_ARRAY
         );
         assert_eq!(

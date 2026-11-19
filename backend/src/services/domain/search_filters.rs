@@ -1,36 +1,50 @@
 use crate::db::QueryBuilder;
 use crate::errors::ApiError;
 use crate::models::common::SearchQueryParams;
-use chrono::NaiveDate;
 use shared::value::UserId;
 use std::future::Future;
+use time::Date;
 
 // ── 入力変換: クエリパラメータの文字列 → SearchFilter ──
 
-fn parse_date_param(field: &str, value: &str) -> Result<NaiveDate, ApiError> {
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
-        .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
+fn parse_date_param(field: &str, value: &str) -> Result<Date, ApiError> {
+    Date::parse(
+        value,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )
+    .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
 }
 
-fn year_to_range(year: i32) -> Result<(NaiveDate, NaiveDate), ApiError> {
+fn year_to_range(year: i32) -> Result<(Date, Date), ApiError> {
     let invalid = || ApiError::Validation("year の値が不正です".to_string());
-    let start = NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(invalid)?;
-    let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).ok_or_else(invalid)?;
+    let start = Date::from_calendar_date(year, time::Month::January, 1).map_err(|_| invalid())?;
+    let end = Date::from_calendar_date(year + 1, time::Month::January, 1).map_err(|_| invalid())?;
     Ok((start, end))
 }
 
-fn parse_year_month_range(value: &str) -> Result<(NaiveDate, NaiveDate), ApiError> {
+fn parse_year_month_range(value: &str) -> Result<(Date, Date), ApiError> {
     let invalid = || ApiError::Validation("year_month の形式が不正です（YYYY-MM）".to_string());
     let (year_str, month_str) = value.split_once('-').ok_or_else(invalid)?;
     let year: i32 = year_str.parse().map_err(|_| invalid())?;
     let month: u32 = month_str.parse().map_err(|_| invalid())?;
-    let start = NaiveDate::from_ymd_opt(year, month, 1).ok_or_else(invalid)?;
+    let start = Date::from_calendar_date(
+        year,
+        time::Month::try_from(u8::try_from(month).map_err(|_| invalid())?)
+            .map_err(|_| invalid())?,
+        1,
+    )
+    .map_err(|_| invalid())?;
     let end = if month == 12 {
-        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        Date::from_calendar_date(year + 1, time::Month::January, 1)
     } else {
-        NaiveDate::from_ymd_opt(year, month + 1, 1)
+        Date::from_calendar_date(
+            year,
+            time::Month::try_from(u8::try_from(month + 1).map_err(|_| invalid())?)
+                .map_err(|_| invalid())?,
+            1,
+        )
     }
-    .ok_or_else(invalid)?;
+    .map_err(|_| invalid())?;
     Ok((start, end))
 }
 
@@ -47,11 +61,11 @@ pub fn escape_like_pattern(token: &str) -> String {
 /// （date_eq / date_from / date_to / year_range / year_month_range）
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DateAxisFilter {
-    pub date_eq: Option<NaiveDate>,
-    pub date_from: Option<NaiveDate>,
-    pub date_to: Option<NaiveDate>,
-    pub year_range: Option<(NaiveDate, NaiveDate)>,
-    pub year_month_range: Option<(NaiveDate, NaiveDate)>,
+    pub date_eq: Option<Date>,
+    pub date_from: Option<Date>,
+    pub date_to: Option<Date>,
+    pub year_range: Option<(Date, Date)>,
+    pub year_month_range: Option<(Date, Date)>,
 }
 
 impl TryFrom<&SearchQueryParams> for DateAxisFilter {
@@ -151,7 +165,7 @@ fn push_date_bound(
     qb: &mut QueryBuilder,
     date_column: &'static str,
     op: &'static str,
-    value: NaiveDate,
+    value: Date,
 ) {
     qb.push(format!(" AND {date_column} {op} "))
         .push_bind(value);
@@ -260,24 +274,39 @@ mod tests {
     };
     use crate::db::QueryBuilder;
     use crate::errors::ApiError;
-    use chrono::NaiveDate;
+    use time::Date;
 
     #[test]
     fn test_year_to_range_produces_year_boundaries() {
         let (start, end) = year_to_range(2026).expect("2026年は有効な範囲");
-        assert_eq!(start, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
-        assert_eq!(end, NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
+        assert_eq!(
+            start,
+            Date::from_calendar_date(2026, time::Month::January, 1).unwrap()
+        );
+        assert_eq!(
+            end,
+            Date::from_calendar_date(2027, time::Month::January, 1).unwrap()
+        );
     }
 
     #[test]
     fn test_parse_year_month_range_handles_december_wrap_and_invalid_values() {
         let (start, end) = parse_year_month_range("2026-06").expect("2026-06 は有効");
-        assert_eq!(start, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap());
-        assert_eq!(end, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap());
+        assert_eq!(
+            start,
+            Date::from_calendar_date(2026, time::Month::June, 1).unwrap()
+        );
+        assert_eq!(
+            end,
+            Date::from_calendar_date(2026, time::Month::July, 1).unwrap()
+        );
 
         // 12月は年をまたいで翌年1月1日になる
         let (_, end) = parse_year_month_range("2026-12").expect("2026-12 は有効");
-        assert_eq!(end, NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
+        assert_eq!(
+            end,
+            Date::from_calendar_date(2027, time::Month::January, 1).unwrap()
+        );
 
         for invalid in ["2026/06", "2026-13", "abcd-06", "2026-06-01"] {
             assert!(
@@ -326,16 +355,16 @@ mod tests {
     #[test]
     fn test_push_date_axis_filters_pushes_all_present_conditions_with_given_column() {
         let filter = DateAxisFilter {
-            date_eq: NaiveDate::from_ymd_opt(2026, 1, 15),
-            date_from: NaiveDate::from_ymd_opt(2026, 1, 1),
-            date_to: NaiveDate::from_ymd_opt(2026, 12, 31),
+            date_eq: Some(Date::from_calendar_date(2026, time::Month::January, 15).unwrap()),
+            date_from: Some(Date::from_calendar_date(2026, time::Month::January, 1).unwrap()),
+            date_to: Some(Date::from_calendar_date(2026, time::Month::December, 31).unwrap()),
             year_range: Some((
-                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap(),
+                Date::from_calendar_date(2026, time::Month::January, 1).unwrap(),
+                Date::from_calendar_date(2027, time::Month::January, 1).unwrap(),
             )),
             year_month_range: Some((
-                NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
-                NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+                Date::from_calendar_date(2026, time::Month::June, 1).unwrap(),
+                Date::from_calendar_date(2026, time::Month::July, 1).unwrap(),
             )),
         };
 
@@ -778,11 +807,11 @@ mod tests {
                 Ok((start, end)) => {
                     proptest::prop_assert_eq!(
                         start,
-                        NaiveDate::from_ymd_opt(year, 1, 1).unwrap()
+                        Date::from_calendar_date(year, time::Month::January, 1).unwrap()
                     );
                     proptest::prop_assert_eq!(
                         end,
-                        NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
+                        Date::from_calendar_date(year + 1, time::Month::January, 1).unwrap()
                     );
                     proptest::prop_assert!(start < end);
                 }
@@ -805,12 +834,12 @@ mod tests {
                 Ok((start, end)) => {
                     proptest::prop_assert_eq!(
                         start,
-                        NaiveDate::from_ymd_opt(year, month, 1).unwrap()
+                        Date::from_calendar_date(year, time::Month::try_from(u8::try_from(month).unwrap()).unwrap(), 1).unwrap()
                     );
                     let expected_end = if month == 12 {
-                        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+                        Date::from_calendar_date(year + 1, time::Month::January, 1)
                     } else {
-                        NaiveDate::from_ymd_opt(year, month + 1, 1)
+                        Date::from_calendar_date(year, time::Month::try_from(u8::try_from(month + 1).unwrap()).unwrap(), 1)
                     };
                     proptest::prop_assert_eq!(end, expected_end.unwrap());
                 }

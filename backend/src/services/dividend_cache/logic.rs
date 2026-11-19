@@ -1,7 +1,7 @@
 use crate::services::jquants::FinSummaryData;
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use shared::dividend_per_share::DividendCacheStatus;
+use time::OffsetDateTime;
 
 /// キャッシュエントリの is_stale を判定する
 ///
@@ -9,8 +9,8 @@ use shared::dividend_per_share::DividendCacheStatus;
 /// それ以外は stale_at が NULL または過去なら is_stale = true。
 pub fn compute_is_stale(
     status: DividendCacheStatus,
-    stale_at: Option<DateTime<Utc>>,
-    now: DateTime<Utc>,
+    stale_at: Option<OffsetDateTime>,
+    now: OffsetDateTime,
 ) -> bool {
     status != DividendCacheStatus::Pending && stale_at.is_none_or(|t| t < now)
 }
@@ -223,11 +223,13 @@ mod tests {
 
     #[test]
     fn test_compute_is_stale() {
-        let now = DateTime::parse_from_rfc3339("2024-01-10T00:00:00Z")
-            .expect("固定時刻のパースに失敗")
-            .with_timezone(&Utc);
-        let past = Some(now - chrono::Duration::hours(1));
-        let future = Some(now + chrono::Duration::days(7));
+        let now = OffsetDateTime::parse(
+            "2024-01-10T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("固定時刻のパースに失敗");
+        let past = Some(now - time::Duration::hours(1));
+        let future = Some(now + time::Duration::days(7));
 
         for (status, stale_at, expected) in [
             (DividendCacheStatus::Pending, None, false),
