@@ -150,7 +150,7 @@ test('保有行を押すと中央ダイアログで詳細が出る', async ({ pa
     '数量',
     '取得総額',
     '評価額',
-    '年間配当',
+    '年間配当(予想)',
     '価格基準日',
   ]);
   await dialog.getByTestId('detail-dialog-close').click();

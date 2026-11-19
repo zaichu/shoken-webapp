@@ -474,7 +474,6 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let sheet_title = name_text.clone();
     let short_date = format::format_short_date(&date.replace('/', "-"));
     let sheet_open = RwSignal::new(false);
-    let hero_value_for_row = hero_value.clone();
     let account_for_meta = account.clone();
     let code_for_meta = code.clone();
     let short_date_for_meta = short_date.clone();
@@ -503,7 +502,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                     <span class="receipt-compact-value">
                         <Amount
                             kind=hero_kind
-                            text=hero_value_for_row.clone()
+                            text=hero_value.clone()
                             negative=hero_negative
                             positive=hero_positive
                         />

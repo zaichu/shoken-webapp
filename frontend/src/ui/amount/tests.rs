@@ -1,4 +1,5 @@
 use super::{AmountColor, AmountKind, amount_color, amount_negative_attr, display_text};
+use crate::ui::labels;
 
 #[test]
 fn negative_display_is_negative_for_both_kinds() {
@@ -103,6 +104,32 @@ fn quantities_dates_and_labels_remain_neutral() {
             "{text}"
         );
     }
+}
+
+#[test]
+fn tax_suffix_inside_amount_text_loses_sign_color() {
+    // 税区分の接尾辞を金額の文字列に混ぜると正負の色が出ない。
+    // 接尾辞は Amount の外の別の要素に出す(呼び出し側の決まり)
+    let suffixed = format!("+¥2,867({})", labels::AFTER_TAX);
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, true, &suffixed),
+        AmountColor::Neutral,
+        "{suffixed}"
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, false, true, "+¥2,867"),
+        AmountColor::Positive
+    );
+    let suffixed = format!("-¥2,867({})", labels::AFTER_TAX);
+    assert_eq!(
+        amount_color(AmountKind::Delta, true, false, &suffixed),
+        AmountColor::Neutral,
+        "{suffixed}"
+    );
+    assert_eq!(
+        amount_color(AmountKind::Delta, true, false, "-¥2,867"),
+        AmountColor::Negative
+    );
 }
 
 #[test]

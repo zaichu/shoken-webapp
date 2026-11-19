@@ -152,7 +152,10 @@ fn HomeDividendRow(row: Dividend) -> impl IntoView {
     let row_name = texts.name.clone();
     let account = texts.account.clone();
     let account_for_meta = texts.account.clone();
+    // 行だけでは税区分が分からないため受取額に添える(ダイアログは項目名で分かる)。
+    // 接尾辞は Amount の外に出す(金額の文字列に混ぜると正負の色が出ないため)
     let net_for_row = texts.net_signed.clone();
+    let net_tax_suffix = format!("({})", labels::AFTER_TAX);
     let net_negative = texts.net_negative;
     let net_positive = texts.net_positive;
     let code_for_meta = code.clone();
@@ -194,7 +197,7 @@ fn HomeDividendRow(row: Dividend) -> impl IntoView {
                         text=net_for_row.clone()
                         negative=net_negative
                         positive=net_positive
-                    />
+                    /><span class="text-cell text-text-muted">{net_tax_suffix.clone()}</span>
                 }
                 meta=move || view! {
                     {date_for_meta.clone()}

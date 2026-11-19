@@ -4,7 +4,6 @@ use super::stocks_of;
 use crate::features::asset_balance;
 use crate::session;
 use crate::ui::cumulative_chart::CumulativeChart;
-use crate::ui::format;
 use crate::ui::home::{
     HomeCardError, HomeCardHead, HomeCardSkeleton, HomeChartSection, HomeDetailCard,
     HomeDividendHead, HomeDividendNote,
@@ -85,11 +84,7 @@ fn DividendCardBody(
         || labels::MISSING.to_string(),
         |v| asset_balance::format_valuation_amount(Some(v)),
     );
-    let progress_pct = model.progress.map(|p| p * 100.0);
-    let progress_text = progress_pct.map_or_else(
-        || labels::MISSING.to_string(),
-        format::format_integer_percent,
-    );
+    let progress = model::progress_display(model.progress);
     let (remaining_prefix, remaining_amount, remaining_suffix) =
         model::remaining_label(model.remaining);
     let current_month = js_sys::Date::new_0().get_month() + 1;
@@ -111,17 +106,13 @@ fn DividendCardBody(
             received_negative=asset_balance::is_negative_valuation(received_value)
             received_positive=asset_balance::is_positive_valuation(received_value)
             forecast_text=(!pending).then(|| forecast.clone())
-            progress_text=progress_text
+            progress_text=progress.text
         />
         <div class="home-progress">
-            {progress_pct.map(|pct| {
-                view! {
-                    <div
-                        class="home-progress-fill"
-                        style:width=format!("{}%", pct.clamp(0.0, 100.0))
-                    />
-                }
-            })}
+            <div
+                class="home-progress-fill"
+                style:width=format!("{}%", progress.bar_pct)
+            />
         </div>
         <HomeDividendNote
             prefix=remaining_prefix
@@ -131,6 +122,7 @@ fn DividendCardBody(
             yoy_text=yoy_text
             yoy_negative=asset_balance::is_negative_valuation(yoy_value)
             yoy_positive=asset_balance::is_positive_valuation(yoy_value)
+            over=progress.over
         />
         <DividendMonthlyChart
             monthly=model.monthly

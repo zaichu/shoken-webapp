@@ -346,6 +346,28 @@ fn annual_forecast_uses_per_share_and_shares() {
 }
 
 #[test]
+fn progress_display_caps_bar_and_flags_over() {
+    // 予想なしは「—」、バーは 0、超え扱いにしない
+    let none = progress_display(None);
+    assert_eq!(none.text, labels::MISSING);
+    assert_eq!(none.bar_pct, 0.0);
+    assert!(!none.over);
+    // 0% はそのまま
+    let zero = progress_display(Some(0.0));
+    assert!(!zero.over);
+    assert_eq!(zero.bar_pct, 0.0);
+    // 100% ちょうどは超え扱いにしない
+    let full = progress_display(Some(1.0));
+    assert!(!full.over);
+    assert_eq!(full.bar_pct, 100.0);
+    // 超えたらバーは満タンで止め、超えの印を立てる(計算は受取÷予想のまま)
+    let over = progress_display(Some(16.11));
+    assert!(over.over);
+    assert_eq!(over.bar_pct, 100.0);
+    assert_eq!(over.text, format::format_integer_percent(1611.0));
+}
+
+#[test]
 fn remaining_label_writes_overage_as_exceeding() {
     // 受取が予想を超えたら負の残りではなく「上回り」に書き分ける
     let (prefix, amount, suffix) = remaining_label(Some(-17_500.0));

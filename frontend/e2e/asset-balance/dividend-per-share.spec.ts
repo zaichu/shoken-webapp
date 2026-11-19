@@ -208,6 +208,8 @@ test('推定の初回レスポンス後に配当値が表示される(PC)', asyn
   });
   await page.goto('/assetbalance');
   const table = page.getByTestId('asset-holdings-table');
+  // 表の描画前に列見出しを引くと空になるため、先に表を待つ(他テストと同じ)
+  await expect(table).toBeVisible();
   const row = table.getByRole('row', { name: /架空自動車/ });
   const perShareIndex = await columnIndex(table, '1株配当');
   const annualIndex = await columnIndex(table, '年間配当');
