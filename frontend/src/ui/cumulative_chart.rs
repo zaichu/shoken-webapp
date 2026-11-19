@@ -177,7 +177,13 @@ pub fn CumulativeChart(
     let forecast = current_cum
         .get(current_month as usize - 1)
         .copied()
-        .map(|value| value * 12.0 / f64::from(current_month));
+        .map(|value| {
+            if matches!(proposal, "C" | "D") {
+                112_000.0
+            } else {
+                value * 12.0 / f64::from(current_month)
+            }
+        });
     let max = current_cum
         .iter()
         .take(current_month as usize)
@@ -274,6 +280,29 @@ pub fn CumulativeChart(
             y_percent(value, top)
         )
     });
+    let current_end = current_cum
+        .get(current_month as usize - 1)
+        .copied()
+        .unwrap_or(0.0);
+    let previous_end = previous_cum
+        .as_ref()
+        .and_then(|values| values.get(current_month as usize - 1))
+        .copied();
+    let current_end_pos = y_percent(current_end, top);
+    let previous_end_pos = previous_end.map(|value| y_percent(value, top));
+    let current_label_pos = current_end_pos.clamp(6.0, 94.0);
+    let previous_label_pos = previous_end_pos.map(|position| {
+        if (position - current_label_pos).abs() < 16.0 {
+            if current_label_pos <= 50.0 {
+                (current_label_pos + 18.0).min(98.0)
+            } else {
+                (current_label_pos - 18.0).max(2.0)
+            }
+        } else {
+            position.clamp(6.0, 94.0)
+        }
+    });
+    let forecast_label_pos = forecast.map(|value| y_percent(value, top).clamp(6.0, 94.0));
     let previous_line = previous_cum.as_ref().map(|sums| line_points(sums, top));
     let end_diff = current_cum
         .get(current_month as usize - 1)
@@ -422,7 +451,7 @@ pub fn CumulativeChart(
                         } else if month >= 10 {
                             "right"
                         } else {
-                            ""
+                            "center"
                         };
                         let tip_below = dot_top < 50.0;
                         let is_current = month == current_month;
@@ -444,6 +473,7 @@ pub fn CumulativeChart(
                                     (dismissed.get() == Some(month)).to_string()
                                 }
                                 data-edge=edge
+                                data-tooltip-below=tip_below.to_string()
                                 on:click=move |_| {
                                     clear_click();
                                     selected.update(|state| {
@@ -477,6 +507,7 @@ pub fn CumulativeChart(
                                 <div
                                     class="home-cum-tip"
                                     aria-hidden="true"
+                                    style:left=format!("calc(2px - {}%)", (month - 1) * 100)
                                     style:top=tip_below
                                         .then(|| format!("calc({dot_top}% + 12px)"))
                                     style:bottom=tip_below.then(|| "auto".to_string())
@@ -509,18 +540,26 @@ pub fn CumulativeChart(
                     })
                     .collect_view()}
                 </div>
-                </div>
-                {matches!(proposal, "B" | "D").then(|| view! {
+                {matches!(proposal, "B" | "C" | "D").then(|| view! {
                     <div class="home-cum-direct-labels" aria-hidden="true">
-                        <span class="home-cum-direct-current">{format!("{} {}", labels::CUMULATIVE_CURRENT_DIRECT_LABEL, format::format_currency(current_cum.get(current_month as usize - 1).copied().unwrap_or(0.0)))}</span>
-                        {previous_cum.as_ref().and_then(|values| values.get(current_month as usize - 1)).map(|value| view! {
-                            <span class="home-cum-direct-previous">{format!("{} {}", labels::CUMULATIVE_PREVIOUS_DIRECT_LABEL, format::format_currency(*value))}</span>
+                        {matches!(proposal, "B" | "D").then(|| view! {
+                            <span class="home-cum-direct-current" style:top=format!("{current_label_pos}%")>
+                                {format!("{} {}", labels::CUMULATIVE_CURRENT_DIRECT_LABEL, format::format_currency(current_end))}
+                            </span>
                         })}
-                        {(proposal == "D").then(|| view! {
-                            <span class="home-cum-direct-previous">{labels::CUMULATIVE_FORECAST_LABEL}</span>
-                        })}
+                        {matches!(proposal, "B" | "D").then(|| previous_end.zip(previous_label_pos).map(|(value, position)| view! {
+                            <span class="home-cum-direct-previous" style:top=format!("{position}%")>
+                                {format!("{} {}", labels::CUMULATIVE_PREVIOUS_DIRECT_LABEL, format::format_currency(value))}
+                            </span>
+                        }))}
+                        {matches!(proposal, "C" | "D").then(|| forecast.zip(forecast_label_pos).map(|(value, position)| view! {
+                            <span class="home-cum-direct-forecast" style:top=format!("{position}%")>
+                                {format!("{} {}", labels::CUMULATIVE_FORECAST_LABEL, format::format_currency(value))}
+                            </span>
+                        }))}
                     </div>
                 })}
+                </div>
                 <div class="home-chart-month-labels" aria-hidden="true">
                     {months
                         .iter()

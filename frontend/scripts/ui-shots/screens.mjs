@@ -79,12 +79,6 @@ export const SCREENS = [
     label: 'ホーム',
     path: '/',
     ready: ['[data-testid="home-overview"]'],
-    prepare: async (page) => {
-      const month = Number(process.env.UI_SHOTS_TOOLTIP_MONTH ?? '9');
-      if (process.env.UI_SHOTS_TOOLTIP === '1') {
-        await page.locator('.home-cum-col').nth(month - 1).click();
-      }
-    },
   },
   {
     key: 'asset-all',
@@ -220,8 +214,10 @@ async function installMocks(context, { anonymous, admin }) {
   const stocks = assetBalances();
   const funds = fundBalances();
   const schedule = process.env.UI_SHOTS_DIVIDEND_SCHEDULE === 'quarterly' ? 'quarterly' : 'monthly';
-  const currentDividends = dividends(CURRENT_YEAR, schedule);
-  const previousDividends = dividends(PREVIOUS_YEAR, schedule);
+  const chartProposalData = process.env.UI_SHOTS_CHART_DATA === '1';
+  const dividendSchedule = chartProposalData ? 'cumulative-chart-proposal' : schedule;
+  const currentDividends = dividends(CURRENT_YEAR, dividendSchedule);
+  const previousDividends = dividends(PREVIOUS_YEAR, dividendSchedule);
   const domesticStocks = domesticStockTransactions();
   const mutualFunds = mutualFundTransactions();
 
@@ -271,9 +267,16 @@ async function installMocks(context, { anonymous, admin }) {
   await context.route(/\/api\/v1\/mutual-fund-transactions(?:\?.*)?$/, (route) =>
     route.fulfill(json(paginated(mutualFunds.rows, { summary: mutualFunds.summary }))),
   );
-  await context.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
-    route.fulfill(json(dividendEstimates())),
-  );
+  await context.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) => {
+    if (!chartProposalData) return route.fulfill(json(dividendEstimates()));
+    const totalShares = stocks.rows.reduce((total, row) => total + row.shares, 0);
+    const items = stocks.rows.map((row) => ({
+      security_code: row.security_code,
+      dividend_per_share: 112000 / totalShares,
+      status: 'ok',
+    }));
+    return route.fulfill(json({ items }));
+  });
   await context.route(/\/api\/v1\/stocks(?:\?.*)?$/, (route) => {
     const url = new URL(route.request().url());
     return route.fulfill(json(stock(url.searchParams.get('query'))));
@@ -398,6 +401,18 @@ function deviceList() {
 }
 
 export async function prepareContext(context, { anonymous, admin }) {
+  if (process.env.UI_SHOTS_CHART_DATA === '1') {
+    await context.addInitScript(() => {
+      const NativeDate = Date;
+      class MockDate extends NativeDate {
+        constructor(...args) {
+          super(...(args.length === 0 ? ['2026-11-15T12:00:00+09:00'] : args));
+        }
+        static now() { return new NativeDate('2026-11-15T12:00:00+09:00').getTime(); }
+      }
+      window.Date = MockDate;
+    });
+  }
   const unexpected = await installGuards(context);
   await installMocks(context, { anonymous, admin });
   return unexpected;

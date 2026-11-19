@@ -1713,7 +1713,7 @@
   }
 
   .home-chart-plot {
-    @apply relative mt-1 h-55 max-sm:h-28;
+    @apply relative mt-1 h-55 max-sm:h-36;
   }
 
   .home-chart-grid {
@@ -1733,7 +1733,7 @@
   }
 
   .home-cum-axis {
-    @apply relative h-55 w-12 shrink-0 max-sm:h-28;
+    @apply relative h-55 w-12 shrink-0 max-sm:h-36;
   }
 
   .home-cum-tick {
@@ -1774,16 +1774,22 @@
   }
 
   .home-cum-direct-labels {
-    @apply flex min-w-0 justify-end gap-2 text-eyebrow font-bold text-text;
+    @apply pointer-events-none absolute inset-0 z-10 text-eyebrow font-bold text-text;
   }
 
   .home-cum-direct-current,
-  .home-cum-direct-previous {
-    @apply whitespace-nowrap rounded bg-surface px-1.5 py-0.5;
+  .home-cum-direct-previous,
+  .home-cum-direct-forecast {
+    @apply absolute right-0 whitespace-nowrap rounded bg-surface px-1.5 py-0.5;
+    transform: translateY(-50%);
   }
 
   .home-cum-direct-previous {
     @apply text-text-muted;
+  }
+
+  .home-cum-direct-forecast {
+    color: var(--color-chart-1);
   }
 
   .home-cum-line-previous {
@@ -1844,7 +1850,8 @@
   }
 
   .home-cum-tip {
-    @apply pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max -translate-x-1/2 rounded-lg border border-border bg-surface px-2.5 py-2 text-cell text-text shadow-elevation-2;
+    @apply pointer-events-none absolute left-1/2 z-20 mb-2 hidden w-max -translate-x-1/2 rounded-lg border border-border bg-surface px-2.5 py-2 text-cell text-text shadow-elevation-2;
+    max-width: min(18rem, calc(100vw - 2rem));
   }
 
   .home-cum-tip dt {
@@ -1873,6 +1880,14 @@
     right: 0;
     left: auto;
     translate: none;
+  }
+
+  .home-cum-col[data-edge="center"] .home-cum-tip {
+    top: 4px !important;
+    bottom: auto;
+    margin-bottom: 0;
+    translate: none;
+    max-width: 9rem;
   }
 
   /* 右端の点の前年同期比。線の近くの右端に置く */

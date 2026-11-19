@@ -44,9 +44,13 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
                 let previous_rows = previous.flatten();
                 let maps = estimates.as_ref().and_then(|slot| slot.as_ref());
                 let stocks = stocks_of(&assets).unwrap_or(&[]);
-                let forecast = maps.and_then(|maps| {
+                let forecast = if option_env!("CUMULATIVE_CHART_PROPOSAL").is_some() {
+                    Some(112_000.0)
+                } else {
+                    maps.and_then(|maps| {
                     model::annual_dividend_forecast(stocks, maps).total_annual_dividends
-                });
+                    })
+                };
                 let forecast_pending = maps.is_some_and(model::has_pending_estimate);
                 let now = js_sys::Date::new_0();
                 let current_month = now.get_month() + 1;

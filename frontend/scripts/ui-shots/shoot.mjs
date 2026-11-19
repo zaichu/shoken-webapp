@@ -97,6 +97,14 @@ try {
           await page.waitForTimeout(500);
           await page.screenshot({ path: join(options.out, `${name}.png`) });
           files.push(`${name}.png`);
+          if (screen.key === 'home' && process.env.UI_SHOTS_TOOLTIP === '1') {
+            const month = Number(process.env.UI_SHOTS_TOOLTIP_MONTH ?? '6');
+            await page.locator('.home-cum-col').nth(month - 1).click();
+            await page.waitForTimeout(100);
+            const tooltipName = `${screen.key}${proposal ? `-${proposal}` : ''}-tooltip-${viewport.width}x${viewport.height}-${theme}.png`;
+            await page.screenshot({ path: join(options.out, tooltipName) });
+            files.push(tooltipName);
+          }
           // 表・一覧がある画面はスクロール後も見せる(見出しが追従するか確かめる)
           if (screen.scroll) {
             await scrollToBottom(page);

@@ -231,6 +231,38 @@ export function fundBalances() {
 
 // 配当。ホームの前年同期比較があるため年を指定して取り分ける
 export function dividends(year = 2026, schedule = 'monthly') {
+  if (schedule === 'cumulative-chart-proposal') {
+    const current = [0, 1800, 21500, 2600, 1400, 34200, 2300, 0, 17800, 2900, 1100, null];
+    const previous = [0, 1500, 18200, 2100, 1200, 29800, 2000, 0, 15200, 2500, 900, 27600];
+    const amounts = year === 2026 ? current : previous;
+    const rows = amounts.flatMap((net_amount_received, index) => {
+      if (net_amount_received === null || net_amount_received === 0) return [];
+      return [{
+        id: `dividend-${year}-${index + 1}`,
+        settlement_date: `${year}-${String(index + 1).padStart(2, '0')}-15`,
+        product: DIVIDEND_PRODUCTS[index % DIVIDEND_PRODUCTS.length],
+        account: ACCOUNTS[index % ACCOUNTS.length],
+        security_code: String(9901 + index),
+        security_name: STOCK_NAMES[index],
+        unit_price: net_amount_received,
+        shares: 1,
+        dividends_before_tax: net_amount_received,
+        taxes: 0,
+        net_amount_received,
+        created_at: `${year}-01-01T00:00:00Z`,
+        updated_at: `${year}-01-01T00:00:00Z`,
+      }];
+    });
+    const total_net_amount_received = rows.reduce((total, row) => total + row.net_amount_received, 0);
+    return {
+      rows,
+      summary: {
+        total_dividends_before_tax: total_net_amount_received,
+        total_taxes: 0,
+        total_net_amount_received,
+      },
+    };
+  }
   const rows = STOCK_NAMES.map((security_name, index) => {
     const unit_price = decimal(index >= 34 ? 1500 : 20, index * 1.5);
     const shares = stockShares(index);
