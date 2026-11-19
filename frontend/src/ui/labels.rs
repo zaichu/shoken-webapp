@@ -892,7 +892,7 @@ pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
 /// ホーム: 配当カードの前年同期差ラベル
 pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
 /// ホーム: 累計グラフの右端の差の見出し(「前年同期比 +¥12,200」)
-pub const HOME_YOY_COMPARE_LABEL: &str = "前年同期比";
+pub const HOME_YOY_COMPARE_LABEL: &str = "前年同期比 ";
 /// グラフ縦軸の短い単位(万)。「50万」のように付ける
 pub const AXIS_TEN_THOUSAND: &str = "万";
 /// グラフ縦軸の短い単位(億)。「2億」のように付ける
