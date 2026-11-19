@@ -621,16 +621,15 @@ fn compute_status(
         );
     }
 
-    // 最終取込日時から状態を判定する。時刻は日本時間で出す
+    // 最終取込日時から状態を判定する。日時は日本時間の YYYY/MM/DD HH:MM で出す
     if let Some(ts) = latest_imported_at
         && let Some(days_ago) = format::days_since_jst_date(ts)
     {
-        let (text, class, key) = dated_status(
-            kind,
-            days_ago,
-            &format::format_short_date(ts),
-            &format::format_jst_time(ts),
+        let date = format::jst_date(ts).map_or_else(
+            || format::format_short_date(ts),
+            |(year, month, day)| format!("{year:04}/{month:02}/{day:02}"),
         );
+        let (text, class, key) = dated_status(kind, days_ago, &date, &format::format_jst_time(ts));
         return (text, class.to_string(), false, String::new(), key);
     }
 
@@ -652,7 +651,7 @@ fn dated_status(
 ) -> (String, &'static str, &'static str) {
     if days_ago <= 0 {
         (
-            labels::csv_manage_status_updated_today(time),
+            labels::csv_manage_status_updated_today(date, time),
             "text-positive-vivid",
             "fresh",
         )

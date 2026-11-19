@@ -373,18 +373,22 @@ pub const CSV_MANAGE_COL_STATUS: &str = "状態";
 /// CSV管理: 表ヘッダーと行のボタンの表示「操作」。押すと再取得・取り込み・
 /// 削除の操作が出ることが見える文字で分かるようにする
 pub const CSV_MANAGE_COL_MENU: &str = "操作";
-/// CSV管理: 状態「今日 HH:MM に更新」(緑)
-pub fn csv_manage_status_updated_today(time: &str) -> String {
-    format!("今日 {time} に更新")
+/// CSV管理: 状態の日時の頭「最終取り込み」。新しいときも要更新のときも必ず出す
+pub const CSV_MANAGE_IMPORTED_PREFIX: &str = "最終取り込み";
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM」(緑)
+pub fn csv_manage_status_updated_today(date: &str, time: &str) -> String {
+    format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}")
 }
-/// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色。新規・更新とも日時は括弧のみ)
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
-    format!("{days}日前({date} {time})に更新")
+    format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前")
 }
-/// CSV管理: 状態「要更新（最終更新 M/D HH:MM・N日前)」(黄)。
-/// 状態と最終更新日時を分け、N日前が最終更新からの経過と分かる書き方にする
+/// CSV管理: 状態「要更新（最終取り込み YYYY/MM/DD HH:MM・N日前)」(黄)。
+/// 状態と最終取込日時を分け、N日前が最終取込からの経過と分かる書き方にする
 pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
-    format!("{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（最終更新 {date} {time}・{days}日前）")
+    format!(
+        "{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前）"
+    )
 }
 pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
 /// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、

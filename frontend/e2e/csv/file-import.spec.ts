@@ -101,7 +101,7 @@ test('資産管理1種は選んだらそのまま保存し行の状態が更新�
   await page.goto('/csv');
   await importCsvFile(page, 'assetbalance', path.join(fixtureDir(), 'assetbalance-base.csv'));
 
-  await expect(rowStatus(page, 'assetbalance')).toContainText('に更新', { timeout: 10000 });
+  await expect(rowStatus(page, 'assetbalance')).toContainText('最終取り込み', { timeout: 10000 });
   await expect(rowStatus(page, 'assetbalance')).toHaveAttribute('data-status', 'fresh');
   await expect(savedCount(page, 'assetbalance')).toContainText('2件');
 });
@@ -127,7 +127,7 @@ test('取引明細1種は選んだらそのまま保存し行の状態が更新�
   await page.goto('/csv');
   await importCsvFile(page, 'dividend', path.join(fixtureDir(), 'dividend-base.csv'));
 
-  await expect(rowStatus(page, 'dividend')).toContainText('に更新', { timeout: 10000 });
+  await expect(rowStatus(page, 'dividend')).toContainText('最終取り込み', { timeout: 10000 });
   await expect(savedCount(page, 'dividend')).toContainText('2件');
 });
 

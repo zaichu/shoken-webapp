@@ -316,7 +316,7 @@ test.describe('CSV 最新取得', () => {
     // 5種類とも既存の preview → import を通り、統計 API を待たず表へ結果が出る
     for (const { kind } of SYNC_KINDS) {
       await expect(savedCount(page, kind)).toHaveText('1件');
-      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
+      await expect(csvRow(page, kind)).toContainText(/最終取り込み \d{4}\/\d{2}\/\d{2} \d{2}:\d{2}/);
     }
     await expect(page.getByTestId('csv-sync-kinds')).toHaveCount(0);
     await expect(page.getByText('5種類を更新しました')).toHaveCount(0);
@@ -361,7 +361,7 @@ test.describe('CSV 最新取得', () => {
     await expect(csvRow(page, 'assetbalance')).toContainText('取り込まなかった');
     // 残りの種類は続けて取り込む
     for (const { kind } of SYNC_KINDS.slice(1)) {
-      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
+      await expect(csvRow(page, kind)).toContainText(/最終取り込み \d{4}\/\d{2}\/\d{2} \d{2}:\d{2}/);
     }
     expect(calls.import).not.toContain('assetbalance');
   });
@@ -377,7 +377,7 @@ test.describe('CSV 最新取得', () => {
     await page.getByTestId('csv-sync-confirm').waitFor();
     await page.getByTestId('csv-sync-confirm-yes').click();
     for (const { kind } of SYNC_KINDS) {
-      await expect(csvRow(page, kind)).toContainText(/今日 \d{2}:\d{2} に更新/);
+      await expect(csvRow(page, kind)).toContainText(/最終取り込み \d{4}\/\d{2}\/\d{2} \d{2}:\d{2}/);
     }
     expect(calls.import).toContain('assetbalance');
   });

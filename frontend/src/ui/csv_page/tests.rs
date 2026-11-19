@@ -5,8 +5,8 @@ use crate::features::csv_sync::KindStatus;
 #[test]
 fn stale_status_explains_why_same_age_has_different_freshness() {
     for days in 1..=7 {
-        let stale = dated_status(CsvKind::AssetStock, days, "10/20", "12:00");
-        let fresh = dated_status(CsvKind::Dividend, days, "10/20", "12:00");
+        let stale = dated_status(CsvKind::AssetStock, days, "2026/10/20", "12:00");
+        let fresh = dated_status(CsvKind::Dividend, days, "2026/10/20", "12:00");
         assert_ne!(stale.2, fresh.2);
         assert_ne!(stale.0, fresh.0);
     }
@@ -21,7 +21,7 @@ fn dated_status_key_marks_fresh_and_stale_by_kind() {
         (CsvKind::DomesticStock, 8, "stale", true),
         (CsvKind::MutualFund, 40, "stale", true),
     ] {
-        let status = dated_status(kind, days, "10/20", "12:00");
+        let status = dated_status(kind, days, "2026/10/20", "12:00");
         assert_eq!(status.2, key);
         assert_eq!(
             status.0.contains(labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED),

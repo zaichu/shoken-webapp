@@ -1123,10 +1123,6 @@
       @apply min-w-0;
     }
 
-    .summary-band-rows .summary-label-note {
-      @apply ml-1 inline;
-    }
-
     .summary-band-rows .summary-value {
       @apply mt-0 shrink-0 justify-end text-right leading-tight;
     }
