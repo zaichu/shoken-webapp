@@ -133,6 +133,20 @@ pub fn CumulativeChart(
     let top = ticks.last().copied().unwrap_or(0.0);
     let selected = RwSignal::new(None::<u32>);
     let chart_ref = NodeRef::<leptos::html::Div>::new();
+    // scroll・Escape で閉じても hover・focus だけで吹き出しが出るため、
+    // 閉じた月は押下・Enter・入り直しまで抑える
+    let dismissed = RwSignal::new(None::<u32>);
+    let dismiss = move || {
+        if selected.get_untracked().is_some() {
+            dismissed.set(selected.get_untracked());
+            selected.set(None);
+        }
+    };
+    let clear_dismissed = move || {
+        if dismissed.get_untracked().is_some() {
+            dismissed.set(None);
+        }
+    };
     // 吹き出しが開いている間だけ、ページ全体に1つずつ検知を付ける。
     // 別の月は容器の内側なので閉じずに押した月の切替えに任せ、閉じたら外す
     Effect::new(move |_| {
@@ -161,7 +175,7 @@ pub fn CumulativeChart(
             true,
         );
         // scroll はバブルしないため document のキャプチャ段で拾う
-        let on_scroll = Closure::wrap(Box::new(move || selected.set(None)) as Box<dyn FnMut()>);
+        let on_scroll = Closure::wrap(Box::new(dismiss) as Box<dyn FnMut()>);
         let _ = document.add_event_listener_with_callback_and_bool(
             "scroll",
             on_scroll.as_ref().unchecked_ref(),
@@ -208,6 +222,23 @@ pub fn CumulativeChart(
         end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
 
     let months: Vec<u32> = (1..=12).collect();
+    // 前年の丸は未来月にも置く(前年の線は12か月あるため)。線と同じ x/y で置く
+    let previous_dot = |month: u32| {
+        previous_cum
+            .as_ref()
+            .and_then(|sums| sums.get(month as usize - 1).copied())
+            .map(|value| {
+                let top_pos = y_percent(value, top);
+                let left_pos = x_percent(month);
+                view! {
+                    <span
+                        class="home-cum-dot home-cum-dot-previous"
+                        style:top=format!("{top_pos}%")
+                        style:left=format!("{left_pos}%")
+                    />
+                }
+            })
+    };
     view! {
         <div class="home-cum-legend" aria-hidden="true">
             <span class="home-cum-legend-item">
@@ -272,24 +303,9 @@ pub fn CumulativeChart(
                         let month = *month;
                         if month > current_month {
                             // 未来の月も同じ幅の枠だけ置く。線の12か月座標と
-                            // 点・押せる範囲・月ラベルをずらさないため。
-                            // 前年の丸だけは置く(前年の線は12か月あるため)
-                            let previous_dot = previous_cum
-                                .as_ref()
-                                .and_then(|sums| sums.get(month as usize - 1).copied())
-                                .map(|value| {
-                                    let top_pos = y_percent(value, top);
-                                    let left_pos = x_percent(month);
-                                    view! {
-                                        <span
-                                            class="home-cum-dot home-cum-dot-previous"
-                                            style:top=format!("{top_pos}%")
-                                            style:left=format!("{left_pos}%")
-                                        />
-                                    }
-                                });
+                            // 点・押せる範囲・月ラベルをずらさないため
                             return view! {
-                                <div class="home-cum-col" aria-hidden="true">{previous_dot}</div>
+                                <div class="home-cum-col" aria-hidden="true">{previous_dot(month)}</div>
                             }
                                 .into_any();
                         }
@@ -328,6 +344,11 @@ pub fn CumulativeChart(
                         };
                         let tip_below = dot_top < 50.0;
                         let is_current = month == current_month;
+                        let clear_click = clear_dismissed;
+                        let clear_key = clear_dismissed;
+                        let clear_focus = clear_dismissed;
+                        let clear_enter = clear_dismissed;
+                        let dismiss_key = dismiss;
                         view! {
                             <div
                                 class="home-cum-col"
@@ -337,35 +358,35 @@ pub fn CumulativeChart(
                                 aria-label=month_aria
                                 data-selected=move || (selected.get() == Some(month)).to_string()
                                 data-current=is_current.to_string()
+                                data-suppressed=move || {
+                                    (dismissed.get() == Some(month)).to_string()
+                                }
                                 data-edge=edge
                                 on:click=move |_| {
+                                    clear_click();
                                     selected.update(|state| {
                                         *state = if *state == Some(month) { None } else { Some(month) };
                                     });
                                 }
+                                on:mouseenter=move |_| clear_enter()
+                                on:focus=move |_| clear_focus()
                                 on:keydown=move |event| {
                                     if event.key() == "Enter" || event.key() == " " {
                                         event.prevent_default();
+                                        clear_key();
                                         selected.update(|state| {
-                                            *state = if *state == Some(month) { None } else { Some(month) };
+                                            *state = if *state == Some(month) {
+                                                None
+                                            } else {
+                                                Some(month)
+                                            };
                                         });
                                     } else if event.key() == "Escape" {
-                                        selected.set(None);
+                                        dismiss_key();
                                     }
                                 }
                             >
-                                {previous_value
-                                    .map(|value| {
-                                        let top_pos = y_percent(value, top);
-                                        let left_pos = x_percent(month);
-                                        view! {
-                                            <span
-                                                class="home-cum-dot home-cum-dot-previous"
-                                                style:top=format!("{top_pos}%")
-                                                style:left=format!("{left_pos}%")
-                                            />
-                                        }
-                                    })}
+                                {previous_dot(month)}
                                 <span
                                     class="home-cum-dot home-cum-dot-current"
                                     style:top=format!("{dot_top}%")

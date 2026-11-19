@@ -1786,6 +1786,12 @@
     @apply block;
   }
 
+  /* scroll・Escape で閉じた月は hover・focus が残っても出さない。
+     押下・Enter・入り直しで外れたらまた出す */
+  .home-cum-col[data-suppressed="true"] .home-cum-tip {
+    display: none;
+  }
+
   /* 端の月は吹き出しを内側に寄せる(中央の月は点の真上) */
   .home-cum-col[data-edge="left"] .home-cum-tip {
     left: 0;
