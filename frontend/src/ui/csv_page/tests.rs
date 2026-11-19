@@ -3,18 +3,18 @@ use crate::features::csv_page::CsvKind;
 use crate::features::csv_sync::KindStatus;
 
 #[test]
-fn stale_status_explains_why_same_age_has_different_freshness() {
+fn stale_status_uses_same_text_as_fresh_and_differs_only_by_key() {
     for days in 1..=7 {
         let stale = dated_status(CsvKind::AssetStock, days, "2026/10/20", "12:00");
         let fresh = dated_status(CsvKind::Dividend, days, "2026/10/20", "12:00");
+        assert_eq!(stale.0, fresh.0);
         assert_ne!(stale.2, fresh.2);
-        assert_ne!(stale.0, fresh.0);
     }
 }
 
 #[test]
 fn dated_status_key_marks_fresh_and_stale_by_kind() {
-    for (kind, days, key, needs_update) in [
+    for (kind, days, key, stale) in [
         (CsvKind::AssetStock, 0, "fresh", false),
         (CsvKind::AssetFund, 1, "stale", true),
         (CsvKind::Dividend, 7, "fresh", false),
@@ -23,10 +23,12 @@ fn dated_status_key_marks_fresh_and_stale_by_kind() {
     ] {
         let status = dated_status(kind, days, "2026/10/20", "12:00");
         assert_eq!(status.2, key);
-        assert_eq!(
-            status.0.contains(labels::CSV_MANAGE_STATUS_UPDATE_REQUIRED),
-            needs_update,
+        assert!(!status.0.contains("要更新"));
+        assert!(
+            status.0.contains(labels::CSV_MANAGE_IMPORTED_PREFIX),
+            "状態は最終取り込みだけを出す"
         );
+        assert_eq!(status.1 == "text-warn-ink", stale);
     }
 }
 
