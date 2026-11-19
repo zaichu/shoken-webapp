@@ -264,3 +264,18 @@ fn totals_count_latest_and_pending_and_exclude_pending_change() {
     assert_eq!(totals.pending_nav_count, 2);
     assert!(totals.has_daily_change);
 }
+
+#[test]
+fn kind_query_round_trips_through_value() {
+    for kind in AssetKind::ALL {
+        assert_eq!(AssetKind::from_query(kind.value()), kind);
+    }
+}
+
+#[test]
+fn kind_query_unknown_and_empty_fall_back_to_first_tab() {
+    assert_eq!(AssetKind::from_query(""), AssetKind::All);
+    assert_eq!(AssetKind::from_query("bogus"), AssetKind::All);
+    assert_eq!(AssetKind::from_query("ALL"), AssetKind::All);
+    assert_eq!(AssetKind::from_query("dividend"), AssetKind::All);
+}

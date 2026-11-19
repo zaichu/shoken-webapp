@@ -71,6 +71,7 @@ pub(crate) fn AssetKindTabs(
                                     return;
                                 }
                                 clicked.set(item);
+                                item.sync_kind_url();
                             }
                             on_keydown=move |event| {
                                 let current = AssetKind::ALL
@@ -79,7 +80,9 @@ pub(crate) fn AssetKindTabs(
                                     .unwrap_or(0);
                                 if let Some(next) = underline_tabs::next_tab_index(3, current, &event.key()) {
                                     event.prevent_default();
-                                    keyed.set(AssetKind::ALL[next]);
+                                    let kind = AssetKind::ALL[next];
+                                    keyed.set(kind);
+                                    kind.sync_kind_url();
                                     underline_tabs::focus_tab_by_id_after_paint(format!(
                                         "{}{}",
                                         tab_id(AssetKind::ALL[next]),

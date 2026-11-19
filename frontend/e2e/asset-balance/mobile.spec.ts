@@ -65,7 +65,7 @@ async function setupAssetBalanceMocks(page: Page) {
 }
 
 async function gotoAssetBalance(page: Page) {
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
 }
 
@@ -156,7 +156,7 @@ test('保有行を押すと中央ダイアログで詳細が出る', async ({ pa
   await dialog.getByTestId('detail-dialog-close').click();
   await expect(dialog).toBeHidden();
   await expect(rowButton).toBeFocused();
-  await expect(page).toHaveURL('/assetbalance');
+  await expect(page).toHaveURL('/assetbalance?tab=stock');
 });
 
 test('一覧に無い文字列を入れるとフィルタ済み空状態と解除ボタンが出る', async ({

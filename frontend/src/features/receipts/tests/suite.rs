@@ -592,3 +592,21 @@ fn ensure_prunes_stale_generation_in_any_state_map() {
         }));
     });
 }
+
+#[test]
+fn tab_query_round_trips_through_kind_param() {
+    for tab in ReceiptsTab::ALL {
+        assert_eq!(ReceiptsTab::from_query(tab.kind_param()), tab);
+    }
+}
+
+#[test]
+fn tab_query_unknown_and_empty_fall_back_to_first_tab() {
+    assert_eq!(ReceiptsTab::from_query(""), ReceiptsTab::Dividend);
+    assert_eq!(ReceiptsTab::from_query("bogus"), ReceiptsTab::Dividend);
+    assert_eq!(ReceiptsTab::from_query("DIVIDEND"), ReceiptsTab::Dividend);
+    assert_eq!(
+        ReceiptsTab::from_query("domesticstock"),
+        ReceiptsTab::Dividend
+    );
+}
