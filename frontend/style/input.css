@@ -1770,16 +1770,34 @@
     @apply relative flex h-full min-w-0 flex-1 items-stretch justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
   }
 
+  /* 丸の横位置は帯の中心。帯(押せる範囲・目盛りの文字)と同じ12等分で、
+     x_percent と一致する */
   .home-cum-dot {
-    @apply absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full;
+    @apply absolute -translate-x-1/2 -translate-y-1/2 rounded-full;
+    left: 50%;
   }
 
+  /* 今年の丸は塗りの小さな丸(直径 6px)。線と同じ x/y の関数で置く */
   .home-cum-dot-current {
+    width: 6px;
+    height: 6px;
     background-color: var(--color-chart-1);
   }
 
+  /* 前年の丸は白抜きの小さな丸(直径 5px)。面の色で抜き、枠は線と同じ灰 */
   .home-cum-dot-previous {
-    background-color: var(--color-text-muted);
+    width: 5px;
+    height: 5px;
+    background-color: var(--color-surface);
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--color-text-muted);
+  }
+
+  /* 今月の丸だけ今の大きい丸のまま(直径 10px) */
+  .home-cum-col[data-current="true"] .home-cum-dot-current {
+    width: 10px;
+    height: 10px;
   }
 
   .home-cum-col[data-selected="true"] .home-cum-dot-current {
@@ -1798,6 +1816,12 @@
   .home-cum-col:focus-visible .home-cum-tip,
   .home-cum-col[data-selected="true"] .home-cum-tip {
     @apply block;
+  }
+
+  /* scroll・Escape で閉じた月は hover・focus が残っても出さない。
+     押下・Enter・入り直しで外れたらまた出す */
+  .home-cum-col[data-suppressed="true"] .home-cum-tip {
+    display: none;
   }
 
   /* 端の月は吹き出しを内側に寄せる(中央の月は点の真上) */
