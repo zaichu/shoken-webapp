@@ -64,9 +64,12 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   const table = page.getByTestId('asset-holdings-table');
   await expect(table).toBeVisible();
 
-  // 前日比は独立した列
+  // 前日比は独立した列(1株あたりの単価差。1280で表がはみ出さないよう単位だけ改行)
   await expect(
-    table.getByRole('columnheader', { name: '前日比' }),
+    table.getByRole('columnheader', {
+      name: '前日比 (1株あたり)',
+      exact: true,
+    }),
   ).toBeVisible();
 
   // 前日終値がある銘柄は円マーク付きの1株あたり前日比を表示する

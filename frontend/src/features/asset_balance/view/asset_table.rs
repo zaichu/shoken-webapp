@@ -68,7 +68,13 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="col-num">{labels::QUANTITY}</th>
                         <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::AVERAGE_PRICE}</th>
                         <th scope="col" class="col-num">{labels::CURRENT_PRICE}</th>
-                        <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
+                        // 1行にすると1280で表がはみ出すため単位だけ改行する。
+                        // 読み上げ名は変わらない(「前日比 (1株あたり)」)
+                        <th scope="col" class="col-num">
+                            {labels::DAY_CHANGE}
+                            <br />
+                            {labels::PER_SHARE_UNIT}
+                        </th>
                         {sort_header(labels::MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
                             labels::VALUATION_PROFIT_LOSS,
