@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, paginated } from '../support/test';
-import { csvRow, mockCsvKindStats, savedCount } from '../support/csv-page';
+import { csvRow, mockCsvKindStats, rowStatus, savedCount } from '../support/csv-page';
 
 /**
  * CSV 管理ページの表そのものの E2E。
@@ -74,9 +74,14 @@ test('5種類の行が出て、状態が最終取込時刻で変わる', async (
 
   await expect(savedCount(page, 'assetbalance')).toContainText('12件');
   await expect(csvRow(page, 'assetbalance')).toContainText(`最終取り込み ${jstDateLabel(0)} 12:00`);
+  // 古い行も「最終取り込み」だけを出し、「要更新」の文字は出さない。
+  // 読み上げ用に「更新が必要」が画面外の文字で付く
   await expect(csvRow(page, 'fundbalance')).toContainText(
-    /要更新（最終取り込み \d{4}\/\d{2}\/\d{2} 09:15・3日前）/,
+    `最終取り込み ${jstDateLabel(3)} 09:15・3日前`,
   );
+  await expect(csvRow(page, 'fundbalance')).not.toContainText('要更新');
+  await expect(rowStatus(page, 'fundbalance')).toHaveAttribute('data-status', 'stale');
+  await expect(rowStatus(page, 'fundbalance')).toContainText('更新が必要');
   await expect(csvRow(page, 'dividend')).toContainText('保存データがありません');
   await expect(csvRow(page, 'domesticstock')).toContainText('保存データがありません');
   await expect(csvRow(page, 'mutualfund')).toContainText('保存データがありません');
@@ -244,19 +249,19 @@ for (const width of [1280, 390]) {
 test.describe('390px', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('行の文字は折り返さず、操作 は各行に1つだけ出る', async ({ page }) => {
+  test('行の状態は件数と重ならず、操作 は各行に1つだけ出る', async ({ page }) => {
     await mockLists(page);
     await mockCsvKindStats(page, {
-      counts: () => ({ assetbalance: 12 }),
-      latest: () => ({ assetbalance: jstNoonIso(0, 21, 39) }),
+      counts: () => ({ assetbalance: 12345, fundbalance: 30 }),
+      latest: () => ({ assetbalance: jstNoonIso(0, 21, 39), fundbalance: jstNoonIso(30, 9, 15) }),
     });
 
     await page.goto('/csv');
     await expect(csvRow(page, 'assetbalance')).toContainText(`最終取り込み ${jstDateLabel(0)} 21:39`);
 
-    // 種類名と状態は1行のまま(折り返すと行の高さが増える)
+    // 種類名は1行のまま(折り返すと行の高さが増える)。状態は長いとき折り返してよい
     const wrapped = await page
-      .locator('tbody tr[data-kind] td:nth-child(1), tbody tr[data-kind] td:nth-child(3)')
+      .locator('tbody tr[data-kind] td:nth-child(1)')
       .evaluateAll((cells) =>
         cells.map((cell) => {
           const span = cell.querySelector('span') ?? cell;
@@ -265,6 +270,26 @@ test.describe('390px', () => {
         }),
       );
     expect(wrapped.every((value) => value === false)).toBe(true);
+
+    // 状態の文字と件数の矩形は重ならない(件数は1行目の右、状態は2行目)
+    for (const kind of [
+      'assetbalance',
+      'fundbalance',
+      'dividend',
+      'domesticstock',
+      'mutualfund',
+    ] as const) {
+      const statusBox = await rowStatus(page, kind).boundingBox();
+      const countBox = await savedCount(page, kind).boundingBox();
+      expect(statusBox).not.toBeNull();
+      expect(countBox).not.toBeNull();
+      const overlaps =
+        statusBox!.x < countBox!.x + countBox!.width &&
+        countBox!.x < statusBox!.x + statusBox!.width &&
+        statusBox!.y < countBox!.y + countBox!.height &&
+        countBox!.y < statusBox!.y + statusBox!.height;
+      expect(overlaps).toBe(false);
+    }
 
     for (const kind of [
       'assetbalance',
