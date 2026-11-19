@@ -8,8 +8,12 @@ use crate::ui::format;
 pub const MARKET_VALUE: &str = "評価額";
 /// 評価損益(評価額 − 取得総額)
 pub const VALUATION_PROFIT_LOSS: &str = "評価損益";
-/// 前日比(前営業日との差)
+/// 前日比(前営業日との差。集計帯では保有全体の合計)
 pub const DAY_CHANGE: &str = "前日比";
+/// 1株あたりの単位注記。国内株式の表の見出しで改行して添える
+pub const PER_SHARE_UNIT: &str = "(1株あたり)";
+/// 前日比(騰落率%)。株と投信が混ざる「すべて」タブの行に出す
+pub const DAY_CHANGE_RATE: &str = "前日比(%)";
 /// 取得総額
 pub const TOTAL_ACQUISITION: &str = "取得総額";
 /// 年間配当
@@ -42,16 +46,16 @@ pub const TRADE_DATE: &str = "約定日";
 pub const FUND_NAME: &str = "ファンド名";
 /// 売却単価
 pub const SELLING_UNIT_PRICE: &str = "売却単価";
-/// 売却額
-pub const SELLING_AMOUNT: &str = "売却額";
+/// 売却額(合計)
+pub const SELLING_AMOUNT: &str = "売却額(合計)";
 /// 取得価額(取引明細・保存ファイルの列名。資産の取得単価と同じ意味で、
 /// 画面の表示は取得単価に統一したため値は AVERAGE_PRICE と同じ。新規コードは
 /// AVERAGE_PRICE を使う)
 pub const ACQUISITION_PRICE: &str = "取得単価";
 /// 解約単価
 pub const REDEMPTION_UNIT_PRICE: &str = "解約単価";
-/// 解約額
-pub const REDEMPTION_AMOUNT: &str = "解約額";
+/// 解約額(合計)
+pub const REDEMPTION_AMOUNT: &str = "解約額(合計)";
 /// 数量
 pub const QUANTITY: &str = "数量";
 /// 税額
@@ -137,6 +141,8 @@ pub const PRICE_AS_OF: &str = "価格基準日";
 /// 取得単価(1株・1口あたりの平均取得コスト。資産・取引明細・配当情報・
 /// エクスポートの列名で共通。楽天証券の取込形式の「平均取得価額」と同じ意味)
 pub const AVERAGE_PRICE: &str = "取得単価";
+/// 取得単価(1万口あたり)。投資信託の行・カードに出す
+pub const AVERAGE_PRICE_PER_10K: &str = "取得単価(1万口あたり)";
 /// 平均取得単価(保存ファイルの列名。画面では AVERAGE_PRICE を使う)
 pub const AVERAGE_UNIT_PRICE: &str = "平均取得単価";
 /// 取得額(保存ファイルの列名。画面では TOTAL_ACQUISITION を使う)
@@ -149,10 +155,12 @@ pub const UNIT_PRICE: &str = "単価";
 pub const SELLING_OR_REDEMPTION_AMOUNT: &str = "売却・解約額";
 /// 種別(CSV エクスポートの列)
 pub const KIND: &str = "種別";
-/// 基準価額(投資信託の1口あたりの価格)
-pub const BASE_PRICE: &str = "基準価額";
-/// 基準価額の前日比
-pub const BASE_PRICE_DAY_CHANGE: &str = "基準価額(前日比)";
+/// 基準価額(投資信託の1万口あたりの価格)
+pub const BASE_PRICE: &str = "基準価額(1万口あたり)";
+/// 前日比(1万口あたり)。投資信託の表の行・カードに出す
+pub const BASE_PRICE_DAY_CHANGE: &str = "前日比(1万口あたり)";
+/// 1万口あたりの単位注記。投資信託の表の見出しで改行して添える
+pub const PER_10K_UNIT: &str = "(1万口あたり)";
 /// 基準価額の前月比
 pub const BASE_PRICE_MONTH_CHANGE: &str = "基準価額(前月比)";
 /// 基準価額の基準日
