@@ -1786,7 +1786,7 @@
     width: 5px;
     height: 5px;
     background-color: var(--color-surface);
-    border-width: var(--border-width-1);
+    border-width: 1px;
     border-style: solid;
     border-color: var(--color-text-muted);
   }
