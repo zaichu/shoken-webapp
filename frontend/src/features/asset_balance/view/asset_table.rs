@@ -68,7 +68,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="col-num">{labels::QUANTITY}</th>
                         <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::AVERAGE_PRICE}</th>
                         <th scope="col" class="col-num">{labels::CURRENT_PRICE}</th>
-                        <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
+                        <th scope="col" class="col-num">{labels::DAY_CHANGE_PER_SHARE}</th>
                         {sort_header(labels::MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
                             labels::VALUATION_PROFIT_LOSS,

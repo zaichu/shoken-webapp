@@ -1014,11 +1014,11 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::DomesticStock => {
-                assert_eq!(left_labels, ["約定日", "数量", "売却額", "取得単価"]);
+                assert_eq!(left_labels, ["約定日", "数量", "売却額(合計)", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
             ReceiptsTab::MutualFund => {
-                assert_eq!(left_labels, ["約定日", "数量", "解約額", "取得単価"]);
+                assert_eq!(left_labels, ["約定日", "数量", "解約額(合計)", "取得単価"]);
                 assert_eq!(right_labels, ["税引前", "税額", "税引後"]);
             }
         }
@@ -1082,7 +1082,7 @@ fn single_specific_row_keeps_band_group_and_row_after_tax_equal() {
     assert_eq!(detail_value(&card, "税引後").0, "+¥3,985");
     let (left, right) = receipt_detail_cells(ReceiptsTab::DomesticStock, &card);
     assert_eq!(left[0].label, "約定日");
-    assert_eq!(left[2].label, "売却額");
+    assert_eq!(left[2].label, "売却額(合計)");
     assert_eq!(right[0].label, "税引前");
     assert_eq!(right[0].value, "+¥5,000");
     assert_eq!(right[2].label, "税引後");

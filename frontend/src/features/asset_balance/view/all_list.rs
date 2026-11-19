@@ -1,6 +1,6 @@
 //! 「すべて」タブ。国内株式と投資信託を同じ一覧に並べる
 
-use super::day_change::{day_change_cell, pending_day_change_cell};
+use super::day_change::pending_day_change_cell;
 use super::sort_header::sort_header;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
@@ -11,7 +11,7 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::asset_balance::AssetRateAmount;
+use crate::ui::asset_balance::{AssetRateAmount, DayChangeNote};
 use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
@@ -34,6 +34,9 @@ pub(crate) struct UnifiedRow {
     /// スマホの2行目に出す株数・口数(「100株」「1.5口」。投信と株を混同しない)
     pub quantity: String,
     pub day_change: Option<f64>,
+    /// 行の前日比の合計(円)。株は1株あたり×株数、投信は1万口あたり×口数/10000。
+    /// 株と投信が混ざる行の騰落率(%)を出すために持つ
+    pub day_change_total: Option<f64>,
     pub price_as_of: Option<String>,
     /// 基準日がその種別の代表(見出しに出す日付)と違うか。構築側で立てる
     pub date_outlier: bool,
@@ -63,6 +66,7 @@ pub(crate) fn unified_from_stock(view: &HoldingView, dividends: &DividendMaps) -
         course: None,
         quantity: labels::stock_shares_label(&format::format_number_value(view.shares)),
         day_change: view.day_change,
+        day_change_total: view.day_change.map(|change| change * view.shares),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
         nav_pending: false,
@@ -93,6 +97,9 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
         course: view.course.clone(),
         quantity: labels::fund_units_label(&format::format_number_value(view.shares)),
         day_change: view.view_day_change(),
+        day_change_total: view
+            .view_day_change()
+            .map(|change| change * view.shares / 10_000.0),
         price_as_of: view.price_as_of.clone(),
         date_outlier: false,
         nav_pending: view.nav_pending(),
@@ -108,6 +115,42 @@ pub(crate) fn unified_from_fund(view: &FundView) -> UnifiedRow {
     }
 }
 
+/// 「すべて」タブの前日比の騰落率(%)。前日の評価額に対する比。
+/// 前日の値がない・合計が0以下・更新待ちの行は None
+/// (「—」・「更新待ち」は呼び出し側の今の決まりのまま)
+pub(crate) fn unified_day_change_rate(row: &UnifiedRow) -> Option<f64> {
+    if row.nav_pending {
+        return None;
+    }
+    let (Some(market), Some(daily)) = (row.market, row.day_change_total) else {
+        return None;
+    };
+    if market - daily <= 0.0 {
+        return None;
+    }
+    Some(daily / (market - daily) * 100.0)
+}
+
+/// 「すべて」タブの前日比セル。株と投信が混ざるため金額ではなく騰落率(%)で出す。
+/// 値がない行は「—」。基準日が他の行と違うときだけ横に日付を小さく出す
+pub(crate) fn day_change_rate_cell(rate: Option<f64>, date: Option<String>) -> impl IntoView {
+    let negative = balance_format::is_negative_rate(rate);
+    let positive = balance_format::is_positive_rate(rate);
+    let text = balance_format::format_signed_valuation_rate(rate, 1);
+    let date_text = date.map(|date| format::format_price_date(&date));
+    view! {
+        <Amount
+            kind=AmountKind::Delta
+            text=text
+            negative=negative
+            positive=positive
+            class="font-bold"
+        />
+        {date_text.map(|date| {
+            view! { <DayChangeNote text=format!("({date})") /> }
+        })}
+    }
+}
 /// 「すべて」タブの並べ替え。算出不能は末尾、同値は名前順
 pub(crate) fn sort_unified(rows: &[UnifiedRow], key: FundSortKey, order: SortOrder) -> Vec<usize> {
     let value = |row: &UnifiedRow| match key {
@@ -165,7 +208,7 @@ pub fn AssetMergedTable(
                         <th scope="col" class="col-text">{labels::ACCOUNT}</th>
                         <th scope="col" class="col-text">{labels::DISTRIBUTION_COURSE}</th>
                         <th scope="col" class="col-num">{labels::PER_SHARE_DIVIDEND}</th>
-                        <th scope="col" class="col-num">{labels::DAY_CHANGE}</th>
+                        <th scope="col" class="col-num">{labels::DAY_CHANGE_RATE}</th>
                         {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
                             labels::VALUATION_PROFIT_LOSS,
@@ -236,7 +279,10 @@ pub fn AssetMergedTable(
                                             {if row.nav_pending {
                                                 pending_day_change_cell().into_any()
                                             } else {
-                                                day_change_cell(row.day_change, outlier_date)
+                                                day_change_rate_cell(
+                                                        unified_day_change_rate(row),
+                                                        outlier_date,
+                                                    )
                                                     .into_any()
                                             }}
                                         </td>
@@ -292,13 +338,16 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let price_text = row
         .current_price
         .map_or_else(|| "—".to_string(), format::format_currency);
-    let day_text = if row.nav_pending {
-        labels::PENDING_UPDATE.to_string()
+    let (day_text, day_negative, day_positive) = if row.nav_pending {
+        (labels::PENDING_UPDATE.to_string(), false, false)
     } else {
-        balance_format::format_signed_row_valuation_amount(row.day_change)
+        let rate = unified_day_change_rate(row);
+        (
+            balance_format::format_signed_valuation_rate(rate, 1),
+            balance_format::is_negative_rate(rate),
+            balance_format::is_positive_rate(rate),
+        )
     };
-    let day_negative = balance_format::is_negative_valuation(row.day_change);
-    let day_positive = balance_format::is_positive_valuation(row.day_change);
     let average_text = row
         .average_price
         .map_or_else(|| "—".to_string(), format::format_currency);
@@ -322,7 +371,14 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             day_negative,
             day_positive,
         ),
-        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(
+            if is_fund {
+                labels::AVERAGE_PRICE_PER_10K.to_string()
+            } else {
+                labels::AVERAGE_PRICE.to_string()
+            },
+            average_text,
+        ),
     ];
     if is_fund {
         left.push(DetailCell::plain(
@@ -520,7 +576,10 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    use super::{unified_detail_cells, unified_from_fund, unified_from_stock};
+    use super::{
+        UnifiedRow, unified_day_change_rate, unified_detail_cells, unified_from_fund,
+        unified_from_stock,
+    };
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
     use crate::features::asset_balance::holdings::HoldingView;
@@ -584,11 +643,62 @@ mod tests {
         let fund = unified_from_fund(&sample_fund());
         let (left, right) = unified_detail_cells(&fund);
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
-        assert_eq!(left_labels, ["基準価額", "取得単価", "分配金コース"]);
+        assert_eq!(
+            left_labels,
+            [
+                "基準価額(1万口あたり)",
+                "取得単価(1万口あたり)",
+                "分配金コース"
+            ]
+        );
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
             ["保有口数", "取得総額", "評価額", labels::PRICE_AS_OF]
         );
+    }
+
+    #[test]
+    fn merged_day_change_rate_uses_previous_day_valuation() {
+        // 株: 50円×100株=5,000円、前日評価額 255,000円
+        let stock = unified_from_stock(&sample_stock(), &DividendMaps::default());
+        let rate = unified_day_change_rate(&stock).expect("株の騰落率");
+        assert!((rate - 5000.0 / 255000.0 * 100.0).abs() < 1e-9, "{rate}");
+
+        // 投信: 50円×10000口/10000=50円、前日評価額 109,950円
+        let fund = unified_from_fund(&sample_fund());
+        let rate = unified_day_change_rate(&fund).expect("投信の騰落率");
+        assert!((rate - 50.0 / 109950.0 * 100.0).abs() < 1e-9, "{rate}");
+    }
+
+    #[test]
+    fn merged_day_change_rate_returns_none_without_previous_value() {
+        // 前日比がない行は「—」のまま
+        let mut stock = sample_stock();
+        stock.day_change = None;
+        let row = unified_from_stock(&stock, &DividendMaps::default());
+        assert_eq!(unified_day_change_rate(&row), None);
+
+        // 評価額がない行も出さない
+        let row = UnifiedRow {
+            market: None,
+            ..unified_from_stock(&sample_stock(), &DividendMaps::default())
+        };
+        assert_eq!(unified_day_change_rate(&row), None);
+
+        // 前日の評価額が0以下の行も出さない
+        let row = UnifiedRow {
+            market: Some(100.0),
+            day_change_total: Some(100.0),
+            ..unified_from_stock(&sample_stock(), &DividendMaps::default())
+        };
+        assert_eq!(unified_day_change_rate(&row), None);
+
+        // 更新待ちの投信は古い日の変動を見せない
+        let mut fund = sample_fund();
+        fund.is_nav_latest = false;
+        let row = unified_from_fund(&fund);
+        assert!(row.nav_pending);
+        assert_eq!(unified_day_change_rate(&row), None);
     }
 }

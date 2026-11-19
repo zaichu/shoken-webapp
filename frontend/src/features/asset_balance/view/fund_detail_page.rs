@@ -196,7 +196,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                                 <HoldingTile label=labels::FUND_SHARES.to_string()>
                                                     <span class="tabular-nums">{shares_text}</span>
                                                 </HoldingTile>
-                                                <HoldingTile label=labels::AVERAGE_PRICE.to_string()>
+                                                <HoldingTile label=labels::AVERAGE_PRICE_PER_10K.to_string()>
                                                     <Amount text=average_price_text />
                                                 </HoldingTile>
                                                 <HoldingTile label=labels::TOTAL_ACQUISITION.to_string()>
