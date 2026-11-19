@@ -2259,6 +2259,10 @@
     @apply col-span-2 lg:col-span-4;
   }
 
+  .holding-detail-item-wide-sm {
+    @apply col-span-2;
+  }
+
   .holding-detail-label {
     @apply text-xs font-bold text-text-muted;
   }

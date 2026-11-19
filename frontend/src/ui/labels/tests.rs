@@ -362,6 +362,7 @@ fn glossary_builds_counts_and_placeholders() {
     assert_eq!(valuation_point_label("2026-10-21"), "株価 2026/10/21 時点");
     assert_eq!(composition_others(3), "ほか3件");
     assert_eq!(composition_others(67), "ほか67件");
+    assert_eq!(stock_links_more(8), "その他のサイト(8)");
 }
 
 #[test]

@@ -1,11 +1,15 @@
 use crate::ui::amount::{self, AmountKind};
 use crate::ui::badge;
 use crate::ui::card::{self, CardVariant};
+use crate::ui::disclosure::ChevronIcon;
 use crate::ui::empty_state::{self, EmptyStateIcon};
 use crate::ui::labels;
 use crate::ui::search_controls;
 use crate::ui::state::{self, AlertVariant};
 use leptos::prelude::*;
+
+/// 外部リンクのうち常時出す件数(楽天証券・株探・Yahoo! Finance)。残りは折りたたむ
+const VISIBLE_LINK_COUNT: usize = 3;
 
 #[component]
 pub fn SearchBar(
@@ -133,39 +137,73 @@ pub fn StockInfoCard(
 
 #[component]
 fn StockInfoLinks(links: Vec<(&'static str, String)>) -> impl IntoView {
+    let visible = links.len().min(VISIBLE_LINK_COUNT);
+    let (primary, rest) = links.split_at(visible);
+    let rest = rest.to_vec();
+    let rest_count = rest.len();
+    let expanded = RwSignal::new(false);
+    let toggle_label = labels::stock_links_more(rest_count);
     view! {
-        <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {links
+        <div class="grid grid-cols-2 gap-2 lg:grid-cols-4" data-testid="stock-links">
+            {primary
+                .iter()
+                .map(|(name, href)| view! { <StockLink name=*name href=href.clone() /> })
+                .collect_view()}
+            {(!rest.is_empty()).then(|| view! {
+                <button
+                    type="button"
+                    class="stock-link-button"
+                    aria-expanded=move || expanded.get().to_string()
+                    data-testid="stock-links-toggle"
+                    on:click=move |_| expanded.update(bool::toggle)
+                >
+                    {toggle_label}
+                    <ChevronIcon
+                        expanded=Signal::derive(move || expanded.get())
+                        class="h-3.5 w-3.5 shrink-0 text-text-faint"
+                    />
+                </button>
+            })}
+            {rest
                 .into_iter()
                 .map(|(name, href)| {
                     view! {
-                        <a
-                            class="stock-link-button"
-                            href=href
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label=labels::stock_search_new_tab(name)
-                        >
-                            {name}
-                            <svg
-                                class="h-3.5 w-3.5 shrink-0 text-text-faint"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                />
-                            </svg>
-                        </a>
+                        {move || {
+                            expanded.get().then(|| view! { <StockLink name=name href=href.clone() /> })
+                        }}
                     }
                 })
                 .collect_view()}
         </div>
+    }
+}
+
+#[component]
+fn StockLink(name: &'static str, href: String) -> impl IntoView {
+    view! {
+        <a
+            class="stock-link-button"
+            href=href
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label=labels::stock_search_new_tab(name)
+        >
+            {name}
+            <svg
+                class="h-3.5 w-3.5 shrink-0 text-text-faint"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+            </svg>
+        </a>
     }
 }
 

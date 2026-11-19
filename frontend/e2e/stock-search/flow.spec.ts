@@ -219,6 +219,85 @@ test('口座が複数の銘柄は合計と口座ごとの保有情報が出る',
   await expect(section.getByText('取得単価')).toHaveCount(2);
 });
 
+test('外部リンクは3件だけ見えて残りは折りたたまれている', async ({ page }) => {
+  await setupAuthMocks(page);
+
+  await page.goto('/search?code=9905');
+  await expect(page.getByText('架空ゲーム')).toBeVisible();
+
+  const links = page.getByTestId('stock-links');
+  await expect(links.getByRole('link')).toHaveCount(3);
+  for (const name of ['楽天証券', '株探', 'Yahoo! Finance']) {
+    await expect(links.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+  }
+  const toggle = links.getByRole('button', { name: 'その他のサイト(8)' });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('折りたたみをキーボードで開くと外部リンクが11件になる', async ({ page }) => {
+  await setupAuthMocks(page);
+
+  await page.goto('/search?code=9905');
+  const links = page.getByTestId('stock-links');
+  const toggle = links.getByRole('button', { name: 'その他のサイト(8)' });
+
+  // .focus() は到達の検証にならないため Tab だけでトグルまで進む
+  const maxTabs = 100;
+  for (let pressed = 0; pressed < maxTabs; pressed += 1) {
+    if (await toggle.evaluate((el) => el === document.activeElement).catch(() => false)) {
+      break;
+    }
+    await page.keyboard.press('Tab');
+  }
+  await expect(toggle, 'Tab だけでトグルに届くこと').toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(links.getByRole('link')).toHaveCount(11);
+  for (const name of ['SBI証券', '日経', 'JPX Explorer']) {
+    await expect(links.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+  }
+});
+
+test('無配の銘柄では無配が1つだけ出る', async ({ page }) => {
+  await mockSession(page);
+  await page.route(ROUTES.stock, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STOCK),
+    }),
+  );
+  await page.route(ASSET_ROUTES.assetBalances, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [holdingRow('holding-1', '特定')],
+        total: 1,
+        page: 1,
+        per_page: 1,
+      }),
+    }),
+  );
+  await page.route(ASSET_ROUTES.dividendBatch, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [{ security_code: '9905', dividend_per_share: 0, status: 'zero' }],
+      }),
+    }),
+  );
+
+  await page.goto('/search?code=9905');
+  const section = page.getByLabel('保有情報', { exact: true });
+  await expect(section.getByText('評価額')).toBeVisible();
+  await expect(section.getByText('無配', { exact: true })).toHaveCount(1);
+  await expect(section.getByText('1株配当')).toHaveCount(0);
+  await expect(section.getByText('取得額利回り')).toHaveCount(0);
+});
+
 test('資産管理の行から銘柄画面を開ける', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
