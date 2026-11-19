@@ -21,6 +21,18 @@ use leptos::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
+#[test]
+fn hero_tax_suffix_only_for_dividend_with_value() {
+    // 配当タブの主役だけに税区分を添え、国内株式・投資信託は付けない
+    assert_eq!(
+        hero_tax_suffix(ReceiptsTab::Dividend, false),
+        Some(labels::AFTER_TAX)
+    );
+    assert_eq!(hero_tax_suffix(ReceiptsTab::Dividend, true), None);
+    assert_eq!(hero_tax_suffix(ReceiptsTab::DomesticStock, false), None);
+    assert_eq!(hero_tax_suffix(ReceiptsTab::MutualFund, false), None);
+}
+
 // 絞り込み結果の共有先(配当情報の切り替え・集計・期間・件数・表)は同じ入力から同じ値を出す
 #[test]
 fn dividend_section_switch_needs_dividend_tab_and_exact_code() {

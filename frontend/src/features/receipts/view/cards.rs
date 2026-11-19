@@ -476,11 +476,7 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let sheet_open = RwSignal::new(false);
     // 配当タブの主役は税引後の受取額だが行だけでは税区分が分からないため添える。
     // 国内株式・投資信託は補助に税引前が出るため付けない
-    let hero_value_for_row = if tab == ReceiptsTab::Dividend && !hero_value.is_empty() {
-        format!("{}({})", hero_value, labels::AFTER_TAX)
-    } else {
-        hero_value.clone()
-    };
+    let tax_suffix = hero_tax_suffix(tab, hero_value.is_empty());
     let account_for_meta = account.clone();
     let code_for_meta = code.clone();
     let short_date_for_meta = short_date.clone();
@@ -509,10 +505,14 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                     <span class="receipt-compact-value">
                         <Amount
                             kind=hero_kind
-                            text=hero_value_for_row.clone()
+                            text=hero_value.clone()
                             negative=hero_negative
                             positive=hero_positive
-                        />
+                        />{tax_suffix.map(|suffix| view! {
+                            <span class="text-cell text-text-muted">
+                                {"("}{suffix}{")"}
+                            </span>
+                        })}
                         {before_tax_sub.clone().map(|(text, negative, positive)| view! {
                             <span class="receipt-before-tax-sub">
                                 {labels::BEFORE_TAX}" "
@@ -554,6 +554,13 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
             </Show>
         </li>
     }
+}
+
+/// 配当タブの主役の税区分の接尾辞。Amount の金額文字列には混ぜない
+/// (混ぜると正負の色が出なくなるため、呼び出し側で別の要素に出す)。
+/// 国内株式・投資信託は補助に税引前が出るため付けない
+pub(crate) fn hero_tax_suffix(tab: ReceiptsTab, hero_empty: bool) -> Option<&'static str> {
+    (tab == ReceiptsTab::Dividend && !hero_empty).then_some(labels::AFTER_TAX)
 }
 
 /// 月・日見出しの右に出す合計。行の主役・帯と同じ税引後の合計を使う
