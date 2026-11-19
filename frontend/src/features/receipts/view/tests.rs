@@ -1026,12 +1026,12 @@ fn receipt_dialog_follows_specified_order_and_uses_row_values() {
         assert_eq!(
             right[2].kind,
             AmountKind::Delta,
-            "{tab:?}: 税引後は損益として符号と色"
+            "{tab:?}: 税引後は実現損益として符号と色"
         );
         assert_eq!(
             right[0].kind,
             AmountKind::Delta,
-            "{tab:?}: 税引前は損益として符号と色"
+            "{tab:?}: 税引前は実現損益として符号と色"
         );
         assert!(!right[0].bold, "{tab:?}: 税引前は太字にしない");
         assert!(
@@ -1410,14 +1410,14 @@ fn month_headline_uses_after_tax_total() {
 
 #[test]
 fn group_headline_amount_uses_delta_kind() {
-    // 月見出しの金額は受取額・損益とも Delta の種別で出す
+    // 月見出しの金額は配当金・実現損益とも Delta の種別で出す
     let dividend = vec![
         ("配当金", "¥500".to_string()),
         ("税額", "¥100".to_string()),
         ("税引後", "¥400".to_string()),
     ];
     let item = group_headline_summary(ReceiptsTab::Dividend, &dividend).expect("見出しがある");
-    assert_eq!(item.label, "受取(税引後)");
+    assert_eq!(item.label, "配当金");
     assert_eq!(item.value, "+¥400");
     assert_eq!(item.kind, AmountKind::Delta);
     assert!(item.positive);
@@ -1427,7 +1427,7 @@ fn group_headline_amount_uses_delta_kind() {
         ("税引後", "+¥797".to_string()),
     ];
     let item = group_headline_summary(ReceiptsTab::DomesticStock, &stock).expect("見出しがある");
-    assert_eq!(item.label, "損益");
+    assert_eq!(item.label, "実現損益");
     assert_eq!(item.value, "+¥797");
     assert_eq!(item.kind, AmountKind::Delta);
     assert!(item.positive);

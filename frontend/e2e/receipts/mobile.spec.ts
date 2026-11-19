@@ -136,9 +136,9 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
-  // 1行目は銘柄名と受取額、2行目は日付・コード・口座だけ出す(補助の金額は出さない)
-  // 税区分は行ごとではなく件数の行に1回だけ出す(配当タブのみ)
-  await expect(page.getByText('金額は税引後')).toBeVisible();
+  // 1行目は銘柄名と配当金額、2行目は日付・コード・口座だけ出す(補助の金額は出さない)
+  // 税区分は一番上の集計帯だけに書き、件数の行では繰り返さない
+  await expect(page.getByText('金額は税引後')).toHaveCount(0);
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-name')).toHaveText('架空電信電話');
@@ -176,7 +176,7 @@ test('グループ見出しは件数と小計を常に表示する', async ({ pa
     '2024年3月 · 2件',
   );
   await expect(cardList.getByTestId('receipt-card-group').first()).toContainText(
-    '受取(税引後) +¥3,985',
+    '配当金 +¥3,985',
   );
 });
 
@@ -223,7 +223,7 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
   await page.goto('/receipts');
 
   await page.getByRole('tab', { name: '国内株式' }).click();
-  // 税区分の注記は配当タブにだけ出す
+  // 税区分の注記は件数の行に出さない(集計帯だけに書く)
   await expect(page.getByText('金額は税引後')).toHaveCount(0);
   const card = page
     .getByTestId('receipt-card-list')

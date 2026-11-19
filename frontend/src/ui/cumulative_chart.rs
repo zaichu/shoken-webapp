@@ -244,7 +244,7 @@ pub fn CumulativeChart(
         end_diff.is_some_and(|value| asset_balance::is_negative_valuation(Some(value)));
     let end_diff_positive =
         end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
-    // スライダーの読み上げ文(「6月 受取 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
+    // スライダーの読み上げ文(「6月 配当金 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
     // 選んだ月で引く。未来月は選べないため今月まで
     let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
         .map(|month| {

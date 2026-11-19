@@ -792,7 +792,7 @@ pub(crate) fn single_row_headline(cards: &[CardRowData]) -> Vec<(&'static str, S
     }
 }
 
-/// 月見出しの右に出す小計の表示。金額は符号付きにし、受取額・損益は
+/// 月見出しの右に出す小計の表示。金額は符号付きにし、配当金・実現損益は
 /// Delta の種別で出す(行の主役・帯と同じ税引後の合計を使う)
 pub(crate) fn group_headline_summary(
     tab: ReceiptsTab,
@@ -808,8 +808,8 @@ pub(crate) fn group_headline_summary(
         raw.to_string()
     };
     let label = match tab {
-        ReceiptsTab::Dividend => labels::RECEIPT_SHORT,
-        _ => labels::PROFIT_SHORT,
+        ReceiptsTab::Dividend => labels::DIVIDEND_AMOUNT,
+        _ => labels::REALIZED_PROFIT_LOSS,
     };
     Some(GroupSummary {
         label: label.to_string(),
@@ -1063,7 +1063,11 @@ pub(crate) fn MobileCardGroup(
         }
         .into_any();
     }
-    let (primary_label, primary_raw) = summary.last().cloned().unwrap_or_default();
+    let (_, primary_raw) = summary.last().cloned().unwrap_or_default();
+    let primary_label: &'static str = match tab {
+        ReceiptsTab::Dividend => labels::DIVIDEND_AMOUNT,
+        _ => labels::REALIZED_PROFIT_LOSS,
+    };
     let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_raw);
     let primary_positive = is_positive_labeled_value(tab, primary_label, &primary_raw);
     let primary_value = signed_text_for_profit(tab, primary_label, &primary_raw);
