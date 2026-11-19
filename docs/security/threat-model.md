@@ -29,16 +29,26 @@ flowchart LR
   subgraph IdP[Google]
     O[OAuth tokeninfo]
   end
-  subgraph Data[Neon Postgres]
-    DB[(public スキーマ)]
+  subgraph Data[Supabase Postgres]
+    AW[app_worker 接続]
+    AR[app_restricted 利用者Tx]
+    AU[認証関数 移行ロール所有]
+    EX[限定関数 executor所有]
+    UT[(利用者表 RLS)]
+    ST[(共有表)]
   end
   FE -->|HTTPS Cookie| W
   W --> RL
   W -->|code検証| O
-  W -->|単一ロール| DB
+  W -->|app_worker| AW
+  AW -->|app_enterで切替| AR
+  AR -->|user_id一致のみ| UT
+  AW -->|SELECTのみ| ST
+  AR -->|EXECUTEのみ| AU
+  AW -->|EXECUTEのみ| EX
 ```
 
-境界: (1)ブラウザ-Wokers 間は Cookie+Origin、(2)Workers-Google 間は tokeninfo 信頼、(3)Workers-DB 間は単一ロール+アプリ層 WHERE user_id(本点検の残件 7-1)。
+境界: (1)ブラウザ-Workers 間は Cookie+Origin、(2)Workers-Google 間は tokeninfo 信頼、(3)Workers-DB 間は app_worker(NOBYPASSRLS・表の所有者ロールに所属しない)で接続し、利用者の要求では Tx 内で app_enter により app_restricted に切り替えて RLS(user_id = app.current_user_id)を効かせる。共有表は SELECT のみ、利用者 ID が定まる前の認証・通知 token の照合は移行ロール所有の auth 系関数を app_restricted から呼び、利用者をまたぐ管理者検索・cron・共有表の書き込みは専用の executor ロール所有の限定関数を app_worker から呼ぶ。いずれも SECURITY DEFINER で引数と戻りを絞り EXECUTE のみを与える。FORCE ROW LEVEL SECURITY は付けない(docs/security/db-rls-plan.md §28)。本番の接続確認は #2017(11/18 の cron の DB access ログ)。構成の正本は docs/security/db-rls-plan.md §25・§28、backend/migrations/README.md「ビューと新しい表の RLS の決まり」。
 
 ## ログインの流れ
 
