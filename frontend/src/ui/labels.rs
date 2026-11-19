@@ -921,7 +921,9 @@ pub const HOME_FORECAST_NAME: &str = "年間予想(税引後)";
 pub const HOME_FORECAST_LOADING_SUFFIX: &str = "を取得中";
 /// ホーム: 累計グラフの直接ラベル
 pub const CUMULATIVE_THIS_YEAR: &str = "今年";
-pub const CUMULATIVE_PREVIOUS_YEAR: &str = "前年";
+pub fn cumulative_previous_label(year: u32, through_month: u32) -> String {
+    format!("前年({year}年{through_month}月まで)")
+}
 /// グラフ縦軸の短い単位(万)。「50万」のように付ける
 pub const AXIS_TEN_THOUSAND: &str = "万";
 /// グラフ縦軸の短い単位(億)。「2億」のように付ける

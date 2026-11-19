@@ -13,6 +13,12 @@ fn cumulative_slider_valuetext_reads_month_dividend_and_total() {
     );
 }
 
+#[test]
+fn previous_cumulative_label_includes_the_period() {
+    assert_eq!(cumulative_previous_label(2025, 1), "前年(2025年1月まで)");
+    assert_eq!(cumulative_previous_label(2025, 12), "前年(2025年12月まで)");
+}
+
 fn source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
 }

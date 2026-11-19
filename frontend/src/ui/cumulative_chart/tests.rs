@@ -71,6 +71,14 @@ fn end_label_positions_keep_labels_apart_and_inside_the_plot() {
 }
 
 #[test]
+fn early_month_end_labels_move_right_of_the_first_points() {
+    assert_eq!(end_label_horizontal(1), (Some(x_percent(1) + 1.5), None));
+    assert_eq!(end_label_horizontal(2), (Some(x_percent(2) + 1.5), None));
+    assert_eq!(end_label_horizontal(3).0, None);
+    assert!(end_label_horizontal(3).1.unwrap() > 100.0 - x_percent(3));
+}
+
+#[test]
 fn short_labels_use_man_and_oku() {
     assert_eq!(labels::axis_yen_short(0.0), "0");
     assert_eq!(labels::axis_yen_short(5_000.0), "5,000");

@@ -58,16 +58,29 @@ pub fn cumulative_sums(monthly: &[f64]) -> Vec<f64> {
 struct EndLabelPositions {
     current: f64,
     previous: Option<f64>,
-    right: f64,
+    left: Option<f64>,
+    right: Option<f64>,
+}
+
+fn end_label_horizontal(month: u32) -> (Option<f64>, Option<f64>) {
+    if month <= 2 {
+        (Some(x_percent(month.clamp(1, 12)) + 1.5), None)
+    } else {
+        (
+            None,
+            Some((100.0 - x_percent(month.clamp(1, 12)) + 1.5).max(0.0)),
+        )
+    }
 }
 
 fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLabelPositions {
     let current = current.clamp(0.0, 100.0);
-    let right = (100.0 - x_percent(month.clamp(1, 12)) + 1.5).max(0.0);
+    let (left, right) = end_label_horizontal(month);
     let Some(previous) = previous.map(|value| value.clamp(0.0, 100.0)) else {
         return EndLabelPositions {
             current,
             previous: None,
+            left,
             right,
         };
     };
@@ -75,6 +88,7 @@ fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLa
         return EndLabelPositions {
             current,
             previous: Some(previous),
+            left,
             right,
         };
     }
@@ -87,6 +101,7 @@ fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLa
         } else {
             current_position + 12.0
         }),
+        left,
         right,
     }
 }
@@ -277,6 +292,7 @@ pub fn CumulativeChart(
     );
     let current_end_text = format::format_currency(current_end);
     let previous_end_text = previous_end.map(format::format_currency);
+    let previous_end_label = labels::cumulative_previous_label(previous_year, current_month);
     // スライダーの読み上げ文(「6月 配当金 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
     // 選んだ月で引く。未来月は選べないため今月まで
     let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
@@ -403,7 +419,8 @@ pub fn CumulativeChart(
                     <span
                         class="home-cum-end-label home-cum-end-label-current"
                         style:top=format!("{}%", label_positions.current)
-                        style:right=format!("calc({}% + 6px)", label_positions.right)
+                        style:left=label_positions.left.map_or_else(|| "auto".to_string(), |left| format!("calc({left}% + 6px)"))
+                        style:right=label_positions.right.map_or_else(|| "auto".to_string(), |right| format!("calc({right}% + 6px)"))
                     >
                         {labels::CUMULATIVE_THIS_YEAR}{" "}<Amount text=current_end_text />
                     </span>
@@ -411,9 +428,10 @@ pub fn CumulativeChart(
                         <span
                             class="home-cum-end-label home-cum-end-label-previous"
                             style:top=format!("{}%", label_positions.previous.unwrap_or(0.0))
-                            style:right=format!("calc({}% + 6px)", label_positions.right)
+                            style:left=label_positions.left.map_or_else(|| "auto".to_string(), |left| format!("calc({left}% + 6px)"))
+                            style:right=label_positions.right.map_or_else(|| "auto".to_string(), |right| format!("calc({right}% + 6px)"))
                         >
-                            {labels::CUMULATIVE_PREVIOUS_YEAR}{" "}<Amount text=text />
+                            {previous_end_label}{" "}<Amount text=text />
                         </span>
                     })}
                 </div>
