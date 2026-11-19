@@ -247,7 +247,7 @@ test.describe('資産管理と取引明細のページの骨格', () => {
     }
 
     // 資産管理は件数行に件数が出る
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-search-count')).toContainText(
       '2件 / 2件',
     );
@@ -262,7 +262,7 @@ test.describe('資産管理と取引明細のページの骨格', () => {
   test('絞り込み中は注記に件数が出て、条件を消すと消える', async ({ page }) => {
     await setupMocks(page);
 
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('page-filtering-count')).toHaveCount(0);
 
