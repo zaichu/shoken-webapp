@@ -184,7 +184,8 @@ pub fn CumulativeChart(
                     })
                     .collect_view()}
             </div>
-            <div class="home-chart-plot">
+            <div class="home-cum-main">
+                <div class="home-chart-plot">
                 <div class="home-chart-grid" aria-hidden="true">
                     {ticks
                         .iter()
@@ -249,17 +250,16 @@ pub fn CumulativeChart(
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
                         let dot_left = x_percent(month);
-                        let prev_dot = previous_value.map(|value| {
-                            let top_pos = y_percent(value, top);
-                            let left_pos = x_percent(month);
-                            view! {
-                                <span
-                                    class="home-cum-dot home-cum-dot-previous"
-                                    style:top=format!("{top_pos}%")
-                                    style:left=format!("{left_pos}%")
-                                />
-                            }
-                        });
+                        // 端の月は吹き出しを内側に寄せ、点より上にあるときは
+                        // 凡例に被せないよう点の下に出す
+                        let edge = if month == 1 {
+                            "left"
+                        } else if month >= 10 {
+                            "right"
+                        } else {
+                            ""
+                        };
+                        let tip_below = dot_top < 50.0;
                         view! {
                             <div
                                 class="home-cum-col"
@@ -268,6 +268,7 @@ pub fn CumulativeChart(
                                 aria-expanded=move || (selected.get() == Some(month)).to_string()
                                 aria-label=month_aria
                                 data-selected=move || (selected.get() == Some(month)).to_string()
+                                data-edge=edge
                                 on:click=move |_| {
                                     selected.update(|state| {
                                         *state = if *state == Some(month) { None } else { Some(month) };
@@ -284,13 +285,36 @@ pub fn CumulativeChart(
                                     }
                                 }
                             >
-                                {prev_dot}
-                                <span
-                                    class="home-cum-dot home-cum-dot-current"
-                                    style:top=format!("{dot_top}%")
-                                    style:left=format!("{dot_left}%")
-                                />
-                                <div class="home-cum-tip" aria-hidden="true">
+                                {move || {
+                                    (selected.get() == Some(month) || month == current_month).then(|| {
+                                        view! {
+                                            {previous_value
+                                                .map(|value| {
+                                                    let top_pos = y_percent(value, top);
+                                                    let left_pos = x_percent(month);
+                                                    view! {
+                                                        <span
+                                                            class="home-cum-dot home-cum-dot-previous"
+                                                            style:top=format!("{top_pos}%")
+                                                            style:left=format!("{left_pos}%")
+                                                        />
+                                                    }
+                                                })}
+                                            <span
+                                                class="home-cum-dot home-cum-dot-current"
+                                                style:top=format!("{dot_top}%")
+                                                style:left=format!("{dot_left}%")
+                                            />
+                                        }
+                                    })
+                                }}
+                                <div
+                                    class="home-cum-tip"
+                                    aria-hidden="true"
+                                    style:top=tip_below
+                                        .then(|| format!("calc({dot_top}% + 12px)"))
+                                    style:bottom=tip_below.then(|| "auto".to_string())
+                                >
                                     <p class="font-bold text-text">{month_label}</p>
                                     <dl class="mt-1 space-y-0.5">
                                         <div class="flex items-center gap-1.5">
@@ -319,20 +343,21 @@ pub fn CumulativeChart(
                     })
                     .collect_view()}
                 </div>
+                <div class="home-chart-month-labels" aria-hidden="true">
+                    {months
+                        .iter()
+                        .map(|month| {
+                            let is_current = *month == current_month;
+                            view! {
+                                <span class="home-chart-month-label" data-current=is_current.to_string()>
+                                    {labels::receipt_month_label(*month)}
+                                </span>
+                            }
+                        })
+                        .collect_view()}
+                </div>
             </div>
         </div>
-        <div class="home-chart-month-labels" aria-hidden="true">
-            {months
-                .iter()
-                .map(|month| {
-                    let is_current = *month == current_month;
-                    view! {
-                        <span class="home-chart-month-label" data-current=is_current.to_string()>
-                            {labels::receipt_month_label(*month)}
-                        </span>
-                    }
-                })
-                .collect_view()}
         </div>
         {end_diff_text
             .map(|text| {

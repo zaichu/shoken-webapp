@@ -1683,7 +1683,7 @@
   }
 
   .home-chart-plot {
-    @apply relative mt-1 h-32 min-w-0 flex-1 max-sm:h-28;
+    @apply relative mt-1 h-55 max-sm:h-28;
   }
 
   .home-chart-grid {
@@ -1698,8 +1698,12 @@
     @apply flex gap-1.5;
   }
 
+  .home-cum-main {
+    @apply min-w-0 flex-1;
+  }
+
   .home-cum-axis {
-    @apply relative h-32 w-12 shrink-0 max-sm:h-28;
+    @apply relative h-55 w-12 shrink-0 max-sm:h-28;
   }
 
   .home-cum-tick {
@@ -1738,7 +1742,7 @@
   }
 
   .home-cum-dot {
-    @apply absolute h-2.5 w-2.5 -translate-x-1/2 translate-y-1/2 rounded-full;
+    @apply absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full;
   }
 
   .home-cum-dot-current {
@@ -1767,12 +1771,13 @@
     @apply block;
   }
 
-  .home-cum-col:first-child .home-cum-tip {
+  /* 端の月は吹き出しを内側に寄せる(中央の月は点の真上) */
+  .home-cum-col[data-edge="left"] .home-cum-tip {
     left: 0;
     translate: none;
   }
 
-  .home-cum-col:last-child .home-cum-tip {
+  .home-cum-col[data-edge="right"] .home-cum-tip {
     right: 0;
     left: auto;
     translate: none;
