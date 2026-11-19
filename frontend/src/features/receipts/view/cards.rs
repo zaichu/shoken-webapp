@@ -466,9 +466,9 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         negative,
         positive,
     });
-    // 撮影用の案切り替え。1・3は税引前の小字を出さず、2はメタに回す。
+    // 撮影用の案切り替え。1〜3は金額下の小字を出さず、2はメタに回す。
     let primary_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
-        1 | 3 => None,
+        1..=3 => None,
         _ => sub_tax.clone(),
     };
     let meta_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
