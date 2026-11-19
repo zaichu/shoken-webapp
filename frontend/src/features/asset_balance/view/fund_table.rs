@@ -219,7 +219,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
         DetailCell::plain(labels::FUND_SHARES.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         pnl_cell,
-        DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
+        DetailCell::plain(labels::BASE_PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
 }
@@ -349,7 +349,7 @@ mod tests {
                 labels::FUND_SHARES,
                 labels::TOTAL_ACQUISITION,
                 labels::MARKET_VALUE,
-                labels::PRICE_AS_OF
+                labels::BASE_PRICE_AS_OF
             ]
         );
     }

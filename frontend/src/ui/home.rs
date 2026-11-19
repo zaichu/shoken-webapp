@@ -179,7 +179,7 @@ pub fn HomeDividendHead(
                 {" "}
                 <Amount text=progress_text.clone() />
             </span>
-            // スマホは配当金の下の1行に「年間予想(税引後) ¥… ・ 進捗率 …」とまとめる。
+            // スマホは配当金の下の1行に「年間予想配当(税引後) ¥… ・ 進捗率 …」とまとめる。
             // 行頭の「/」は付けない。超えの状態はバーの下の補足に出す
             <span class="hidden text-label text-text-muted max-sm:inline">
                 {forecast_text.map_or_else(
@@ -215,7 +215,7 @@ pub fn HomeDividendNote(
     #[prop(into)] yoy_text: String,
     yoy_negative: bool,
     yoy_positive: bool,
-    /// 配当金が年間予想(税引後)を超えたか。超えたときだけ文末に状態を添える
+    /// 配当金が年間予想配当(税引後)を超えたか。超えたときだけ文末に状態を添える
     #[prop(optional)]
     over: bool,
 ) -> impl IntoView {

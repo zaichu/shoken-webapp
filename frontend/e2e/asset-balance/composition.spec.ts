@@ -213,9 +213,9 @@ test.describe('スマホの構成比', () => {
       '¥1,100,000',
     );
 
-    await page.getByTestId('comp-basis').getByRole('button', { name: '年間配当' }).click();
+    await page.getByTestId('comp-basis').getByRole('button', { name: '年間予想配当(税引前)' }).click();
     await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
-      '年間配当(税引前)の比率',
+      '年間予想配当(税引前)の比率',
     );
     await expect(page.getByTestId('page-skeleton-note-text')).toContainText(
       '¥25,000',

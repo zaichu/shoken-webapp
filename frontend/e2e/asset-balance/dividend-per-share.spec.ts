@@ -120,7 +120,7 @@ async function columnIndex(table: Locator, label: string) {
   return index;
 }
 
-test('国内株式の表に1株配当の列があり、1株配当と年間配当が整合する', async ({ page }) => {
+test('国内株式の表に1株配当の列があり、1株配当と年間予想配当が整合する', async ({ page }) => {
   await setupMocks(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/assetbalance');
@@ -129,12 +129,12 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
   const table = page.getByTestId('asset-holdings-table');
   await expect(table).toBeVisible();
 
-  // 1株配当は年間配当の左の独立した列
+  // 1株配当は年間予想配当の左の独立した列
   const perShareIndex = await columnIndex(table, '1株配当');
-  const annualIndex = await columnIndex(table, '年間配当');
+  const annualIndex = await columnIndex(table, '年間予想配当');
   expect(annualIndex).toBeGreaterThan(perShareIndex);
 
-  // 取得できた銘柄は1株配当と年間配当(1株配当×数量)が出る
+  // 取得できた銘柄は1株配当と年間予想配当(1株配当×数量)が出る
   const priced = table.getByRole('row', { name: /架空自動車/ });
   await expect(priced.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
   await expect(priced.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');
@@ -212,7 +212,7 @@ test('推定の初回レスポンス後に配当値が表示される(PC)', asyn
   await expect(table).toBeVisible();
   const row = table.getByRole('row', { name: /架空自動車/ });
   const perShareIndex = await columnIndex(table, '1株配当');
-  const annualIndex = await columnIndex(table, '年間配当');
+  const annualIndex = await columnIndex(table, '年間予想配当');
   // 推定の応答前は取得中と出す(取得失敗と区別する)
   await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('取得中…');
   await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('取得中…');

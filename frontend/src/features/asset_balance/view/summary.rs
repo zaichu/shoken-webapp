@@ -154,7 +154,7 @@ pub(crate) fn stock_summary_values(
     };
     let tags = vec![
         SummaryTag {
-            label: labels::ANNUAL_DIVIDEND_FORECAST,
+            label: labels::ANNUAL_EXPECTED_DIVIDEND,
             value: kpi
                 .total_annual_dividends
                 .map_or_else(|| "—".to_string(), balance_format::format_amount),
@@ -217,7 +217,7 @@ pub(crate) fn AssetSummaryBand(
         let mut items = vec![SummarySubItem {
             label: labels::DAY_CHANGE.to_string(),
             value: daily_text.clone(),
-            note: String::new(),
+            note: daily_rate_text.clone(),
             tone: if daily_negative {
                 SummaryTone::Loss
             } else if daily_positive {
@@ -225,8 +225,10 @@ pub(crate) fn AssetSummaryBand(
             } else {
                 SummaryTone::Neutral
             },
-            note_negative: false,
-            note_positive: false,
+            note_negative: daily_rate_value
+                .is_some_and(|rate| balance_format::is_negative_rate(Some(rate))),
+            note_positive: daily_rate_value
+                .is_some_and(|rate| balance_format::is_positive_rate(Some(rate))),
             extra_class: String::new(),
         }];
         for tag in &tags {

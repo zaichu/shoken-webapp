@@ -430,7 +430,7 @@ for (const width of [1280, 390]) {
         {
           url: '/assetbalance?tab=stock',
           band: ASSET_BAND,
-          labels: ['評価額', '評価損益', '前日比', '年間配当(予想)', '取得額利回り', '取得総額'],
+          labels: ['評価額', '評価損益', '前日比', '年間予想配当(税引前)', '取得額利回り', '取得総額'],
         },
       ];
       for (const { url, band, labels } of cases) {
