@@ -2,14 +2,14 @@ use super::*;
 use std::path::{Path, PathBuf};
 
 #[test]
-fn cumulative_slider_valuetext_reads_month_receipt_and_total() {
+fn cumulative_slider_valuetext_reads_month_dividend_and_total() {
     assert_eq!(
         cumulative_slider_valuetext(6, "¥34,200", "¥120,000", None),
-        "6月 受取 ¥34,200 / 累計 ¥120,000"
+        "6月 配当金 ¥34,200 / 累計 ¥120,000"
     );
     assert_eq!(
         cumulative_slider_valuetext(6, "¥34,200", "¥120,000", Some("¥100,000")),
-        "6月 受取 ¥34,200 / 累計 ¥120,000 / 前年累計 ¥100,000"
+        "6月 配当金 ¥34,200 / 累計 ¥120,000 / 前年累計 ¥100,000"
     );
 }
 
@@ -336,6 +336,19 @@ fn collect_japanese_entries() -> Vec<String> {
     entries
 }
 
+/// 禁止語の当たり判定。「受取」は分配金コースの「受取型」を除く。
+/// 「損益」は単独だけを止め評価損益・実現損益の複合語は通す
+fn is_forbidden_hit(literal: &str, term: &str) -> bool {
+    match term {
+        "受取" => literal.replace("受取型", "").contains(term),
+        "損益" => literal
+            .replace("評価損益", "")
+            .replace("実現損益", "")
+            .contains(term),
+        _ => literal.contains(term),
+    }
+}
+
 #[test]
 fn forbidden_terms_are_not_used_outside_the_glossary() {
     let mut files = Vec::new();
@@ -348,7 +361,7 @@ fn forbidden_terms_are_not_used_outside_the_glossary() {
         let source = std::fs::read_to_string(&file).expect("ソースを読める");
         for literal in string_literals(&source) {
             for (term, current) in FORBIDDEN_TERMS {
-                if literal.contains(term) {
+                if is_forbidden_hit(&literal, term) {
                     found.push(format!(
                         "{}: 「{term}」→ 現在の用語は「{current}」/ 該当: {literal}",
                         file.display()
@@ -424,6 +437,15 @@ fn no_japanese_literals_outside_glossary() {
         "用語集の外に日本語の直書きがあります。ui/labels.rs に移してください:\n{}",
         actual.join("\n")
     );
+}
+
+#[test]
+fn forbidden_hits_allow_compound_terms_only() {
+    assert!(!is_forbidden_hit("評価損益", "損益"));
+    assert!(!is_forbidden_hit("実現損益", "損益"));
+    assert!(is_forbidden_hit("損益", "損益"));
+    assert!(!is_forbidden_hit("受取型", "受取"));
+    assert!(is_forbidden_hit("受取", "受取"));
 }
 
 #[test]
