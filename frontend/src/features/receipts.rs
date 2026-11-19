@@ -37,6 +37,36 @@ impl ReceiptsTab {
             Self::MutualFund => "fund",
         }
     }
+
+    /// `?tab=` の値からタブを決める。知らない値・値なしは最初のタブ(配当金)
+    pub fn from_query(value: &str) -> Self {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|tab| tab.kind_param() == value)
+            .unwrap_or(Self::Dividend)
+    }
+
+    /// 開いている URL の `?tab=` が有効なときだけタブを返す。
+    /// 再読み込み・共有・戻る/進むで同じタブを開くために使う
+    pub(crate) fn url_tab() -> Option<Self> {
+        // 単体テスト(非 wasm)では window が無いため空パス扱いで常に None を返す
+        #[cfg(target_arch = "wasm32")]
+        let path = crate::app::current_location();
+        #[cfg(not(target_arch = "wasm32"))]
+        let path = String::new();
+        let value = crate::urls::tab_query_value(&path, "tab")?;
+        // from_query は未知値を既定に倒すため、有効な値のときだけ Some にする
+        Self::ALL
+            .iter()
+            .any(|tab| tab.kind_param() == value)
+            .then(|| Self::from_query(&value))
+    }
+
+    /// 選んでいるタブを URL の `?tab=` に載せる。履歴は積まない
+    pub(crate) fn sync_tab_url(self) {
+        crate::app::replace_url(&crate::urls::receipts_tab_href(self.kind_param()));
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

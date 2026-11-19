@@ -154,7 +154,7 @@ test.describe('資産管理のタブ', () => {
     page,
   }) => {
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
 
     const placeholders: string[] = [];
     const bandLabels: string[][] = [];
@@ -189,7 +189,7 @@ test.describe('資産管理のタブ', () => {
 
   test('同じ列の金額は同じ小数桁でそろえる', async ({ page }) => {
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
 
     await page.getByTestId('asset-kind-tab-stock').click();
     for (const column of ['取得単価', '現在値']) {
@@ -298,7 +298,7 @@ test.describe('PCの下線タブ', () => {
     page,
   }) => {
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',
@@ -356,7 +356,7 @@ test.describe('PCの下線タブ', () => {
 
   test('左右キーとTabで切り替わりフォーカスが見える', async ({ page }) => {
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',
@@ -393,7 +393,7 @@ test.describe('PCの下線タブ', () => {
 
   test('タブの押せる高さは44px以上', async ({ page }) => {
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-kind-tabs')).toBeVisible();
     const heights = await page.evaluate(() =>
       Array.from(document.querySelectorAll('[data-testid="asset-kind-tabs"] [role="tab"]')).map(
@@ -409,7 +409,7 @@ test.describe('PCの下線タブ', () => {
   test('動きを減らす設定では瞬時に切り替わる', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await setupMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-kind-tab-stock')).toHaveAttribute(
       'aria-selected',
       'true',

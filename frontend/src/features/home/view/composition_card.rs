@@ -72,7 +72,7 @@ pub(super) fn CompositionCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <HomeDetailCard testid="home-composition-card">
-            <HomeCardHead title=labels::HOME_COMPOSITION_TITLE href="/assetbalance" link_label=labels::ASSET_BALANCE_TITLE />
+            <HomeCardHead title=labels::HOME_COMPOSITION_TITLE href="/assetbalance?tab=all" link_label=labels::ASSET_BALANCE_TITLE />
             {move || {
                 let (assets, funds) = card();
                 if assets.is_none() && funds.is_none() {

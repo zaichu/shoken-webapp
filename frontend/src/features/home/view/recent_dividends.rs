@@ -231,7 +231,7 @@ pub(super) fn RecentDividendsCard(data: HomeOverviewData) -> impl IntoView {
     };
     view! {
         <HomeListCard testid="home-recent-card">
-            <HomeCardHead title=labels::HOME_RECENT_DIVIDENDS href="/receipts" link_label=labels::HOME_SEE_ALL />
+            <HomeCardHead title=labels::HOME_RECENT_DIVIDENDS href="/receipts?tab=dividend" link_label=labels::HOME_SEE_ALL />
             {move || match card() {
                 None => view! { <HomeCardSkeleton /> }.into_any(),
                 Some(None) => view! { <HomeCardError message=labels::HOME_RECENT_FETCH_FAILED.to_string() /> }.into_any(),

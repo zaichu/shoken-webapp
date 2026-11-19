@@ -46,6 +46,7 @@ pub fn ReceiptsTabButton(
                     return;
                 }
                 clicked.select_tab(tab);
+                tab.sync_tab_url();
             }
             on_keydown=move |event| {
                 let current = ReceiptsTab::ALL
@@ -54,7 +55,9 @@ pub fn ReceiptsTabButton(
                     .unwrap_or(0);
                 if let Some(next) = next_tab_index(current, &event.key()) {
                     event.prevent_default();
-                    keyed.select_tab(ReceiptsTab::ALL[next]);
+                    let tab = ReceiptsTab::ALL[next];
+                    keyed.select_tab(tab);
+                    tab.sync_tab_url();
                     focus_tab(next, suffix);
                 }
             }

@@ -504,7 +504,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -555,7 +555,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('指を止めたままでは中身が追従し離すと切り替わる', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -595,7 +595,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('切り替わらない接触では追従しない', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const currentTransform = () =>
       page
@@ -656,7 +656,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -697,7 +697,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('右スワイプの確定時も外側へ一方向にだけ進む', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
 
     await swipe(page, 'assetbalance-main-stage', 300, 90);
@@ -741,7 +741,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('取り消し時は元へ戻り切り替わらない', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -767,7 +767,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('下線は指と同じ向きの隣のタブ側へ進む', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const before = await inkGeometry(page, 'assetbalance-main-stage');
     expect(before.inkVisible).toBe(false);
@@ -793,7 +793,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('スワイプ途中で下線は青の1本だけ出る(資産管理)', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const rest = await swipeUnderlineState(page, 'assetbalance-main-stage');
     expect(rest.inkCount).toBe(0);
@@ -916,7 +916,7 @@ test.describe('下線タブの横スワイプ', () => {
   test('動きを減らす設定では即時に切り替わる', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -937,7 +937,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -997,7 +997,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('引いている最中の2本目の指を無視する', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     await expect(page.getByTestId('asset-kind-tab-stock-mobile')).toHaveAttribute(
       'aria-selected',
@@ -1024,7 +1024,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const rest = await mobileTabStrip(page, 'assetbalance-main-stage');
     expect(rest).not.toBeNull();
@@ -1093,7 +1093,7 @@ test.describe('下線タブの横スワイプ', () => {
 
   test('タップ切替でもタブの帯は同じ位置に残る', async ({ page }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const rest = await mobileTabStrip(page, 'assetbalance-main-stage');
     expect(rest).not.toBeNull();
@@ -1115,7 +1115,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const summarySelector = '[data-testid="asset-portfolio-summary"]';
     const rest = await swipePanelGeometry(
@@ -1196,7 +1196,7 @@ test.describe('下線タブの横スワイプ', () => {
     page,
   }) => {
     await setupAssetMocks(page);
-    await page.goto('/assetbalance');
+    await page.goto('/assetbalance?tab=stock');
     await expect(page.getByTestId('asset-portfolio-summary')).toBeVisible();
     const rest = await swipePanelGeometry(
       page,

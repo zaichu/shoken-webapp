@@ -252,6 +252,16 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
     focus_main(&window);
 }
 
+/// タブの `?tab=` 同期用。履歴は積まず、スクロール・フォーカスも動かさない。
+/// `CurrentPath` も進めないため再マウントは起きず、スワイプの動きを邪魔しない
+pub(crate) fn replace_url(url: &str) {
+    if let Some(window) = web_sys::window()
+        && let Ok(history) = window.history()
+    {
+        let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url));
+    }
+}
+
 const fn show_bottom_nav_for(route: Route) -> bool {
     route.shows_bottom_nav()
 }
