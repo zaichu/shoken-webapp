@@ -1,5 +1,5 @@
 use super::day_change::day_change_cell;
-use super::sort_header::sort_header;
+use super::sort_header::{sort_header, sort_header_titled};
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::holdings;
 use crate::features::asset_balance::holdings::HoldingView;
@@ -83,9 +83,18 @@ pub fn AssetHoldingsTable(
                             sort_order,
                         )}
                         <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::PER_SHARE_DIVIDEND}</th>
-                        {sort_header(labels::ANNUAL_DIVIDEND, SortKey::Dividend, sort_key, sort_order)}
-                        {sort_header(
+                        {sort_header_titled(
+                            labels::ANNUAL_DIVIDEND_HEAD,
+                            Some(labels::ANNUAL_DIVIDEND_HEAD_SUB),
+                            Some(labels::ANNUAL_DIVIDEND_NOTE),
+                            SortKey::Dividend,
+                            sort_key,
+                            sort_order,
+                        )}
+                        {sort_header_titled(
                             labels::ACQUISITION_YIELD,
+                            None,
+                            Some(labels::ACQUISITION_YIELD_NOTE),
                             SortKey::Yield,
                             sort_key,
                             sort_order,

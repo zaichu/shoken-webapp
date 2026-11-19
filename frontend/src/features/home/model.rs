@@ -255,6 +255,35 @@ pub(crate) fn build_dividend_card(
     }
 }
 
+/// 進捗率の表示。100% を超えてもバーは満タン(100%)で止め、
+/// 超えたことは `over` と文言で見せる。計算は変えない(受取 ÷ 年間予想(税引後))
+pub(crate) struct ProgressDisplay {
+    /// 「1611%」などの表示文。予想なしは「—」
+    pub(crate) text: String,
+    /// バーの幅(%)。0..=100 に丸める
+    pub(crate) bar_pct: f64,
+    /// 予想を超えたか
+    pub(crate) over: bool,
+}
+
+pub(crate) fn progress_display(progress: Option<f64>) -> ProgressDisplay {
+    progress.map_or_else(
+        || ProgressDisplay {
+            text: labels::MISSING.to_string(),
+            bar_pct: 0.0,
+            over: false,
+        },
+        |value| {
+            let pct = value * 100.0;
+            ProgressDisplay {
+                text: format::format_integer_percent(pct),
+                bar_pct: pct.clamp(0.0, 100.0),
+                over: value > 1.0,
+            }
+        },
+    )
+}
+
 /// 「残り」欄の表示文。受取が予想を超えたとき負の残りではなく
 /// 「予想を N 上回り」に書き分ける
 pub(crate) fn remaining_label(remaining: Option<f64>) -> (&'static str, String, &'static str) {

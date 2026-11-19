@@ -636,7 +636,7 @@ mod tests {
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
-            ["数量", "取得総額", "評価額", "年間配当", "価格基準日"]
+            ["数量", "取得総額", "評価額", "年間配当(予想)", "価格基準日"]
         );
         assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
 

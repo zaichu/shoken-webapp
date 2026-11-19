@@ -16,18 +16,22 @@ pub const PER_SHARE_UNIT: &str = "(1株あたり)";
 pub const DAY_CHANGE_RATE: &str = "前日比(%)";
 /// 取得総額
 pub const TOTAL_ACQUISITION: &str = "取得総額";
-/// 年間配当
-pub const ANNUAL_DIVIDEND: &str = "年間配当";
-/// 年間配当(会社予想)
+/// 年間配当(会社予想×保有数。資産管理の一覧・詳細・銘柄検索で共通)
+pub const ANNUAL_DIVIDEND: &str = "年間配当(予想)";
+/// 年間配当(会社予想×保有数。資産管理の集計帯)
 pub const ANNUAL_DIVIDEND_FORECAST: &str = "年間配当(予想)";
 /// 年間予想配当(税引前)(ホームの集計帯)
 pub const ANNUAL_EXPECTED_DIVIDEND: &str = "年間予想配当(税引前)";
-/// 年間配当参考額(保有銘柄詳細)
-pub const ANNUAL_DIVIDEND_REFERENCE: &str = "年間配当参考額";
-/// 取得額利回り(一覧・集計)
+/// 年間配当の算出条件(見出しの注記・説明用。税引前)
+pub const ANNUAL_DIVIDEND_NOTE: &str = "1株配当(会社予想)×保有数・税引前";
+/// 年間配当の列見出し(2行で出す1行目)。読み上げ名は「年間配当 (予想)」
+pub const ANNUAL_DIVIDEND_HEAD: &str = "年間配当";
+/// 年間配当の列見出し(2行で出す2行目。1280で表がはみ出さないよう単位だけ改行する)
+pub const ANNUAL_DIVIDEND_HEAD_SUB: &str = "(予想)";
+/// 取得額利回り(予想年間配当÷取得額。資産管理・銘柄検索で共通)
 pub const ACQUISITION_YIELD: &str = "取得額利回り";
-/// 取得額基準利回り(保有銘柄詳細)
-pub const ACQUISITION_BASIS_YIELD: &str = "取得額基準利回り";
+/// 取得額利回りの算出条件(見出しの注記・説明用。税引前)
+pub const ACQUISITION_YIELD_NOTE: &str = "予想年間配当÷取得額・税引前";
 /// 1株配当
 pub const PER_SHARE_DIVIDEND: &str = "1株配当";
 /// 配当金額と配当利回り(取引明細の配当情報カード)
@@ -297,6 +301,8 @@ pub const FORBIDDEN_TERMS: &[(&str, &str)] = &[
     ("取得価額", AVERAGE_PRICE),
     ("平均取得価格", AVERAGE_PRICE),
     ("平均取得価額", AVERAGE_PRICE),
+    ("年間配当参考額", ANNUAL_DIVIDEND_FORECAST),
+    ("取得額基準利回り", ACQUISITION_YIELD),
     ("一株配当", PER_SHARE_DIVIDEND),
     ("資産残高", ASSET_BALANCE_TITLE),
     ("保有数量(株)", QUANTITY),
@@ -485,8 +491,8 @@ pub const BEFORE_TAX: &str = "税引前";
 pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "配当金(税引後)";
 /// 取引明細の帯の主役(国内株式・投資信託タブ)
 pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
-/// 月見出しの右に出す短い受取表記(配当金タブ)
-pub const RECEIPT_SHORT: &str = "受取";
+/// 月見出しの右に出す短い受取表記(配当金タブ。税引後の合計)
+pub const RECEIPT_SHORT: &str = "受取(税引後)";
 /// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
 pub const PROFIT_SHORT: &str = "損益";
 /// 取引明細の画面名
@@ -896,7 +902,7 @@ pub const HOME_RECEIVED_LABEL: &str = "受取 ";
 /// ホーム: 予想の取得待ち(帯の内訳)
 pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 /// ホーム: 予想の取得待ち(配当カードの予想欄)
-pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
+pub const HOME_FORECAST_LOADING: &str = "/ 年間予想(税引後)を取得中";
 /// ホーム: 配当カードの前年同期差ラベル
 pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
 /// ホーム: 累計グラフの右端の差の見出し(「前年同期比 +¥12,200」)
@@ -941,9 +947,14 @@ pub fn home_import_label(label: &str) -> String {
     format!("データ: {label} 取り込み")
 }
 
-/// ホーム: 予想額の表示(「/ 予想 ¥12,000」)
+/// ホーム: 進捗率の名前(受取÷年間予想(税引後)の率)
+pub const HOME_PROGRESS_LABEL: &str = "進捗率";
+/// ホーム: 受取が年間予想(税引後)を超えたときの状態
+pub const HOME_PROGRESS_OVER: &str = "予想を上回りました";
+
+/// ホーム: 予想額の表示(「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物)
 pub fn home_forecast(forecast: &str) -> String {
-    format!("/ 予想 {forecast}")
+    format!("/ 年間予想(税引後) {forecast}")
 }
 
 /// ホーム: 累計グラフの凡例名(「2026年(累計)」)

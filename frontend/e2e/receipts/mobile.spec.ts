@@ -140,7 +140,7 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-name')).toHaveText('架空電信電話');
-  await expect(card.locator('.list-row-primary')).toHaveText('+¥1,594');
+  await expect(card.locator('.list-row-primary')).toHaveText('+¥1,594(税引後)');
   const meta = card.locator('.list-row-meta');
   await expect(meta).toContainText('3/15');
   await expect(meta).toContainText('9910');
@@ -174,7 +174,7 @@ test('グループ見出しは件数と小計を常に表示する', async ({ pa
     '2024年3月 · 2件',
   );
   await expect(cardList.getByTestId('receipt-card-group').first()).toContainText(
-    '受取 +¥3,985',
+    '受取(税引後) +¥3,985',
   );
 });
 

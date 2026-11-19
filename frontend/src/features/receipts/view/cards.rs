@@ -474,7 +474,13 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let sheet_title = name_text.clone();
     let short_date = format::format_short_date(&date.replace('/', "-"));
     let sheet_open = RwSignal::new(false);
-    let hero_value_for_row = hero_value.clone();
+    // 配当タブの主役は税引後の受取額だが行だけでは税区分が分からないため添える。
+    // 国内株式・投資信託は補助に税引前が出るため付けない
+    let hero_value_for_row = if tab == ReceiptsTab::Dividend && !hero_value.is_empty() {
+        format!("{}({})", hero_value, labels::AFTER_TAX)
+    } else {
+        hero_value.clone()
+    };
     let account_for_meta = account.clone();
     let code_for_meta = code.clone();
     let short_date_for_meta = short_date.clone();

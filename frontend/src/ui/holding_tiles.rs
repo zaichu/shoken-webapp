@@ -55,10 +55,13 @@ pub fn HoldingDetailItem(
     /// 末尾だけ段に残さないよう全幅で出す
     #[prop(optional)]
     wide: bool,
+    /// 算出条件などの補足(ホバー・読み上げの説明用。空なら出さない)
+    #[prop(into, optional)]
+    title: Option<String>,
     children: Children,
 ) -> impl IntoView {
     view! {
-        <div class=if wide { "holding-detail-item holding-detail-item-wide" } else { "holding-detail-item" }>
+        <div class=if wide { "holding-detail-item holding-detail-item-wide" } else { "holding-detail-item" } title=title>
             <dt class="holding-detail-label">{label}</dt>
             <dd class="holding-detail-value">{children()}</dd>
         </div>

@@ -156,6 +156,9 @@ pub fn HomeDividendHead(
     received_positive: bool,
     forecast_text: Option<String>,
     #[prop(into)] progress_text: String,
+    /// 受取が年間予想(税引後)を超えたか。超えたときだけ状態の文言を添える
+    #[prop(optional)]
+    over: bool,
 ) -> impl IntoView {
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
@@ -182,7 +185,15 @@ pub fn HomeDividendHead(
                     },
                 )}
             </span>
-            <Amount class="ml-auto text-label font-bold" text=progress_text />
+            <span class="ml-auto text-label font-bold">
+                {labels::HOME_PROGRESS_LABEL}
+                {" "}
+                <Amount text=progress_text />
+                {over.then(|| view! {
+                    {" "}
+                    {labels::HOME_PROGRESS_OVER}
+                })}
+            </span>
         </div>
     }
 }

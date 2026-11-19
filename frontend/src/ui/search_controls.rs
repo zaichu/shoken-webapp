@@ -16,6 +16,9 @@ use wasm_bindgen::closure::Closure;
 #[component]
 pub fn SortColumnButton(
     label: &'static str,
+    /// 見出しが長い列だけ2行目に出す補足(「(1株あたり)」など)。空なら出さない
+    #[prop(optional, into)]
+    sub: &'static str,
     #[prop(into)] active: Signal<bool>,
     #[prop(into)] descending: Signal<bool>,
     on_click: impl Fn() + Copy + Send + Sync + 'static,
@@ -26,6 +29,10 @@ pub fn SortColumnButton(
                 {move || if !active.get() { "" } else if descending.get() { "▼" } else { "▲" }}
             </span>
             {label}
+            {(!sub.is_empty()).then(|| view! {
+                <br />
+                {sub}
+            })}
         </Button>
     }
 }

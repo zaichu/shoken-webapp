@@ -743,7 +743,10 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                         })
                 })}
             {per_share_tile}
-            <HoldingDetailItem label=labels::ANNUAL_DIVIDEND_REFERENCE.to_string()>
+            <HoldingDetailItem
+                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
+                title=labels::ANNUAL_DIVIDEND_NOTE
+            >
                 <Amount
                     kind=AmountKind::Delta
                     text=data.annual
@@ -751,7 +754,11 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                     positive=data.annual_positive
                 />
             </HoldingDetailItem>
-            <HoldingDetailItem label=labels::ACQUISITION_BASIS_YIELD.to_string() wide=wide_yield>
+            <HoldingDetailItem
+                label=labels::ACQUISITION_YIELD.to_string()
+                wide=wide_yield
+                title=labels::ACQUISITION_YIELD_NOTE
+            >
                 <Amount
                     kind=AmountKind::Delta
                     text=data.yield_text
