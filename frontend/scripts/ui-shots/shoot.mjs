@@ -85,7 +85,8 @@ try {
         });
         const hits = await prepareContext(context, { anonymous: Boolean(screen.anonymous), admin: Boolean(screen.admin) });
         const page = await context.newPage();
-        const name = `${screen.key}-${viewport.width}x${viewport.height}-${theme}`;
+        const proposal = screen.key === 'home' ? process.env.UI_SHOTS_PROPOSAL_LABEL : null;
+        const name = `${screen.key}${proposal ? `-${proposal}` : ''}-${viewport.width}x${viewport.height}-${theme}`;
         try {
           await page.goto(`${baseUrl}${screen.path}`, { waitUntil: 'load' });
           if (screen.prepare) {

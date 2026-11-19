@@ -998,6 +998,10 @@ pub fn cumulative_year_label(year: u32) -> String {
     format!("{year}年(累計)")
 }
 
+pub const CUMULATIVE_CURRENT_DIRECT_LABEL: &str = "今年";
+pub const CUMULATIVE_PREVIOUS_DIRECT_LABEL: &str = "前年";
+pub const CUMULATIVE_FORECAST_LABEL: &str = "年間予想";
+
 /// ホーム: 累計グラフの月の受取の見出し(「6月の受取」)
 pub fn cumulative_month_receipt_label(month: u32) -> String {
     format!("{month}月の受取")

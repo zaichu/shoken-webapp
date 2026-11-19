@@ -1707,6 +1707,11 @@
     border-color: var(--color-text-muted);
   }
 
+  .home-cum-key-forecast {
+    border-top-style: dotted;
+    border-color: var(--color-chart-1);
+  }
+
   .home-chart-plot {
     @apply relative mt-1 h-55 max-sm:h-28;
   }
@@ -1748,6 +1753,39 @@
     stroke-linecap: round;
   }
 
+  .home-cum-area {
+    fill: var(--color-chart-1);
+    fill-opacity: 0.12;
+    stroke: none;
+  }
+
+  .home-cum-line-forecast {
+    fill: none;
+    stroke: var(--color-chart-1);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 2 4;
+    stroke-linecap: round;
+  }
+
+  .home-cum-legend[data-proposal="B"] .home-cum-legend-item,
+  .home-cum-legend[data-proposal="D"] .home-cum-legend-item {
+    @apply hidden;
+  }
+
+  .home-cum-direct-labels {
+    @apply flex min-w-0 justify-end gap-2 text-eyebrow font-bold text-text;
+  }
+
+  .home-cum-direct-current,
+  .home-cum-direct-previous {
+    @apply whitespace-nowrap rounded bg-surface px-1.5 py-0.5;
+  }
+
+  .home-cum-direct-previous {
+    @apply text-text-muted;
+  }
+
   .home-cum-line-previous {
     fill: none;
     stroke: var(--color-text-muted);
@@ -1778,6 +1816,11 @@
     width: 6px;
     height: 6px;
     background-color: var(--color-chart-1);
+  }
+
+  .home-cum-legend[data-proposal="C"] ~ .home-chart .home-cum-dot-current[data-received="false"],
+  .home-cum-legend[data-proposal="D"] ~ .home-chart .home-cum-dot-current[data-received="false"] {
+    display: none;
   }
 
   /* 前年の丸は白抜きの小さな丸(直径 5px)。面の色で抜き、枠は線と同じ灰 */

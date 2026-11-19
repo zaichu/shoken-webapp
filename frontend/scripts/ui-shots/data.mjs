@@ -230,7 +230,7 @@ export function fundBalances() {
 }
 
 // 配当。ホームの前年同期比較があるため年を指定して取り分ける
-export function dividends(year = 2026) {
+export function dividends(year = 2026, schedule = 'monthly') {
   const rows = STOCK_NAMES.map((security_name, index) => {
     const unit_price = decimal(index >= 34 ? 1500 : 20, index * 1.5);
     const shares = stockShares(index);
@@ -238,7 +238,9 @@ export function dividends(year = 2026) {
     const taxes = taxOf(dividends_before_tax);
     return {
       id: `dividend-${year}-${index + 1}`,
-      settlement_date: settlementDate(index, year),
+      settlement_date: schedule === 'quarterly'
+        ? `${year}-${String(((index % 4) + 1) * 3).padStart(2, '0')}-${String((index % 27) + 1).padStart(2, '0')}`
+        : settlementDate(index, year),
       product: DIVIDEND_PRODUCTS[index % DIVIDEND_PRODUCTS.length],
       account: ACCOUNTS[index % ACCOUNTS.length],
       security_code: String(9901 + index),

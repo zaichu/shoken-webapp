@@ -79,6 +79,12 @@ export const SCREENS = [
     label: 'ホーム',
     path: '/',
     ready: ['[data-testid="home-overview"]'],
+    prepare: async (page) => {
+      const month = Number(process.env.UI_SHOTS_TOOLTIP_MONTH ?? '9');
+      if (process.env.UI_SHOTS_TOOLTIP === '1') {
+        await page.locator('.home-cum-col').nth(month - 1).click();
+      }
+    },
   },
   {
     key: 'asset-all',
@@ -213,8 +219,9 @@ async function installGuards(context) {
 async function installMocks(context, { anonymous, admin }) {
   const stocks = assetBalances();
   const funds = fundBalances();
-  const currentDividends = dividends(CURRENT_YEAR);
-  const previousDividends = dividends(PREVIOUS_YEAR);
+  const schedule = process.env.UI_SHOTS_DIVIDEND_SCHEDULE === 'quarterly' ? 'quarterly' : 'monthly';
+  const currentDividends = dividends(CURRENT_YEAR, schedule);
+  const previousDividends = dividends(PREVIOUS_YEAR, schedule);
   const domesticStocks = domesticStockTransactions();
   const mutualFunds = mutualFundTransactions();
 
