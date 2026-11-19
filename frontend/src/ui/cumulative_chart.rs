@@ -292,7 +292,7 @@ pub fn CumulativeChart(
     );
     let current_end_text = format::format_currency(current_end);
     let previous_end_text = previous_end.map(format::format_currency);
-    let previous_end_label = labels::cumulative_previous_label(previous_year, current_month);
+    let previous_end_label = labels::cumulative_previous_label(current_month);
     // スライダーの読み上げ文(「6月 配当金 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
     // 選んだ月で引く。未来月は選べないため今月まで
     let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
