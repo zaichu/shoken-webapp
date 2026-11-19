@@ -86,3 +86,45 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 
   await expect(kpi).toContainText('¥420,000');
 });
+
+test('取込が株価より古いときは帯に印と読み上げ文を出し、かっこ書きは出さない', async ({
+  page,
+}) => {
+  await mockSession(page);
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.abort();
+    }
+    return route.fulfill(
+      json({
+        // 価格 1/10 に対して取込 1/1 のため、取込が古い
+        data: [{ ...SYN_AUTO, price_as_of: '2026-01-10' }],
+        total: 1,
+        page: 1,
+        per_page: 1000,
+      }),
+    );
+  });
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: [], total: 0, page: 1, per_page: 0 })),
+  );
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ items: [] })),
+  );
+
+  await page.goto('/assetbalance');
+  await page.getByTestId('asset-kind-tab-stock').click();
+
+  const band = page.getByTestId('asset-portfolio-summary');
+  await expect(band).toContainText('最終取り込み 2026/1/1');
+  // 画面にはかっこ書きを出さず、色と注意の印で示す
+  // (PC・スマホの両方の帯に出すため、最初の1つで確かめる)
+  await expect(band).not.toContainText('（株価');
+  await expect(
+    band.locator('.summary-label-note svg[aria-hidden="true"]').first(),
+  ).toBeVisible();
+  // 理由は画面外の文字で読み上げに残す
+  await expect(
+    band.getByText('株価の日付より古い', { exact: true }).first(),
+  ).toBeAttached();
+});

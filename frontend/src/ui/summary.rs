@@ -56,6 +56,30 @@ const fn tone_of(negative: bool, positive: bool) -> SummaryTone {
     }
 }
 
+/// 古い日付への注意の印。文字と同じ大きさで、色は親から受け継ぐ。
+/// 理由の読み上げは呼び出し側の画面外の文字が担うため、印そのものは読まない
+#[component]
+pub(crate) fn StaleMark() -> impl IntoView {
+    view! {
+        <svg
+            class="mr-1 inline-block shrink-0"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+            />
+        </svg>
+    }
+}
+
 /// 集計帯の1項目。ラベルと数字の組。
 /// 全項目でラベルの上端と数字の基準線をそろえるために、帯の中で同じ作りを使う
 #[component]
@@ -85,7 +109,7 @@ pub fn SummaryItem(
     /// 1つ目の注記と分けて次の行に送る。空なら出さない
     #[prop(optional, into)]
     label_note2: String,
-    /// 2つ目の補足が古い日付のときの強調。色と文字の両方で示す
+    /// 2つ目の補足(取込の状態)が古いときの強調。色と注意の印・読み上げ文で示す
     #[prop(optional)]
     label_note2_stale: bool,
     #[prop(optional)] tone: SummaryTone,
@@ -116,7 +140,13 @@ pub fn SummaryItem(
                             "summary-label-note text-warn-ink"
                         } else {
                             "summary-label-note"
-                        }>{label_note2.clone()}</span>
+                        }>
+                            {label_note2_stale.then(|| view! { <StaleMark/> })}
+                            {label_note2.clone()}
+                            {label_note2_stale.then(|| view! {
+                                <span class="sr-only">{labels::IMPORT_STALE_SR}</span>
+                            })}
+                        </span>
                     })}
             </dt>
             <dd class=format!("summary-value {size_class}")>
@@ -197,7 +227,7 @@ pub fn SummaryBand(
     /// 1つ目の注記と分けて次の行に送る。空なら出さない
     #[prop(optional, into)]
     primary_note2: String,
-    /// 2つ目の補足が古いときの強調。色と「(古い方)」の文字で示す
+    /// 2つ目の補足(取込の状態)が古いときの強調。色と注意の印・読み上げ文で示す
     #[prop(optional)]
     primary_note2_stale: bool,
     #[prop(optional)] testid_band: Option<&'static str>,

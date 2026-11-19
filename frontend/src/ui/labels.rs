@@ -1229,8 +1229,8 @@ pub fn home_import_with_role(label: &str) -> String {
 
 /// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
 pub const PRICE_STALE_MARK: &str = "（取込の日付より古い）";
-/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
-pub const IMPORT_STALE_MARK: &str = "（株価の日付より古い）";
+/// 古い取込日の注意の読み上げ文。画面には印だけを出し、理由は画面外の文字で読む
+pub const IMPORT_STALE_SR: &str = "株価の日付より古い";
 
 /// 取込日の役割注記。最終取り込みであることを添える
 pub fn import_as_of_note(ymd: &str) -> String {

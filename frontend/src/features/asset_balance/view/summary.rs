@@ -105,10 +105,8 @@ pub(crate) fn date_notes(
     if price_stale && !price_note.is_empty() {
         price_note.push_str(labels::PRICE_STALE_MARK);
     }
-    let mut import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
-    if import_stale && !import_note.is_empty() {
-        import_note.push_str(labels::IMPORT_STALE_MARK);
-    }
+    // 取込の古さは部品の印(注意の印と読み上げ文)で示すため、かっこ書きは付けない
+    let import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
     (price_note, price_stale, import_note, import_stale)
 }
 
@@ -230,7 +228,7 @@ pub(crate) fn AssetSummaryBand(
     /// 分けて次の行に送る。空なら出さない
     #[prop(optional, into)]
     import_note: String,
-    /// 取込が基準日より古いときの強調。色と「(古い方)」の文字で示す
+    /// 取込が基準日より古いときの強調。色と注意の印・読み上げ文で示す
     #[prop(optional)]
     import_stale: bool,
 ) -> impl IntoView {
