@@ -37,9 +37,6 @@ pub fn Amount(
     let color = move || amount_color(kind, negative.get(), positive.get(), &sign_text.get());
     let classes = move || amount_classes(color(), &class.get());
     let negative_attr = move || amount_negative_attr(color());
-    // 符号の `-` は表示だけ U+2212(−)にする。色の判定は元の文字列で済ませ、
-    // CSV などデータ側の文字は変えない。日付の中の `-` は触らない
-    // (docs/design/numerals.md「マイナスの字形」)。
     let text = move || display_text(&text.get());
     if block {
         view! {
@@ -92,8 +89,6 @@ fn amount_color(kind: AmountKind, negative: bool, positive: bool, text: &str) ->
 }
 
 fn amount_classes(color: AmountColor, extra: &str) -> String {
-    // numerals: 数字と記号だけ Inter の subset を当て、日本語と単位は Noto のまま出す
-    // (style/input.css の @font-face と .numerals。docs/design/numerals.md)。
     let mut base = String::from("numerals tabular-nums whitespace-nowrap");
     if !extra.is_empty() {
         base.push(' ');

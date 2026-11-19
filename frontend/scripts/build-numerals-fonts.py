@@ -29,7 +29,7 @@ GOOGLE_FONTS_SHA = "5bd87dfc525c8a0d1d8529d3684716e00c3fc59a"
 RAW = f"https://raw.githubusercontent.com/google/fonts/{GOOGLE_FONTS_SHA}"
 SOURCE_DIR = "ofl/inter"
 SOURCE_FILE = "Inter[opsz,wght].ttf"
-# 撮影用の試作(docs/design/numerals.md §4)が確かめた軸の固定値と同じにする
+# 軸はアプリの2段(本文 400・見出し 700)に絞り、opsz は 14 に固定する
 AXES = {"opsz": 14, "wght": (400, 700)}
 LABEL = "Shoken Numerals"
 OUTPUT = "inter-400-700.woff2"
@@ -69,7 +69,7 @@ def rename(font):
     name.setName(f"{ps}-{style.replace(' ', '')};subset-2042", 3, 3, 1, 0x409)
     for record in list(name.names):
         if record.platformID != 3 and record.nameID in (1, 3, 4, 6):
-            name.removeNames(nameID=record.platformID, platformID=record.platformID)
+            name.removeNames(nameID=record.nameID, platformID=record.platformID)
 
 
 def has_feature(font, tag):
