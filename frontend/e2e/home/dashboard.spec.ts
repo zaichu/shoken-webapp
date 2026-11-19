@@ -15,8 +15,8 @@ const STOCKS = [
     current_price: 2600,
     daily_change: 50,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
   {
     id: 'asset-balance-2',
@@ -28,8 +28,8 @@ const STOCKS = [
     current_price: 2000,
     daily_change: -20,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
 ];
 
@@ -58,8 +58,8 @@ const FUNDS = [
     profit_loss_rate: 20,
     total_return: null,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
 ];
 
@@ -82,8 +82,8 @@ function dividend(id: string, settlementDate: string, net: number, name: string)
     dividends_before_tax: net * 1.25,
     taxes: net * 0.25,
     net_amount_received: net,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   };
 }
 

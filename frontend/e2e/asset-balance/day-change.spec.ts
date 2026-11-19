@@ -1,10 +1,13 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
 
+const THIS_YEAR = new Date().getFullYear();
+const LAST_YEAR = THIS_YEAR - 1;
+
 const HAS_PREV_CLOSE = {
   id: 'asset-balance-1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+  updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   security_code: '9904',
   security_name: '架空自動車',
   shares: 100,
@@ -12,14 +15,14 @@ const HAS_PREV_CLOSE = {
   total_purchase_amount: 250000,
   current_price: 2600,
   daily_change: 50,
-  price_as_of: '2026-01-01',
+  price_as_of: `${THIS_YEAR}-01-01`,
   prev_close: 2550,
 };
 
 const NO_PREV_CLOSE = {
   id: 'asset-balance-2',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+  updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   security_code: '9914',
   security_name: '架空エレクトロニクス',
   shares: 50,
@@ -27,7 +30,7 @@ const NO_PREV_CLOSE = {
   total_purchase_amount: 150000,
   current_price: 3200,
   daily_change: 0,
-  price_as_of: '2026-01-01',
+  price_as_of: `${THIS_YEAR}-01-01`,
   prev_close: null,
 };
 
@@ -93,7 +96,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('1/1 時点の株価');
+  await expect(bandText).toContainText('1/1 時点');
 
   // 「すべて」タブも件数行に件数だけ。時点は帯のラベル横に残る
   await page.getByTestId('asset-kind-tab-all').click();
@@ -101,7 +104,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
     '2件 / 2件',
   );
   await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
-    '1/1 時点の株価',
+    '1/1 時点',
   );
 });
 
@@ -111,7 +114,7 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
     id: 'asset-balance-3',
     security_code: '9911',
     security_name: '架空精密機器',
-    price_as_of: '2025-12-30',
+    price_as_of: `${LAST_YEAR}-12-30`,
   };
   await setupMocks(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
@@ -136,11 +139,12 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
   await expect(same).not.toContainText('1/1');
 
   // 件数行は件数だけ。時点は帯のラベル横に最も古い日だけ出す
+  // (去年の日付なので年付きで出る)
   await expect(page.getByTestId('asset-search-count')).not.toContainText('価格基準日');
   await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
-    '12/30 時点の株価',
+    `${LAST_YEAR}/12/30 時点`,
   );
   await expect(page.getByTestId('asset-portfolio-summary')).not.toContainText(
-    '1/1 時点の株価',
+    '1/1 時点',
   );
 });

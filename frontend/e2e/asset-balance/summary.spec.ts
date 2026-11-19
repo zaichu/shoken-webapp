@@ -1,10 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
 
+const THIS_YEAR = new Date().getFullYear();
+
 const SYN_AUTO = {
   id: 'asset-balance-1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+  updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   security_code: '9904',
   security_name: '架空自動車',
   shares: 100,
@@ -16,8 +18,8 @@ const SYN_AUTO = {
 
 const SYN_ELECTRONICS = {
   id: 'asset-balance-2',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+  updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   security_code: '9914',
   security_name: '架空エレクトロニクス',
   shares: 50,
@@ -98,7 +100,7 @@ test('取込が株価より古いときは帯に印と読み上げ文を出し�
     return route.fulfill(
       json({
         // 価格 1/10 に対して取込 1/1 のため、取込が古い
-        data: [{ ...SYN_AUTO, price_as_of: '2026-01-10' }],
+        data: [{ ...SYN_AUTO, price_as_of: `${THIS_YEAR}-01-10` }],
         total: 1,
         page: 1,
         per_page: 1000,
@@ -141,8 +143,8 @@ test('取込が古くないときは帯に取込の行を出さない', async ({
         data: [
           {
             ...SYN_AUTO,
-            price_as_of: '2026-01-10',
-            updated_at: '2026-01-10T00:00:00Z',
+            price_as_of: `${THIS_YEAR}-01-10`,
+            updated_at: `${THIS_YEAR}-01-10T00:00:00Z`,
           },
         ],
         total: 1,
