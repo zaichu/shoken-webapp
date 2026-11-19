@@ -287,7 +287,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('資産管理・国内株式の表', async ({ page }) => {
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   const table = page.getByTestId('asset-holdings-table').locator('table');
   await expect(table).toBeVisible();
   await expectHeaderFollowsCells(table, '資産管理・国内株式');

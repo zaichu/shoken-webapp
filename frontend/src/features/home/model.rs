@@ -233,7 +233,8 @@ pub(crate) fn build_dividend_card(
     }
 }
 
-/// 進捗率の表示。バー幅は100%で止め、数値は実際の割合を表示する
+/// 進捗率の表示。100% を超えてもバーは満タン(100%)で止め、
+/// 超えたことは `over` と文言で見せる。計算は変えない(配当金 ÷ 年間予想配当(税引後))
 pub(crate) struct ProgressDisplay {
     /// 「1611%」などの表示文。予想なしは「—」
     pub(crate) text: String,

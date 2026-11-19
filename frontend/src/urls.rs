@@ -14,6 +14,31 @@ pub(crate) fn fund_holding_href(id: impl std::fmt::Display) -> String {
     format!("{FUND_HOLDINGS_PREFIX}{id}")
 }
 
+/// `?tab=` など1つのクエリ値を抜く。`path` は pathname+search。純粋関数
+pub(crate) fn tab_query_value(path: &str, key: &str) -> Option<String> {
+    let query = path.split('?').nth(1)?.split('#').next()?;
+    for pair in query.split('&') {
+        let mut parts = pair.splitn(2, '=');
+        if parts.next() == Some(key) {
+            let raw = parts.next().unwrap_or("").replace('+', " ");
+            return urlencoding::decode(&raw)
+                .ok()
+                .map(std::borrow::Cow::into_owned);
+        }
+    }
+    None
+}
+
+/// 取引明細のタブ付きパス。ホームなどタブを指定して開くリンクはこれを使う
+pub(crate) fn receipts_tab_href(tab: &str) -> String {
+    format!("/receipts?tab={tab}")
+}
+
+/// 資産管理のタブ付きパス。ホームなどタブを指定して開くリンクはこれを使う
+pub(crate) fn asset_balance_tab_href(kind: &str) -> String {
+    format!("/assetbalance?tab={kind}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -52,5 +77,54 @@ mod tests {
     #[test]
     fn fund_holding_href_uses_funds_prefix() {
         assert_eq!(fund_holding_href("fund-1"), "/assetbalance/funds/fund-1");
+    }
+
+    #[test]
+    fn tab_query_value_extracts_single_param() {
+        assert_eq!(
+            tab_query_value("/receipts?tab=stock", "tab").as_deref(),
+            Some("stock")
+        );
+        assert_eq!(
+            tab_query_value("/assetbalance?tab=fund", "tab").as_deref(),
+            Some("fund")
+        );
+    }
+
+    #[test]
+    fn tab_query_value_returns_none_without_param() {
+        assert_eq!(tab_query_value("/receipts", "tab"), None);
+        assert_eq!(tab_query_value("", "tab"), None);
+        assert_eq!(tab_query_value("/receipts?kind=stock", "tab"), None);
+    }
+
+    #[test]
+    fn tab_query_value_reads_first_of_many_params() {
+        assert_eq!(
+            tab_query_value("/receipts?kind=stock&tab=fund&page=2", "tab").as_deref(),
+            Some("fund")
+        );
+        assert_eq!(
+            tab_query_value("/receipts?tab=stock&tab=fund", "tab").as_deref(),
+            Some("stock")
+        );
+    }
+
+    #[test]
+    fn tab_query_value_decodes_value() {
+        assert_eq!(
+            tab_query_value("/receipts?tab=", "tab").as_deref(),
+            Some("")
+        );
+        assert_eq!(
+            tab_query_value("/receipts?tab=st%6Fck", "tab").as_deref(),
+            Some("stock")
+        );
+    }
+
+    #[test]
+    fn tab_hrefs_carry_tab_param() {
+        assert_eq!(receipts_tab_href("dividend"), "/receipts?tab=dividend");
+        assert_eq!(asset_balance_tab_href("all"), "/assetbalance?tab=all");
     }
 }

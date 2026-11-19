@@ -16,20 +16,18 @@ pub const PER_SHARE_UNIT: &str = "(1株あたり)";
 pub const DAY_CHANGE_RATE: &str = "前日比(%)";
 /// 取得総額
 pub const TOTAL_ACQUISITION: &str = "取得総額";
-/// 年間配当(会社予想×保有数。資産管理の一覧・詳細・集計帯・銘柄検索で共通)
-pub const ANNUAL_DIVIDEND_FORECAST: &str = "年間配当(予想)";
-/// 年間予想配当(税引前)(ホームの集計帯)
+/// 年間予想配当(税引前)(1株配当(会社予想)×保有数。ホーム・資産管理・銘柄検索で共通)
 pub const ANNUAL_EXPECTED_DIVIDEND: &str = "年間予想配当(税引前)";
-/// 年間配当の算出条件(見出しの注記・説明用。税引前)
+/// 年間予想配当の算出条件(見出しの注記・説明用。税引前)
 pub const ANNUAL_DIVIDEND_NOTE: &str = "1株配当(会社予想)×保有数・税引前";
-/// 年間配当の列見出し(2行で出す1行目)。読み上げ名は「年間配当 (予想)」
-pub const ANNUAL_DIVIDEND_HEAD: &str = "年間配当";
-/// 年間配当の列見出し(2行で出す2行目。1280で表がはみ出さないよう単位だけ改行する)
-pub const ANNUAL_DIVIDEND_HEAD_SUB: &str = "(予想)";
-/// 年間配当・取得額利回りの算出条件(表の下の注記用。1行で添える)
+/// 年間予想配当の列見出し(PC の表用)。1280 で表がはみ出さないよう1行の
+/// 「年間予想配当」だけを出し、税区分は見出しの説明(title・注記)に書く
+/// (ボタンの読み上げ名は「年間予想配当」。税区分は表下の注記で確かめられる)
+pub const ANNUAL_DIVIDEND_HEAD: &str = "年間予想配当";
+/// 年間予想配当・取得額利回りの算出条件(表の下の注記用。1行で添える)
 pub fn dividend_formula_note() -> String {
     format!(
-        "{ANNUAL_DIVIDEND_FORECAST}: {ANNUAL_DIVIDEND_NOTE} / {ACQUISITION_YIELD}: {ACQUISITION_YIELD_NOTE}"
+        "{ANNUAL_EXPECTED_DIVIDEND}: {ANNUAL_DIVIDEND_NOTE} / {ACQUISITION_YIELD}: {ACQUISITION_YIELD_NOTE}"
     )
 }
 /// 取得額利回り(予想年間配当÷取得額。資産管理・銘柄検索で共通)
@@ -100,8 +98,6 @@ pub const COMPOSITION_GROUP_ACCOUNT: &str = "口座別";
 pub const COMPOSITION_GROUP_LABEL: &str = "構成比の区分";
 /// 構成比の基準切り替えのラベル
 pub const COMPOSITION_BASIS_LABEL: &str = "構成比の基準";
-/// 構成比の基準: 年間配当(税引前)
-pub const COMPOSITION_DIVIDEND_BASIS: &str = "年間配当(税引前)";
 /// 構成比の基準注記(「評価額の比率・合計 ¥… ・保有全体」)
 pub fn composition_basis_note(basis: &str) -> String {
     format!("{basis}の比率・合計 ")
@@ -144,7 +140,9 @@ pub const FUND: &str = "ファンド";
 pub const FUND_SHARES: &str = "保有口数";
 /// 現在値
 pub const CURRENT_PRICE: &str = "現在値";
-/// 価格基準日(株価の基準日)
+/// 株価の見出し(現在値の日付のラベル。値は日付に「時点」を付けた形で出す)
+pub const STOCK_PRICE: &str = "株価";
+/// 価格基準日(CSV エクスポートの列名。画面では STOCK_PRICE と時点の書き方を使う)
 pub const PRICE_AS_OF: &str = "価格基準日";
 /// 取得単価(1株・1口あたりの平均取得コスト。資産・取引明細・配当情報・
 /// エクスポートの列名で共通。楽天証券の取込形式の「平均取得価額」と同じ意味)
@@ -307,7 +305,10 @@ pub const FORBIDDEN_TERMS: &[(&str, &str)] = &[
     ("取得価額", AVERAGE_PRICE),
     ("平均取得価格", AVERAGE_PRICE),
     ("平均取得価額", AVERAGE_PRICE),
-    ("年間配当参考額", ANNUAL_DIVIDEND_FORECAST),
+    ("年間配当参考額", ANNUAL_EXPECTED_DIVIDEND),
+    ("年間配当(予想)", ANNUAL_EXPECTED_DIVIDEND),
+    ("年間予想(税引後)", HOME_FORECAST_NAME),
+    ("価格基準日", STOCK_PRICE),
     ("取得額基準利回り", ACQUISITION_YIELD),
     ("一株配当", PER_SHARE_DIVIDEND),
     ("資産残高", ASSET_BALANCE_TITLE),
@@ -372,18 +373,14 @@ pub const CSV_MANAGE_IMPORTED_PREFIX: &str = "最終取り込み";
 pub fn csv_manage_status_updated_today(date: &str, time: &str) -> String {
     format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}")
 }
-/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)。
+/// 新しいときは緑、古いときは黄で出す。文面は同じ
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前")
 }
-/// CSV管理: 状態「要更新（最終取り込み YYYY/MM/DD HH:MM・N日前)」(黄)。
-/// 状態と最終取込日時を分け、N日前が最終取込からの経過と分かる書き方にする
-pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
-    format!(
-        "{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前）"
-    )
-}
-pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
+/// CSV管理: 古い行に付く読み上げ用の区切り付き「、更新が必要」。
+/// 色だけに頼らないよう、画面外の文字(sr-only)で状態の文面の後に置く
+pub const CSV_MANAGE_STATUS_STALE_SR: &str = "、更新が必要";
 /// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、
 /// 明細は7日以内が新しい (frontend/src/features/csv_page.rs の CsvKind::is_fresh)
 pub const CSV_MANAGE_FRESHNESS_NOTE: &str = "目安：残高は毎日、明細は7日以内に更新";
@@ -914,9 +911,9 @@ pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
 /// ホーム: 予想の取得待ち(帯の内訳)
 pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 /// ホーム: 予想の取得待ち(配当カードの予想欄。PC は区切りの「/ 」付き)
-pub const HOME_FORECAST_LOADING: &str = "/ 年間予想(税引後)を取得中";
-/// ホーム: 年間予想の名前(スマホのまとめ行・取得待ちの組み立て用)
-pub const HOME_FORECAST_NAME: &str = "年間予想(税引後)";
+pub const HOME_FORECAST_LOADING: &str = "/ 年間予想配当(税引後)を取得中";
+/// ホーム: 年間予想配当(税引後)の名前(スマホのまとめ行・取得待ちの組み立て用)
+pub const HOME_FORECAST_NAME: &str = "年間予想配当(税引後)";
 /// ホーム: 予想の取得待ちの末尾(スマホのまとめ行用)
 pub const HOME_FORECAST_LOADING_SUFFIX: &str = "を取得中";
 /// ホーム: 累計グラフのまとめ行
@@ -959,9 +956,9 @@ fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
     }
 }
 
-/// ホーム: 進捗率の名前(配当金÷年間予想(税引後)の率)
+/// ホーム: 進捗率の名前(配当金÷年間予想配当(税引後)の率)
 pub const HOME_PROGRESS_LABEL: &str = "進捗率";
-/// ホーム: 予想額の表示(PC 用「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物.
+/// ホーム: 予想額の表示(PC 用「/ 年間予想配当(税引後) ¥12,000」。集計帯の税引前とは別物.
 /// スマホは行頭の「/」を付けず HOME_FORECAST_NAME から組み立てる)
 pub fn home_forecast(forecast: &str) -> String {
     format!("/ {HOME_FORECAST_NAME} {forecast}")
@@ -1231,8 +1228,18 @@ pub fn account_note(account: &str) -> &str {
 /// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
 pub fn valuation_point_label(price_iso: &str) -> String {
     format::compact_iso_date(price_iso).map_or_else(String::new, |date| {
-        format!("株価 {date} {VALUATION_POINT_SUFFIX}")
+        format!("{STOCK_PRICE} {date} {VALUATION_POINT_SUFFIX}")
     })
+}
+
+/// 株価の日付の値(ラベル STOCK_PRICE と合わせて「株価 2026/10/20 時点」と読める)。
+/// 日付として読めない値は取得不能と出す
+pub fn stock_price_point_value(price_iso: Option<&str>) -> String {
+    price_iso
+        .and_then(|iso| {
+            format::compact_iso_date(iso).map(|date| format!("{date} {VALUATION_POINT_SUFFIX}"))
+        })
+        .unwrap_or_else(|| FETCH_UNAVAILABLE.to_string())
 }
 
 /// 評価額の時点の接尾辞

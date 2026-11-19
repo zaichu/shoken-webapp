@@ -36,10 +36,7 @@ pub(crate) fn holding_detail_cells(
     let per_share = holdings::format_dividend_per_share(&dividend, 0);
     let annual = holdings::format_dividend_annual(&dividend);
     let yield_text = holdings::format_dividend_yield(&dividend);
-    let as_of = view.price_as_of.clone().map_or_else(
-        || labels::FETCH_UNAVAILABLE.to_string(),
-        |date| format::format_iso_date(&date),
-    );
+    let as_of = labels::stock_price_point_value(view.price_as_of.as_deref());
     let left = vec![
         DetailCell::with_sub(
             labels::CURRENT_PRICE.to_string(),
@@ -91,8 +88,8 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         market_cell,
-        DetailCell::plain(labels::ANNUAL_DIVIDEND_FORECAST.to_string(), annual),
-        DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
+        DetailCell::plain(labels::ANNUAL_EXPECTED_DIVIDEND.to_string(), annual),
+        DetailCell::plain(labels::STOCK_PRICE.to_string(), as_of),
     ];
     (left, right)
 }
@@ -255,8 +252,8 @@ mod tests {
                 labels::QUANTITY,
                 labels::TOTAL_ACQUISITION,
                 labels::MARKET_VALUE,
-                labels::ANNUAL_DIVIDEND_FORECAST,
-                labels::PRICE_AS_OF
+                labels::ANNUAL_EXPECTED_DIVIDEND,
+                labels::STOCK_PRICE
             ]
         );
     }

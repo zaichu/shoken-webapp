@@ -378,10 +378,14 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
     let pnl_rate = balance_format::format_signed_valuation_rate(row.rate, 1);
     let pnl_negative = balance_format::is_negative_valuation(row.profit);
     let pnl_positive = balance_format::is_positive_valuation(row.profit);
-    let as_of = row.price_as_of.clone().map_or_else(
-        || labels::FETCH_UNAVAILABLE.to_string(),
-        |date| format::format_iso_date(&date),
-    );
+    let as_of = if is_fund {
+        row.price_as_of.clone().map_or_else(
+            || labels::FETCH_UNAVAILABLE.to_string(),
+            |date| format::format_iso_date(&date),
+        )
+    } else {
+        labels::stock_price_point_value(row.price_as_of.as_deref())
+    };
     let mut left = vec![
         DetailCell::with_sub(
             price_label.to_string(),
@@ -484,11 +488,18 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             crate::features::asset_balance::holdings::format_dividend_annual,
         );
         right.push(DetailCell::plain(
-            labels::ANNUAL_DIVIDEND_FORECAST.to_string(),
+            labels::ANNUAL_EXPECTED_DIVIDEND.to_string(),
             annual,
         ));
     }
-    right.push(DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of));
+    right.push(DetailCell::plain(
+        if is_fund {
+            labels::BASE_PRICE_AS_OF.to_string()
+        } else {
+            labels::STOCK_PRICE.to_string()
+        },
+        as_of,
+    ));
     (left, right)
 }
 
@@ -661,7 +672,7 @@ mod tests {
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
-            ["数量", "取得総額", "評価額", "年間配当(予想)", "価格基準日"]
+            ["数量", "取得総額", "評価額", "年間予想配当(税引前)", "株価"]
         );
         assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
 
@@ -679,7 +690,7 @@ mod tests {
         let right_labels: Vec<&str> = right.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             right_labels,
-            ["保有口数", "取得総額", "評価額", labels::PRICE_AS_OF]
+            ["保有口数", "取得総額", "評価額", labels::BASE_PRICE_AS_OF]
         );
     }
 

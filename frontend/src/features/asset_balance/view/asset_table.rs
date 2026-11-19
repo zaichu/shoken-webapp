@@ -85,7 +85,7 @@ pub fn AssetHoldingsTable(
                         <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::PER_SHARE_DIVIDEND}</th>
                         {sort_header_titled(
                             labels::ANNUAL_DIVIDEND_HEAD,
-                            Some(labels::ANNUAL_DIVIDEND_HEAD_SUB),
+                            None,
                             Some(labels::ANNUAL_DIVIDEND_NOTE),
                             SortKey::Dividend,
                             sort_key,

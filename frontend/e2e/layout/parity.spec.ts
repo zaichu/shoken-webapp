@@ -448,7 +448,7 @@ test.describe('資産管理と取引明細の上部 parity', () => {
       await other.setViewportSize({ width, height });
       await setupParityMocks(other);
       try {
-        await page.goto('/assetbalance');
+        await page.goto('/assetbalance?tab=stock');
         await expectAssetDataLoaded(page);
         await other.goto('/receipts');
         await other.getByTestId('receipt-summary-strip').first().waitFor();

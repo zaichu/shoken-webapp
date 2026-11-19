@@ -33,7 +33,7 @@ impl SortKey {
         match self {
             Self::MarketValue => labels::MARKET_VALUE,
             Self::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
-            Self::Dividend => labels::ANNUAL_DIVIDEND_FORECAST,
+            Self::Dividend => labels::ANNUAL_EXPECTED_DIVIDEND,
             Self::Yield => labels::ACQUISITION_YIELD,
         }
     }
@@ -188,7 +188,7 @@ impl CompositionBasis {
     pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MarketValue => labels::MARKET_VALUE,
-            Self::Dividend => labels::COMPOSITION_DIVIDEND_BASIS,
+            Self::Dividend => labels::ANNUAL_EXPECTED_DIVIDEND,
         }
     }
 

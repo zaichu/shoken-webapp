@@ -302,7 +302,7 @@ test('資産管理の行から銘柄画面を開ける', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await setupHoldingMocks(page, [holdingRow('holding-1', '特定')]);
 
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   await expect(page.getByTestId('asset-holdings-table')).toBeVisible();
   await page.getByTestId('asset-holdings-table').getByText('架空ゲーム').click();
 

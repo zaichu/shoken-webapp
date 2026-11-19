@@ -151,7 +151,18 @@ fn asset_balances_csv_sorts_by_market_value_desc() {
 
     assert_eq!(
         lines[0],
-        "銘柄コード,銘柄名,保有数,平均取得単価,取得額,現在値,価格基準日,評価額,評価損益"
+        [
+            labels::SECURITY_CODE,
+            labels::SECURITY_NAME,
+            labels::HOLDING_COUNT,
+            labels::AVERAGE_UNIT_PRICE,
+            labels::ACQUISITION_AMOUNT,
+            labels::CURRENT_PRICE,
+            labels::PRICE_AS_OF,
+            labels::MARKET_VALUE,
+            labels::VALUATION_PROFIT_LOSS,
+        ]
+        .join(",")
     );
     // 評価額 300,000(9910) → 10,000(1301) → 価格なし(9999)
     assert!(
