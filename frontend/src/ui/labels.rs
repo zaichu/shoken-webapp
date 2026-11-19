@@ -373,18 +373,22 @@ pub const CSV_MANAGE_COL_STATUS: &str = "状態";
 /// CSV管理: 表ヘッダーと行のボタンの表示「操作」。押すと再取得・取り込み・
 /// 削除の操作が出ることが見える文字で分かるようにする
 pub const CSV_MANAGE_COL_MENU: &str = "操作";
-/// CSV管理: 状態「今日 HH:MM に更新」(緑)
-pub fn csv_manage_status_updated_today(time: &str) -> String {
-    format!("今日 {time} に更新")
+/// CSV管理: 状態の日時の頭「最終取り込み」。新しいときも要更新のときも必ず出す
+pub const CSV_MANAGE_IMPORTED_PREFIX: &str = "最終取り込み";
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM」(緑)
+pub fn csv_manage_status_updated_today(date: &str, time: &str) -> String {
+    format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}")
 }
-/// CSV管理: 状態「N日前(M/D HH:MM)に更新」(薄い色。新規・更新とも日時は括弧のみ)
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
-    format!("{days}日前({date} {time})に更新")
+    format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前")
 }
-/// CSV管理: 状態「要更新（最終更新 M/D HH:MM・N日前)」(黄)。
-/// 状態と最終更新日時を分け、N日前が最終更新からの経過と分かる書き方にする
+/// CSV管理: 状態「要更新（最終取り込み YYYY/MM/DD HH:MM・N日前)」(黄)。
+/// 状態と最終取込日時を分け、N日前が最終取込からの経過と分かる書き方にする
 pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
-    format!("{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（最終更新 {date} {time}・{days}日前）")
+    format!(
+        "{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前）"
+    )
 }
 pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
 /// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、
@@ -1240,53 +1244,16 @@ pub fn account_note(account: &str) -> &str {
     }
 }
 
-/// 評価額の時点の補足。「2026/10/20 時点」のように書く(ゼロ埋め)。
+/// 評価額の時点の補足。「株価 2026/10/20 時点」のように書く(ゼロ埋め)。
 /// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
 pub fn valuation_point_label(price_iso: &str) -> String {
     format::compact_iso_date(price_iso).map_or_else(String::new, |date| {
-        format!("{date} {VALUATION_POINT_SUFFIX}")
+        format!("株価 {date} {VALUATION_POINT_SUFFIX}")
     })
 }
 
 /// 評価額の時点の接尾辞
 pub const VALUATION_POINT_SUFFIX: &str = "時点";
-
-/// 取込が古いときの2行目の補足。「取り込み 2026/01/01」のように書く(ゼロ埋め)。
-/// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
-pub fn stale_import_label(import_iso: &str) -> String {
-    format::compact_iso_date(import_iso)
-        .map_or_else(String::new, |date| format!("{STALE_IMPORT_PREFIX} {date}"))
-}
-
-/// 取込が古いときの2行目の頭
-pub const STALE_IMPORT_PREFIX: &str = "取り込み";
-
-/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
-pub const PRICE_STALE_MARK: &str = "（取込の日付より古い）";
-/// 古い取込日の注意の読み上げ文。画面には印だけを出し、理由は画面外の文字で読む
-pub const IMPORT_STALE_SR: &str = "株価の日付より古い";
-
-/// 2つの日付(YYYY-MM-DD)のどちらが古いか。等しい・読めないときは None
-/// true は前者が古い、false は後者が古い
-pub fn older_is_first(first: &str, second: &str) -> Option<bool> {
-    let first_parts = format::date_parts(first)?;
-    let second_parts = format::date_parts(second)?;
-    if first_parts == second_parts {
-        None
-    } else {
-        Some(first_parts < second_parts)
-    }
-}
-
-/// 価格と取込のどちらが古いか。(価格が古い, 取込が古い)
-/// 等しい・読めないときは両方 false
-pub fn stale_sides(price_iso: &str, import_iso: &str) -> (bool, bool) {
-    match older_is_first(price_iso, import_iso) {
-        Some(true) => (true, false),
-        Some(false) => (false, true),
-        None => (false, false),
-    }
-}
 
 #[cfg(test)]
 mod tests;

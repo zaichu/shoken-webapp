@@ -310,39 +310,18 @@ test('一部の取得が失敗しても、取れた集計で帯とカードを�
   await expect(composition).toContainText('国内株式');
 });
 
-test('取込が株価より古いときは右上と帯に印と読み上げ文を出し、かっこ書きは出さない', async ({
-  page,
-}) => {
+test('評価額のそばは株価の日付だけを出し、取り込み日は出さない', async ({ page }) => {
   await setupHomeMocks(page);
   await page.goto('/');
 
-  // モックは価格 1/10 に対して取込 1/1 のため、取込が古い
-  // PC は右上だけに出す。集計帯の評価額の数字はほかの列とそろったままにする
-  const header = page.locator('.page-frame-head');
-  await expect(header.getByText(`取り込み ${THIS_YEAR}/01/01`).first()).toBeVisible();
-  await expect(
-    header
-      .getByText(`取り込み ${THIS_YEAR}/01/01`)
-      .first()
-      .locator('svg[aria-hidden="true"]'),
-  ).toBeVisible();
-  // 理由は画面外の文字で読み上げに残す
-  await expect(
-    header.getByText('株価の日付より古い', { exact: true }),
-  ).toBeAttached();
-
   const band = page.getByTestId('home-overview');
-  // 画面にはかっこ書きを出さない
+  await expect(band).toContainText(`株価 ${THIS_YEAR}/01/10 時点`);
+  await expect(band).not.toContainText('取り込み');
   await expect(band).not.toContainText('（');
-  // PC の集計帯には出さない
-  await expect(band.locator('.summary-band-pc')).not.toContainText('取り込み');
-  // スマホは帯の2行目に出す
-  await expect(band.locator('.summary-band-rows')).toContainText(`取り込み ${THIS_YEAR}/01/01`);
-  // 評価額の補足は「M/D 時点」の1行
-  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
+  await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });
 
-test('取込が古くないときは取込の行を出さず、時点だけ出す', async ({ page }) => {
+test('取込の状態によらず取り込み日は出さず、株価の日付だけ出す', async ({ page }) => {
   await mockSession(page);
 
   const freshStocks = STOCKS.map((row) => ({
@@ -378,7 +357,7 @@ test('取込が古くないときは取込の行を出さず、時点だけ出�
   await page.goto('/');
 
   const band = page.getByTestId('home-overview');
-  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
+  await expect(band).toContainText(`株価 ${THIS_YEAR}/01/10 時点`);
   await expect(band).not.toContainText('取り込み');
   await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });

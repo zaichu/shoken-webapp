@@ -41,6 +41,15 @@ function jstNoonIso(daysAgo: number, hour = 12, minute = 0): string {
   return new Date(utcMillis).toISOString();
 }
 
+/** JST の daysAgo 日前の日付を YYYY/MM/DD(ゼロ埋め)で書く */
+function jstDateLabel(daysAgo: number): string {
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${date.getUTCFullYear()}/${month}/${day}`;
+}
+
 test('5種類の行が出て、状態が最終取込時刻で変わる', async ({ page }) => {
   await mockLists(page);
   await mockCsvKindStats(page, {
@@ -64,9 +73,9 @@ test('5種類の行が出て、状態が最終取込時刻で変わる', async (
   }
 
   await expect(savedCount(page, 'assetbalance')).toContainText('12件');
-  await expect(csvRow(page, 'assetbalance')).toContainText('今日 12:00 に更新');
+  await expect(csvRow(page, 'assetbalance')).toContainText(`最終取り込み ${jstDateLabel(0)} 12:00`);
   await expect(csvRow(page, 'fundbalance')).toContainText(
-    /要更新（最終更新 \d{1,2}\/\d{1,2} 09:15・3日前）/,
+    /要更新（最終取り込み \d{4}\/\d{2}\/\d{2} 09:15・3日前）/,
   );
   await expect(csvRow(page, 'dividend')).toContainText('保存データがありません');
   await expect(csvRow(page, 'domesticstock')).toContainText('保存データがありません');
@@ -243,7 +252,7 @@ test.describe('390px', () => {
     });
 
     await page.goto('/csv');
-    await expect(csvRow(page, 'assetbalance')).toContainText('今日 21:39 に更新');
+    await expect(csvRow(page, 'assetbalance')).toContainText(`最終取り込み ${jstDateLabel(0)} 21:39`);
 
     // 種類名と状態は1行のまま(折り返すと行の高さが増える)
     const wrapped = await page

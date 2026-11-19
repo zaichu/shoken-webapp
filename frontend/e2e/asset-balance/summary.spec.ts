@@ -89,7 +89,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
   await expect(kpi).toContainText('¥420,000');
 });
 
-test('取込が株価より古いときは帯に印と読み上げ文を出し、かっこ書きは出さない', async ({
+test('評価額のそばは株価の日付だけを出し、取り込み日は出さない', async ({
   page,
 }) => {
   await mockSession(page);
@@ -99,7 +99,7 @@ test('取込が株価より古いときは帯に印と読み上げ文を出し�
     }
     return route.fulfill(
       json({
-        // 価格 1/10 に対して取込 1/1 のため、取込が古い
+        // 価格 1/10 に対して取込 1/1 でも、取り込み日は出さない
         data: [{ ...SYN_AUTO, price_as_of: `${THIS_YEAR}-01-10` }],
         total: 1,
         page: 1,
@@ -117,30 +117,14 @@ test('取込が株価より古いときは帯に印と読み上げ文を出し�
   await page.goto('/assetbalance');
   await page.getByTestId('asset-kind-tab-stock').click();
 
-  // 取込が古いときは PC の右上に出す。集計帯の数字はほかの列とそろったままにする
-  const header = page.locator('.page-frame-head');
-  await expect(header.getByText(`取り込み ${THIS_YEAR}/01/01`).first()).toBeVisible();
-  await expect(
-    header
-      .getByText(`取り込み ${THIS_YEAR}/01/01`)
-      .first()
-      .locator('svg[aria-hidden="true"]'),
-  ).toBeVisible();
-  // 理由は画面外の文字で読み上げに残す
-  await expect(
-    header.getByText('株価の日付より古い', { exact: true }),
-  ).toBeAttached();
-
   const band = page.getByTestId('asset-portfolio-summary');
-  // 画面にはかっこ書きを出さない
-  await expect(band).not.toContainText('（株価');
-  // PC の集計帯には出さない
-  await expect(band.locator('.summary-band-pc')).not.toContainText('取り込み');
-  // スマホは帯の2行目に出す
-  await expect(band.locator('.summary-band-rows')).toContainText(`取り込み ${THIS_YEAR}/01/01`);
+  await expect(band).toContainText(`株価 ${THIS_YEAR}/01/10 時点`);
+  await expect(band).not.toContainText('取り込み');
+  await expect(band).not.toContainText('（');
+  await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });
 
-test('取込が古くないときは帯に取込の行を出さない', async ({ page }) => {
+test('取込の状態によらず帯に取込の行を出さない', async ({ page }) => {
   await mockSession(page);
   await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
     if (route.request().method() !== 'GET') {
@@ -173,7 +157,7 @@ test('取込が古くないときは帯に取込の行を出さない', async ({
   await page.getByTestId('asset-kind-tab-stock').click();
 
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
+  await expect(band).toContainText(`株価 ${THIS_YEAR}/01/10 時点`);
   await expect(band).not.toContainText('取り込み');
   await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });

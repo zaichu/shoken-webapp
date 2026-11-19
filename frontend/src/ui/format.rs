@@ -287,6 +287,15 @@ pub fn format_short_date(date: &str) -> String {
     }
 }
 
+/// updated_at(UTC) を JST の日付 "YYYY/MM/DD"(ゼロ埋め)で書く。
+/// CSV管理の状態列用。+9h で日付が繰り上がる場合もずらす
+pub fn format_full_jst_date(iso: &str) -> String {
+    jst_date(iso).map_or_else(
+        || "—".to_string(),
+        |(year, month, day)| format!("{year:04}/{month:02}/{day:02}"),
+    )
+}
+
 /// updated_at(UTC) を JST の時刻 "HH:MM" で出す。日付は jst_date が返す
 pub fn format_jst_time(iso: &str) -> String {
     let bytes = iso.as_bytes();

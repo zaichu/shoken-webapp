@@ -220,6 +220,15 @@ fn short_date_drops_the_zero_padding() {
 }
 
 #[test]
+fn full_jst_date_zero_pads_and_rolls_over_at_midnight_jst() {
+    assert_eq!(format_full_jst_date("2026-10-31T00:12:00Z"), "2026/10/31");
+    // +9h で日付が繰り上がる
+    assert_eq!(format_full_jst_date("2026-10-31T16:00:00Z"), "2026/11/01");
+    assert_eq!(format_full_jst_date("2025-12-31T15:00:00Z"), "2026/01/01");
+    assert_eq!(format_full_jst_date("not-a-date"), "—");
+}
+
+#[test]
 fn format_jst_time_adds_nine_hours() {
     assert_eq!(format_jst_time("2026-10-25T12:39:00+00:00"), "21:39");
     // 日付を跨ぐ時刻は 24 時間で戻る(日付側は jst_date が繰り上げる)
@@ -246,7 +255,7 @@ fn calendar_days_between_counts_calendar_days() {
 
 #[test]
 fn compact_iso_date_picks_nothing_but_formats() {
-    // 最新選択は呼び出し側(latest_import_iso)が担い、ここでは書式だけ決める
+    // 最新選択は呼び出し側が担い、ここでは書式だけ決める
     assert_eq!(
         compact_iso_date("2026-10-19").as_deref(),
         Some("2026/10/19")

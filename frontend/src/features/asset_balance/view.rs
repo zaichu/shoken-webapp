@@ -32,7 +32,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::session::SessionStore;
 use crate::ui::asset_balance::{AssetPageLinks, AssetWorkspaceError, AssetWorkspaceWarning};
-use crate::ui::home::HomeImportLabel;
 use crate::ui::labels;
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonTabs;
@@ -334,16 +333,6 @@ pub fn AssetBalancePage() -> impl IntoView {
     let csv_link: Children = Box::new(move || {
         view! {
             <AssetPageLinks>
-                {move || {
-                    let generation = session.generation.get();
-                    let kind = state.kind.get();
-                    let import = balances.with(|slot| {
-                        funds.with(|fund_slot| {
-                            main_content::tab_header_import(kind, slot, fund_slot, generation)
-                        })
-                    });
-                    import.map(|(label, stale)| view! { <HomeImportLabel stale=stale>{label}</HomeImportLabel> })
-                }}
                 <a class="page-secondary-link-sm max-lg:hidden" href="/assetbalance/composition">{labels::COMPOSITION_VIEW_LINK}</a>
                 <a class="page-secondary-link-sm max-lg:hidden" href="/csv">{labels::CSV_MANAGE_TITLE}</a>
             </AssetPageLinks>

@@ -82,32 +82,9 @@ pub(crate) fn oldest_combined_as_of(
         .map(labels::valuation_point_label)
 }
 
-/// 取込日の素の日付(YYYY-MM-DD)。JSTで最も新しい日
-pub(crate) fn latest_import_iso<'a>(stamps: impl Iterator<Item = &'a str>) -> Option<String> {
-    stamps
-        .filter_map(format::jst_date)
-        .max()
-        .map(|(year, month, day)| format!("{year:04}-{month:02}-{day:02}"))
-}
-
-/// 帯の注記と取込の状態。価格の注記はラベルの横、取込の状態は数字の横に出す。
-/// 戻り値は (価格の注記, 価格が古いか, 取込の状態, 取込が古いか)
-/// 取込の状態は PC では出さずスマホの帯だけが出すため、古くなくても文言は作る
-pub(crate) fn date_notes(
-    price_iso: Option<&str>,
-    import_iso: Option<&str>,
-) -> (String, bool, String, bool) {
-    let (price_stale, import_stale) = match (price_iso, import_iso) {
-        (Some(price), Some(import)) => labels::stale_sides(price, import),
-        _ => (false, false),
-    };
-    let mut price_note = price_iso.map_or_else(String::new, labels::valuation_point_label);
-    if price_stale && !price_note.is_empty() {
-        price_note.push_str(labels::PRICE_STALE_MARK);
-    }
-    // 取込の古さは部品の印(注意の印と読み上げ文)で示すため、かっこ書きは付けない
-    let import_note = import_iso.map_or_else(String::new, labels::stale_import_label);
-    (price_note, price_stale, import_note, import_stale)
+/// 帯の注記。価格の注記はラベルの横に出す
+pub(crate) fn date_notes(price_iso: Option<&str>) -> String {
+    price_iso.map_or_else(String::new, labels::valuation_point_label)
 }
 
 /// 投信に更新待ちの行があるか。前日比の合計に入っていない行があれば true
@@ -221,16 +198,6 @@ pub(crate) fn AssetSummaryBand(
     /// 更新待ちの行があるときの小さな表示
     #[prop(optional)]
     show_pending: bool,
-    /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
-    #[prop(optional)]
-    as_of_stale: bool,
-    /// ラベルの横に小さく出す取込の状態。入りきらないときは価格の注記と
-    /// 分けて次の行に送る。空なら出さない
-    #[prop(optional, into)]
-    import_note: String,
-    /// 取込が基準日より古いときの強調。色と注意の印・読み上げ文で示す
-    #[prop(optional)]
-    import_stale: bool,
 ) -> impl IntoView {
     let market_text = balance_format::format_valuation_amount(market);
     let profit_text = balance_format::format_signed_valuation_amount(profit);
@@ -338,9 +305,6 @@ pub(crate) fn AssetSummaryBand(
                 primary_value=market_text
                 primary_as_of=as_of
                 show_pending=show_pending
-                as_of_stale=as_of_stale
-                primary_note2=import_note
-                primary_note2_stale=import_stale
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
