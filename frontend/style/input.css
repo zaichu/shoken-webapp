@@ -1208,6 +1208,10 @@
     @apply px-2 text-right tabular-nums;
     font-family: var(--font-numerals);
     font-variant-numeric: tabular-nums lining-nums;
+    /* Inter の数字は Noto より約 17% 広い。1280px で表が枠に収まるよう
+       字間だけ詰める(-0.02em が上限。docs/design/numerals.md「表のセル」)。
+       大きさ・余白・配置は変えない */
+    letter-spacing: -0.02em;
   }
 
   /* 金額・率(Amount 部品)の数字と記号。範囲外の文字は後ろの Noto に落ちる。
