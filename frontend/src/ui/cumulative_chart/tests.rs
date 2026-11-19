@@ -137,6 +137,40 @@ fn table_current_text_hides_future_months() {
 }
 
 #[test]
+fn month_for_position_picks_nearest_month() {
+    // 幅1200pxでは1か月100px。帯の中心に近い方を選ぶ
+    assert_eq!(month_for_position(0.0, 1200.0, 12), 1);
+    assert_eq!(month_for_position(50.0, 1200.0, 12), 1);
+    assert_eq!(month_for_position(99.0, 1200.0, 12), 1);
+    assert_eq!(month_for_position(100.0, 1200.0, 12), 2);
+    assert_eq!(month_for_position(1150.0, 1200.0, 12), 12);
+    assert_eq!(month_for_position(1199.0, 1200.0, 12), 12);
+    // 描画域の外は端に寄せる
+    assert_eq!(month_for_position(-10.0, 1200.0, 12), 1);
+    assert_eq!(month_for_position(1300.0, 1200.0, 12), 12);
+    // 未来月の領域は今月に寄せる(6月時点の右半分は6月)
+    assert_eq!(month_for_position(700.0, 1200.0, 6), 6);
+    assert_eq!(month_for_position(1199.0, 1200.0, 6), 6);
+    assert_eq!(month_for_position(-5.0, 1200.0, 6), 1);
+    // 幅が無い・読めないときは1月にする
+    assert_eq!(month_for_position(50.0, 0.0, 12), 1);
+    assert_eq!(month_for_position(f64::NAN, 1200.0, 12), 1);
+    assert_eq!(month_for_position(50.0, f64::NAN, 12), 1);
+}
+
+#[test]
+fn step_month_moves_within_this_year() {
+    assert_eq!(step_month(6, 1, 12), 7);
+    assert_eq!(step_month(6, -1, 12), 5);
+    // 端では止まる
+    assert_eq!(step_month(1, -1, 12), 1);
+    assert_eq!(step_month(12, 1, 12), 12);
+    // 今月を超えない(6月時点の End は6月)
+    assert_eq!(step_month(6, 1, 6), 6);
+    assert_eq!(step_month(5, 5, 6), 6);
+}
+
+#[test]
 fn table_monthly_text_hides_future_months() {
     let monthly = [
         0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 3_000.0, 0.0, 0.0, 0.0, 0.0,
