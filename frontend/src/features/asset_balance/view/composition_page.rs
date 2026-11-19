@@ -31,7 +31,7 @@ use leptos::prelude::*;
 
 const BASIS_OPTIONS: &[(&str, &str)] = &[
     ("market_value", labels::MARKET_VALUE),
-    ("dividend", labels::COMPOSITION_DIVIDEND_BASIS),
+    ("dividend", labels::ANNUAL_EXPECTED_DIVIDEND),
 ];
 
 /// 行ごとの基準金額と算出不可の理由。投資信託の年間配当は

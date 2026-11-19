@@ -189,7 +189,7 @@ fn BandTiles(
                 SummarySubItem {
                     label: labels::DAY_CHANGE.to_string(),
                     value: daily_text.clone(),
-                    note: String::new(),
+                    note: daily_rate_text.clone(),
                     tone: if daily_negative {
                         SummaryTone::Loss
                     } else if daily_positive {
@@ -197,8 +197,10 @@ fn BandTiles(
                     } else {
                         SummaryTone::Neutral
                     },
-                    note_negative: false,
-                    note_positive: false,
+                    note_negative: daily_rate_value
+                        .is_some_and(|rate| asset_balance::is_negative_rate(Some(rate))),
+                    note_positive: daily_rate_value
+                        .is_some_and(|rate| asset_balance::is_positive_rate(Some(rate))),
                     extra_class: String::new(),
                 },
                 SummarySubItem {

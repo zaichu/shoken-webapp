@@ -513,7 +513,7 @@ struct HoldingTilesData {
     quantity: String,
     average_price: Option<String>,
     purchase: String,
-    /// 無配のときだけ真。1株配当・年間配当(予想)・取得額利回りの3項目を
+    /// 無配のときだけ真。1株配当・年間予想配当(税引前)・取得額利回りの3項目を
     /// 「無配」の1項目にまとめる(値はどれも無配と出るため)
     no_dividend: bool,
     per_share: String,
@@ -526,7 +526,7 @@ struct HoldingTilesData {
     yield_negative: bool,
     yield_positive: bool,
     account: Option<String>,
-    /// 銘柄共通の項目(現在値・価格基準日・1株配当)を出すか。合計だけに出し、口座ごとには出さない
+    /// 銘柄共通の項目(現在値・株価・1株配当)を出すか。合計だけに出し、口座ごとには出さない
     show_common: bool,
 }
 
@@ -552,10 +552,7 @@ impl HoldingTilesData {
             pnl_rate_negative: asset_balance::is_negative_rate(valuation.profit_loss.rate),
             pnl_rate_positive: asset_balance::is_positive_rate(valuation.profit_loss.rate),
             current_price: format::format_currency(input.current_price),
-            price_as_of: input.price_as_of.map_or_else(
-                || labels::FETCH_UNAVAILABLE.to_string(),
-                |date| format::format_iso_date(&date),
-            ),
+            price_as_of: labels::stock_price_point_value(input.price_as_of.as_deref()),
             quantity: labels::stock_shares_label(&format::format_number_value(input.shares)),
             average_price: input.average_tile.map(format::format_currency),
             purchase: format::format_currency(input.purchase),
@@ -625,7 +622,7 @@ struct TileInput<'a> {
     purchase: f64,
     maps: &'a DividendMaps,
     account: Option<String>,
-    /// 銘柄共通の項目(現在値・価格基準日・1株配当)を出すか
+    /// 銘柄共通の項目(現在値・株価・1株配当)を出すか
     show_common: bool,
 }
 
@@ -686,7 +683,7 @@ fn CommonDetailTiles(current_price: String, price_as_of: String) -> impl IntoVie
         <HoldingDetailItem label=labels::CURRENT_PRICE.to_string()>
             <Amount text=current_price />
         </HoldingDetailItem>
-        <HoldingDetailItem label=labels::PRICE_AS_OF.to_string()>
+        <HoldingDetailItem label=labels::STOCK_PRICE.to_string()>
             {price_as_of}
         </HoldingDetailItem>
     }
@@ -728,7 +725,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
     let dividend_tiles = if collapsed {
         view! {
             <HoldingDetailItem
-                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
+                label=labels::ANNUAL_EXPECTED_DIVIDEND.to_string()
                 title=labels::ANNUAL_DIVIDEND_NOTE
                 wide=wide_dividend
                 wide_lg=wide_dividend_lg
@@ -755,7 +752,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
         view! {
             {per_share_tile}
             <HoldingDetailItem
-                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
+                label=labels::ANNUAL_EXPECTED_DIVIDEND.to_string()
                 title=labels::ANNUAL_DIVIDEND_NOTE
             >
                 <Amount
