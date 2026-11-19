@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared::value::UserId;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 /// データベースのユーザーモデル
@@ -11,8 +11,10 @@ pub struct User {
     pub email: String,
     pub name: Option<String>,
     pub picture_url: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
 }
 
 impl crate::db::FromRow for User {
@@ -69,8 +71,8 @@ mod tests {
             email: "test@example.com".to_string(),
             name: Some("テストユーザー".to_string()),
             picture_url: Some("https://lh3.googleusercontent.com/a-/avatar".to_string()),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
         };
         let response: UserResponse = user.clone().into();
         assert_eq!(

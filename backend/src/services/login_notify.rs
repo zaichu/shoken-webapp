@@ -2,7 +2,6 @@ pub use super::encoding::base64_encode;
 use crate::db::{Bind, Db, DbError};
 use crate::models::user::User;
 use crate::services::login_event::{ClientInfo, LoginOutcome};
-use chrono::{DateTime, Utc};
 #[cfg(any(target_arch = "wasm32", test))]
 use futures_util::future::{self, Either};
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use sha2::{Digest, Sha256};
 use shared::value::UserId;
 #[cfg(any(target_arch = "wasm32", test))]
 use std::future::Future;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 pub const MAX_SENDS_PER_HOUR: i64 = 3;
@@ -27,7 +27,8 @@ pub struct UpdateNotificationSettingsRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LogoutTokenInfoResponse {
-    pub expires_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub expires_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -158,13 +159,13 @@ pub async fn issue_token(pool: &Db, user_id: UserId) -> Result<String, DbError> 
 pub async fn peek_token(
     pool: &Db,
     plaintext: &str,
-) -> Result<Option<(UserId, DateTime<Utc>)>, DbError> {
+) -> Result<Option<(UserId, OffsetDateTime)>, DbError> {
     let mut tx = pool.begin_restricted().await?;
     let token = crate::db::query(
         "SELECT * FROM login_notify_peek_v2($1)",
         vec![Bind::Bytes(token_hash(plaintext))],
     )
-    .fetch_optional::<(UserId, DateTime<Utc>), _>(&mut tx)
+    .fetch_optional::<(UserId, OffsetDateTime), _>(&mut tx)
     .await?;
     tx.commit().await?;
     Ok(token)
@@ -362,9 +363,13 @@ fn display_agent(client: &ClientInfo) -> String {
 }
 
 #[cfg(any(target_arch = "wasm32", test))]
-fn format_occurred_jst(now: DateTime<Utc>) -> String {
-    let shifted = now + chrono::Duration::hours(9);
-    let date = shifted.format("%Y/%m/%d %H:%M").to_string();
+fn format_occurred_jst(now: OffsetDateTime) -> String {
+    let shifted = now + time::Duration::hours(9);
+    let date = shifted
+        .format(time::macros::format_description!(
+            "[year]/[month]/[day] [hour]:[minute]"
+        ))
+        .unwrap_or_default();
     format!("{date} JST")
 }
 
@@ -411,7 +416,7 @@ pub async fn maybe_notify_on_login(
             return;
         }
     };
-    let occurred = format_occurred_jst(chrono::Utc::now());
+    let occurred = format_occurred_jst(time::OffsetDateTime::now_utc());
     let body = login_notification_body(
         &occurred,
         &display_place(client),
@@ -552,9 +557,11 @@ mod tests {
 
     #[test]
     fn occurred_uses_jst_with_zone() {
-        let utc = DateTime::parse_from_rfc3339("2026-10-31T07:38:00Z")
-            .unwrap()
-            .with_timezone(&Utc);
+        let utc = OffsetDateTime::parse(
+            "2026-10-31T07:38:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .unwrap();
         assert_eq!(format_occurred_jst(utc), "2026/10/31 16:38 JST");
         assert_eq!(
             shared::login_display::format_iso_utc_as_jst_with_zone("2026-10-31T07:38:00Z"),

@@ -1,5 +1,4 @@
 use crate::models::csv_import::CsvRowError;
-use chrono::NaiveDate;
 use encoding_rs::SHIFT_JIS;
 use rust_decimal::Decimal;
 use shared::value::{Account, SecurityCode};
@@ -8,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use thiserror::Error;
+use time::Date;
 use unicode_normalization::UnicodeNormalization;
 
 /// CSV の行番号（ヘッダー除く、1始まり）
@@ -77,12 +77,18 @@ pub fn parse_number(s: &str) -> Result<Decimal, CellError> {
 }
 
 /// 日付文字列をパース（"YYYY/MM/DD" または "YYYY-MM-DD"）
-pub fn parse_date(s: &str) -> Result<NaiveDate, CellError> {
+pub fn parse_date(s: &str) -> Result<Date, CellError> {
     let s = s.trim();
-    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y/%m/%d") {
+    if let Ok(d) = Date::parse(
+        s,
+        time::macros::format_description!("[year]/[month padding:none]/[day padding:none]"),
+    ) {
         return Ok(d);
     }
-    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+    if let Ok(d) = Date::parse(
+        s,
+        time::macros::format_description!("[year]-[month padding:none]-[day padding:none]"),
+    ) {
         return Ok(d);
     }
     Err(CellError::InvalidDate(s.to_string()))
@@ -257,7 +263,7 @@ pub fn parse_required_date(
     row: &CsvRowView<'_>,
     col: &str,
     row_num: RowNumber,
-) -> Result<NaiveDate, CsvRowError> {
+) -> Result<Date, CsvRowError> {
     let raw = row.cell(col);
     parse_date(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
@@ -322,9 +328,16 @@ mod tests {
         for (col, expected) in [("empty", ""), ("filled", "value"), ("missing", "")] {
             assert_eq!(parse_optional_string(&cells, col), expected);
         }
-        let expected_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let expected_date =
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15).unwrap();
         for input in ["2024/01/15", "2024-01-15"] {
             assert_eq!(parse_date(input).unwrap(), expected_date);
+        }
+        for input in ["2024-1-5", "2024-01-5", "2024-1-05"] {
+            assert_eq!(
+                parse_date(input).unwrap(),
+                Date::from_calendar_date(2024, time::Month::January, 5).unwrap()
+            );
         }
         for (account, realized_pnl, expected_taxes, expected_after) in [
             ("特定", dec!(10000), dec!(2031), dec!(7969)),
@@ -396,7 +409,7 @@ mod tests {
         );
         assert_eq!(
             parse_required_date(&cells, "valid", RowNumber::new(1)).unwrap(),
-            NaiveDate::from_ymd_opt(2024, 3, 1).unwrap()
+            Date::from_calendar_date(2024, time::Month::try_from(3).unwrap(), 1).unwrap()
         );
         let err = parse_required_date(&cells, "out_of_range", RowNumber::new(9)).unwrap_err();
         assert_eq!((err.row, err.message.contains("out_of_range")), (9, true));
@@ -526,7 +539,7 @@ mod tests {
         // 有効な日付 "2024/01/15" → Ok
         assert_eq!(
             parse_required_date(&row, "日付", RowNumber::new(1)).unwrap(),
-            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()
+            Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15).unwrap()
         );
         // 不正な文字列 "not-a-date" → Err
         let err = parse_required_date(&row, "不正", RowNumber::new(2)).unwrap_err();
@@ -723,7 +736,7 @@ mod tests {
             if day <= days_in_month {
                 proptest::prop_assert_eq!(
                     parse_date(&input).unwrap(),
-                    NaiveDate::from_ymd_opt(year, month, day).unwrap(),
+                    Date::from_calendar_date(year, time::Month::try_from(u8::try_from(month).unwrap()).unwrap(), u8::try_from(day).unwrap()).unwrap(),
                     "input={}",
                     input
                 );

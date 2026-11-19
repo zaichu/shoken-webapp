@@ -1,14 +1,15 @@
 use crate::db::{Bind, Db, DbError};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use shared::value::UserId;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct DeviceEntry {
     pub id: String,
-    pub last_used_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub last_used_at: OffsetDateTime,
     pub country: Option<String>,
     pub region: Option<String>,
     pub browser: Option<String>,
@@ -23,7 +24,7 @@ pub struct DeviceListResponse {
 
 struct DeviceRow {
     device_hash: Vec<u8>,
-    last_used_at: DateTime<Utc>,
+    last_used_at: OffsetDateTime,
     country: Option<String>,
     region: Option<String>,
     browser: Option<String>,
@@ -146,7 +147,7 @@ pub async fn resolve_device_hash(
 mod tests {
     use super::*;
 
-    fn row(hash_byte: u8, last_used_at: DateTime<Utc>) -> DeviceRow {
+    fn row(hash_byte: u8, last_used_at: OffsetDateTime) -> DeviceRow {
         DeviceRow {
             device_hash: vec![hash_byte; 32],
             last_used_at,
@@ -183,8 +184,8 @@ mod tests {
     #[test]
     fn device_entries_mark_current_and_sort_newest_first() {
         let user_id = UserId::from(uuid::Uuid::new_v4());
-        let older = chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 1, 1, 0, 0, 0).unwrap();
-        let newer = chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 1, 2, 0, 0, 0).unwrap();
+        let older = OffsetDateTime::from_unix_timestamp(1767225600).unwrap();
+        let newer = OffsetDateTime::from_unix_timestamp(1767312000).unwrap();
         let entries = to_device_entries(&user_id, vec![row(1, older), row(2, newer)], &[1u8; 32]);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].last_used_at, newer);
@@ -219,7 +220,7 @@ mod tests {
     fn device_response_carries_no_secret_fields() {
         let device = DeviceEntry {
             id: "opaque".to_string(),
-            last_used_at: chrono::Utc::now(),
+            last_used_at: time::OffsetDateTime::now_utc(),
             country: None,
             region: None,
             browser: None,

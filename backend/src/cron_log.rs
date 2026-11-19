@@ -1,6 +1,6 @@
 //! cron 実行の処理時間ログの形式と計測。ログに出すのは処理名・件数・経過 ms だけ。
 
-use chrono::{DateTime, Timelike};
+use time::OffsetDateTime;
 
 /// cron で順に回す処理。ログ名は固定値だけを使い、呼び出し側が任意文字列を渡せないようにする
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,8 +37,8 @@ pub fn format_cron_noop(elapsed_ms: u64) -> String {
 /// 接続ロールと共有表の RLS 状態を毎分出すと多いため、10 分に 1 回だけ出す
 #[expect(clippy::cast_possible_truncation)]
 pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
-    DateTime::from_timestamp_millis(scheduled_ms as i64)
-        .is_some_and(|t| t.minute().is_multiple_of(10))
+    OffsetDateTime::from_unix_timestamp_nanos(scheduled_ms as i128 * 1_000_000)
+        .is_ok_and(|t| t.minute().is_multiple_of(10))
 }
 
 /// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
@@ -214,12 +214,13 @@ mod tests {
     #[expect(clippy::cast_precision_loss)]
     fn db_access_log_runs_every_ten_minutes() {
         let at = |h: u32, m: u32| {
-            chrono::NaiveDate::from_ymd_opt(2026, 11, 17)
+            time::Date::from_calendar_date(2026, time::Month::try_from(11).unwrap(), 17)
                 .unwrap()
-                .and_hms_opt(h, m, 0)
+                .with_hms(u8::try_from(h).unwrap(), u8::try_from(m).unwrap(), 0)
                 .unwrap()
-                .and_utc()
-                .timestamp_millis() as f64
+                .assume_utc()
+                .unix_timestamp_nanos() as f64
+                / 1_000_000.0
         };
         assert!(should_log_db_access_at(at(12, 0)));
         assert!(should_log_db_access_at(at(12, 50)));

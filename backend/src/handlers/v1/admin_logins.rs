@@ -229,8 +229,8 @@ mod tests {
                 email: email.into(),
                 name: None,
                 picture_url: None,
-                created_at: chrono::Utc::now(),
-                updated_at: chrono::Utc::now(),
+                created_at: time::OffsetDateTime::now_utc(),
+                updated_at: time::OffsetDateTime::now_utc(),
             };
             let response = list(
                 State(state),
