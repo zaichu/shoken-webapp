@@ -503,16 +503,19 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
                 name=move || row_name.clone()
                 primary=move || view! {
                     <span class="receipt-compact-value">
-                        <Amount
-                            kind=hero_kind
-                            text=hero_value.clone()
-                            negative=hero_negative
-                            positive=hero_positive
-                        />{tax_suffix.map(|suffix| view! {
-                            <span class="text-cell text-text-muted">
-                                {"("}{suffix}{")"}
-                            </span>
-                        })}
+                        // 金額と税区分は同じ行に出す(親は縦並びのため素の span で1行にまとめる)
+                        <span>
+                            <Amount
+                                kind=hero_kind
+                                text=hero_value.clone()
+                                negative=hero_negative
+                                positive=hero_positive
+                            />{tax_suffix.map(|suffix| view! {
+                                <span class="text-cell text-text-muted">
+                                    {"("}{suffix}{")"}
+                                </span>
+                            })}
+                        </span>
                         {before_tax_sub.clone().map(|(text, negative, positive)| view! {
                             <span class="receipt-before-tax-sub">
                                 {labels::BEFORE_TAX}" "
