@@ -15,8 +15,8 @@ fn cumulative_slider_valuetext_reads_month_dividend_and_total() {
 
 #[test]
 fn previous_cumulative_label_includes_the_period() {
-    assert_eq!(cumulative_previous_label(1), "前年1月まで");
-    assert_eq!(cumulative_previous_label(12), "前年12月まで");
+    assert_eq!(cumulative_previous_label(1), "前年(1月まで)");
+    assert_eq!(cumulative_previous_label(12), "前年(12月まで)");
 }
 
 fn source_root() -> PathBuf {

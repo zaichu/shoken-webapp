@@ -1713,20 +1713,18 @@
     @apply pointer-events-none absolute inset-0 h-full w-full;
   }
 
-  .home-cum-end-labels {
-    @apply pointer-events-none absolute inset-0 z-10;
-  }
-
-  .home-cum-end-label {
-    @apply absolute -translate-y-1/2 rounded-sm bg-surface/80 px-1 text-eyebrow leading-tight text-text;
+  .home-cum-summary {
+    @apply mb-1 flex flex-wrap items-center gap-x-3 text-eyebrow leading-tight;
     font-variant-numeric: tabular-nums;
   }
 
-  .home-cum-end-label-current {
+  .home-cum-summary-current {
+    @apply whitespace-nowrap;
     color: var(--color-chart-1);
   }
 
-  .home-cum-end-label-previous {
+  .home-cum-summary-previous {
+    @apply whitespace-nowrap;
     color: var(--color-text-muted);
   }
 

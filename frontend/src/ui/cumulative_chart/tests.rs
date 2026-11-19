@@ -56,49 +56,6 @@ fn small_max_stays_in_ten_thousands() {
 }
 
 #[test]
-fn end_label_positions_keep_labels_apart_and_inside_the_plot() {
-    let separated = end_label_positions(24.0, Some(40.0));
-    assert_eq!(separated.current, 24.0);
-    assert_eq!(separated.previous, Some(40.0));
-
-    let overlapping = end_label_positions(40.0, Some(42.0));
-    assert_eq!(overlapping.current, 47.0);
-    assert_eq!(overlapping.previous, Some(35.0));
-
-    let near_top = end_label_positions(2.0, Some(1.0));
-    assert_eq!(near_top.current, 7.5);
-    assert_eq!(near_top.previous, Some(19.5));
-}
-
-#[test]
-fn end_label_horizontal_fits_by_width_and_month() {
-    for month in [1, 3, 4, 6, 11, 12] {
-        let narrow = end_label_horizontal(month, 120.0, 304.0);
-        if month <= 4 {
-            assert!(
-                matches!(narrow, EndLabelSide::Right(_)),
-                "{month}: {narrow:?}"
-            );
-        } else {
-            assert!(
-                matches!(narrow, EndLabelSide::Left(_)),
-                "{month}: {narrow:?}"
-            );
-        }
-        let wide = end_label_horizontal(month, 120.0, 1194.0);
-        if month == 1 {
-            assert!(matches!(wide, EndLabelSide::Right(_)), "{month}: {wide:?}");
-        } else {
-            assert!(matches!(wide, EndLabelSide::Left(_)), "{month}: {wide:?}");
-        }
-    }
-    assert!(matches!(
-        end_label_horizontal(3, 280.0, 304.0),
-        EndLabelSide::Inside(_)
-    ));
-}
-
-#[test]
 fn short_labels_use_man_and_oku() {
     assert_eq!(labels::axis_yen_short(0.0), "0");
     assert_eq!(labels::axis_yen_short(5_000.0), "5,000");
