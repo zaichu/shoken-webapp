@@ -359,8 +359,8 @@ export function dividendEstimates() {
   return {
     items: STOCK_NAMES.map((_, index) => ({
       security_code: String(9901 + index),
-      dividend_per_share: index % 4 === 0 ? 0 : decimal(20, index * 1.5),
-      status: index % 4 === 0 ? 'zero' : 'ok',
+      dividend_per_share: index === 0 ? 5600 : 0,
+      status: index === 0 ? 'ok' : 'zero',
     })),
   };
 }
