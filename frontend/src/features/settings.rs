@@ -540,7 +540,7 @@ fn SectionDanger() -> impl IntoView {
                             variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
                             class="no-print"
-                            aria_label=labels::SETTINGS_DELETE_ASSETS
+                            aria_label=labels::SETTINGS_DELETE_ASSETS_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
@@ -549,7 +549,7 @@ fn SectionDanger() -> impl IntoView {
                         <Button
                             variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             on_click=move |_| delete_confirm_open.set(true)
-                            aria_label=labels::SETTINGS_DELETE_ACCOUNT
+                            aria_label=labels::SETTINGS_DELETE_ACCOUNT_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </Button>

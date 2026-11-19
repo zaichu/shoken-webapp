@@ -467,7 +467,7 @@ fn CsvKindRow(
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
                         class="inline-flex h-8 hit-area-44-x items-center justify-center rounded-md hover:bg-surface-sunken px-2 text-text-muted"
-                        aria_label=labels::MENU
+                        aria_label=labels::CSV_MANAGE_MENU_BUTTON_LABEL
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger

@@ -146,7 +146,7 @@ test('設定ページの危険な操作からアカウント削除確認ダイ�
   });
   await page.goto('/settings');
 
-  // アカウント削除ボタンは aria-label "アカウントを削除" を持つ
+  // アカウント削除ボタンは aria-label "アカウントを削除する（確認あり）" を持つ
   await page.getByRole('button', { name: 'アカウントを削除' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });

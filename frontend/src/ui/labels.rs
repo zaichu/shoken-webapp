@@ -683,29 +683,38 @@ pub const SETTINGS_DELETE_DIVIDEND: &str = "取引明細：配当金を削除";
 /// 設定: 取引明細(配当金)の削除の説明
 pub const SETTINGS_DELETE_DIVIDEND_NOTE: &str =
     "取り込んだ配当金データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(配当金)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_DIVIDEND_ACTION: &str = "配当金データを削除";
+/// 設定: 取引明細(配当金)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_DIVIDEND_ACTION: &str = "配当金データを削除する（確認あり）";
 /// 設定: 取引明細(国内株式)の削除の行名
 pub const SETTINGS_DELETE_STOCK: &str = "取引明細：国内株式を削除";
 /// 設定: 取引明細(国内株式)の削除の説明
 pub const SETTINGS_DELETE_STOCK_NOTE: &str =
     "取り込んだ国内株式売買データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(国内株式)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_STOCK_ACTION: &str = "国内株式データを削除";
+/// 設定: 取引明細(国内株式)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_STOCK_ACTION: &str = "国内株式データを削除する（確認あり）";
 /// 設定: 取引明細(投資信託)の削除の行名
 pub const SETTINGS_DELETE_FUND: &str = "取引明細：投資信託を削除";
 /// 設定: 取引明細(投資信託)の削除の説明
 pub const SETTINGS_DELETE_FUND_NOTE: &str =
     "取り込んだ投資信託売買データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(投資信託)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_FUND_ACTION: &str = "投資信託データを削除";
+/// 設定: 取引明細(投資信託)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_FUND_ACTION: &str = "投資信託データを削除する（確認あり）";
 /// 設定: 資産管理データの削除の行名
 pub const SETTINGS_DELETE_ASSETS: &str = "資産管理データを削除";
+/// 設定: 資産管理データの削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_ASSETS_ACTION: &str = "資産管理データを削除する（確認あり）";
 /// 設定: 資産管理データの削除の説明
 pub const SETTINGS_DELETE_ASSETS_NOTE: &str =
     "保存済みの保有銘柄データ。アカウントは残ります。取り消せません";
 /// 設定: アカウント削除の行名
 pub const SETTINGS_DELETE_ACCOUNT: &str = "アカウントを削除";
+/// 設定: アカウント削除ボタンの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_ACCOUNT_ACTION: &str = "アカウントを削除する（確認あり）";
 /// 設定: アカウント削除の説明
 pub const SETTINGS_DELETE_ACCOUNT_NOTE: &str = "データもすべて消えます。取り消せません";
 /// CSV エクスポート: 種類名(資産管理)
@@ -1076,8 +1085,9 @@ pub const CSV_FILE_SELECT: &str = "CSVファイルを選択";
 pub const CSV_STATUS_IMPORTING: &str = "取り込み中…";
 /// CSV管理: 行の状態「確認待ち」
 pub const CSV_STATUS_CONFIRMING: &str = "確認待ち";
-/// 開閉メニューの読み上げ名
-pub const MENU: &str = "メニュー";
+/// CSV管理: 行の操作ボタンの読み上げ名。可視の「操作」を含めて
+/// 音声操作でも見える名前で呼べるようにする
+pub const CSV_MANAGE_MENU_BUTTON_LABEL: &str = "操作メニュー";
 
 /// 開閉の表示(閉じているときに開く操作)
 pub const DISCLOSURE_OPEN: &str = "開く";
