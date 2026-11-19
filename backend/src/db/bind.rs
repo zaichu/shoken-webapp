@@ -253,6 +253,12 @@ mod tests {
         assert_eq!(Bind::from(Uuid::nil()).declared_type(), Type::UUID);
     }
 
+    #[test]
+    fn accepts_database_types_before_variant_encoding() {
+        assert!(<Bind as ToSql>::accepts(&Type::DATE));
+        assert!(<Bind as ToSql>::accepts(&Type::TIMESTAMPTZ));
+    }
+
     /// 配列・newtype の宣言型は unnest のキャスト先や列型に合わせる。
     /// `Option<T>` / `None` は UNKNOWN で推論に任せる
     #[test]
