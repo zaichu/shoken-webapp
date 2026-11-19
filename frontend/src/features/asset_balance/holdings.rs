@@ -78,6 +78,8 @@ pub(crate) struct HoldingDividend {
     pub(crate) annual: Option<f64>,
     pub(crate) yield_value: Option<f64>,
     pub(crate) status: Option<String>,
+    /// 推定の応答を受けたマップから作ったか。未応答は取得中と出す
+    pub(crate) responded: bool,
 }
 
 pub(crate) fn holding_dividend(
@@ -87,18 +89,21 @@ pub(crate) fn holding_dividend(
     maps: &DividendMaps,
 ) -> HoldingDividend {
     let status = maps.status.get(code).cloned();
+    let responded = maps.responded;
     match status.as_deref() {
         Some("pending" | "error") => HoldingDividend {
             per_share: None,
             annual: None,
             yield_value: None,
             status,
+            responded,
         },
         Some("zero") => HoldingDividend {
             per_share: Some(0.0),
             annual: Some(0.0),
             yield_value: Some(0.0),
             status,
+            responded,
         },
         _ => match maps.per_share.get(code) {
             None => HoldingDividend {
@@ -106,6 +111,7 @@ pub(crate) fn holding_dividend(
                 annual: None,
                 yield_value: None,
                 status,
+                responded,
             },
             Some(per_share) => HoldingDividend {
                 per_share: Some(*per_share),
@@ -116,8 +122,42 @@ pub(crate) fn holding_dividend(
                     None
                 },
                 status,
+                responded,
             },
         },
+    }
+}
+
+pub(crate) fn is_no_dividend(dividend: &HoldingDividend) -> bool {
+    dividend.status.as_deref() == Some("zero") || dividend.per_share == Some(0.0)
+}
+
+/// 配当表示が値なしのときの文言(対象外・取得できません・無配・取得中)。
+/// 値があるときは `None`。表のセルは値なしを折り返しの印で出す
+pub(crate) fn dividend_marker_text(dividend: &HoldingDividend) -> Option<&'static str> {
+    dividend_display_kind(dividend).map(crate::ui::labels::unavailable_text)
+}
+
+/// 配当表示の種類。無配・欠測・未応答・表示可を区別する純粋な判定。
+/// 推定の応答前は取得中(まだ失敗と決まったわけではない)にする
+pub(crate) fn dividend_display_kind(
+    dividend: &HoldingDividend,
+) -> Option<crate::ui::labels::UnavailableKind> {
+    if !dividend.responded {
+        return Some(crate::ui::labels::UnavailableKind::Pending);
+    }
+    if dividend.status.as_deref() == Some("pending") {
+        return None;
+    }
+    if is_no_dividend(dividend) {
+        return Some(crate::ui::labels::UnavailableKind::NoDividend);
+    }
+    if dividend.status.as_deref() == Some("error") {
+        return Some(crate::ui::labels::UnavailableKind::Unavailable);
+    }
+    match dividend.per_share {
+        Some(_) => None,
+        None => Some(crate::ui::labels::UnavailableKind::Unavailable),
     }
 }
 
@@ -126,11 +166,18 @@ fn format_dividend_value(
     value: Option<f64>,
     format: impl Fn(f64) -> String,
 ) -> String {
-    match dividend.status.as_deref() {
-        Some("pending") => labels::CSV_MANAGE_FETCH_RUNNING.to_string(),
-        Some("error") => labels::HOLDING_DIVIDEND_FAILED.to_string(),
-        _ => value.map_or_else(|| "—".to_string(), format),
+    if dividend.status.as_deref() == Some("pending") {
+        return labels::CSV_MANAGE_FETCH_RUNNING.to_string();
     }
+    dividend_display_kind(dividend).map_or_else(
+        || {
+            value.map_or_else(
+                || labels::unavailable_text(labels::UnavailableKind::Unavailable).to_string(),
+                format,
+            )
+        },
+        |kind| labels::unavailable_text(kind).to_string(),
+    )
 }
 
 /// 1株配当。列の中で小数桁がそろうよう decimals を渡す

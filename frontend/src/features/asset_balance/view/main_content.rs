@@ -7,9 +7,9 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, fund_has_pending, oldest_combined_as_of, oldest_fund_as_of,
-    oldest_stock_as_of, purchase_summary_tag, stock_pending_from_parts, stock_price_dates,
-    stock_summary_values,
+    AssetSummaryBand, date_notes, fund_has_pending, latest_import_iso, oldest_combined_price_iso,
+    oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag, stock_pending_from_parts,
+    stock_price_dates, stock_summary_values,
 };
 use crate::api::dto::{AssetBalanceSummary, FundBalanceSummary};
 use crate::features::asset_balance;
@@ -214,7 +214,18 @@ fn StockContent(
             {move || {
                 (!empty).then(|| {
                     let (values, tags, purchase) = summary.get();
-                    let as_of = oldest_stock_as_of(&rows).unwrap_or_default();
+                    let price_iso = oldest_stock_price_iso(&rows);
+                    let import_label = crate::ui::format::format_latest_import_date(
+                        rows.iter().map(|row| row.updated_at.as_str()),
+                    );
+                    let import_iso = latest_import_iso(
+                        rows.iter().map(|row| row.updated_at.as_str()),
+                    );
+                    let (as_of, stale, import_status, import_stale) = date_notes(
+                        price_iso.as_deref(),
+                        import_label.as_deref(),
+                        import_iso.as_deref(),
+                    );
                     let pending = asset_balance::valuation_has_pending(
                         stock_pending_from_parts(&rows, fallback_totals.as_ref()),
                         false,
@@ -230,6 +241,9 @@ fn StockContent(
                                 purchase=purchase
                                 as_of=as_of
                                 show_pending=pending
+                                as_of_stale=stale
+                                import_note=import_status
+                                import_stale=import_stale
                             />
                         </SkeletonSummary>
                         <SkeletonNote filtered=filtered_count />
@@ -338,7 +352,16 @@ fn FundContent(
     let profit_rate = profit_rate(profit, purchase);
     let filtered_count = filtered_count(search, search_count);
     let empty = total_count == 0;
-    let as_of = oldest_fund_as_of(&resolved).unwrap_or_default();
+    let price_iso = oldest_fund_price_iso(&resolved);
+    let import_label = crate::ui::format::format_latest_import_date(
+        resolved.rows.iter().map(|row| row.updated_at.as_str()),
+    );
+    let import_iso = latest_import_iso(resolved.rows.iter().map(|row| row.updated_at.as_str()));
+    let (as_of, stale, import_status, import_stale) = date_notes(
+        price_iso.as_deref(),
+        import_label.as_deref(),
+        import_iso.as_deref(),
+    );
     let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
@@ -355,6 +378,9 @@ fn FundContent(
                     purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
+                    as_of_stale=stale
+                    import_note=import_status
+                    import_stale=import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
@@ -513,7 +539,20 @@ fn AllContent(
         stock_pending_from_parts(&stock_rows, stock_fallback.as_ref()),
         fund_has_pending(&fund_resolved),
     );
-    let as_of = oldest_combined_as_of(&stock_rows, &fund_resolved).unwrap_or_default();
+    let price_iso = oldest_combined_price_iso(&stock_rows, &fund_resolved);
+    let mut import_stamps: Vec<String> = stock_rows
+        .iter()
+        .map(|row| row.updated_at.clone())
+        .collect();
+    import_stamps.extend(fund_resolved.rows.iter().map(|row| row.updated_at.clone()));
+    let import_label =
+        crate::ui::format::format_latest_import_date(import_stamps.iter().map(String::as_str));
+    let import_iso = latest_import_iso(import_stamps.iter().map(String::as_str));
+    let (as_of, all_stale, all_import_status, all_import_stale) = date_notes(
+        price_iso.as_deref(),
+        import_label.as_deref(),
+        import_iso.as_deref(),
+    );
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;
@@ -539,6 +578,9 @@ fn AllContent(
                     purchase=Some(purchase)
                     as_of=as_of
                     show_pending=pending
+                    as_of_stale=all_stale
+                    import_note=all_import_status
+                    import_stale=all_import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />

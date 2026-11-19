@@ -8,8 +8,8 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::asset_balance::AssetRateAmount;
-use crate::ui::badge::AccountBadge;
+use crate::ui::asset_balance::{AssetMarker, AssetRateAmount};
+use crate::ui::badge::{AccountBadge, AccountLegend};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -135,7 +135,7 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="col-text">
                                         {view.account.clone().map_or_else(
-                                            || view! { "—" }.into_any(),
+                                            || view! { <AssetMarker text=labels::unavailable_text(labels::UnavailableKind::Unassigned).to_string() soft=true /> }.into_any(),
                                             |account| {
                                                 view! { <AccountBadge label=account /> }.into_any()
                                             },
@@ -183,28 +183,43 @@ pub fn AssetHoldingsTable(
                                         }}
                                     </td>
                                     <td class="col-num hidden xl:table-cell print:table-cell">
-                                        <Amount
-                                            kind=AmountKind::Delta
-                                            text=dividend_per_share
-                                            negative=balance_format::is_negative_rate(dividend.per_share)
-                                            positive=balance_format::is_positive_rate(dividend.per_share)
-                                        />
+                                        {holdings::dividend_marker_text(&dividend).map_or_else(
+                                            || view! {
+                                                <Amount
+                                                    kind=AmountKind::Delta
+                                                    text=dividend_per_share.clone()
+                                                    negative=balance_format::is_negative_rate(dividend.per_share)
+                                                    positive=balance_format::is_positive_rate(dividend.per_share)
+                                                />
+                                            }.into_any(),
+                                            |marker| view! { <AssetMarker text=marker.to_string() /> }.into_any(),
+                                        )}
                                     </td>
                                     <td class="col-num">
-                                        <Amount
-                                            kind=AmountKind::Delta
-                                            text=dividend_annual
-                                            negative=balance_format::is_negative_valuation(dividend.annual)
-                                            positive=balance_format::is_positive_valuation(dividend.annual)
-                                        />
+                                        {holdings::dividend_marker_text(&dividend).map_or_else(
+                                            || view! {
+                                                <Amount
+                                                    kind=AmountKind::Delta
+                                                    text=dividend_annual.clone()
+                                                    negative=balance_format::is_negative_valuation(dividend.annual)
+                                                    positive=balance_format::is_positive_valuation(dividend.annual)
+                                                />
+                                            }.into_any(),
+                                            |marker| view! { <AssetMarker text=marker.to_string() /> }.into_any(),
+                                        )}
                                     </td>
                                     <td class="col-num">
-                                        <Amount
-                                            kind=AmountKind::Delta
-                                            text=dividend_yield
-                                            negative=dividend_yield_negative
-                                            positive=dividend_yield_positive
-                                        />
+                                        {holdings::dividend_marker_text(&dividend).map_or_else(
+                                            || view! {
+                                                <Amount
+                                                    kind=AmountKind::Delta
+                                                    text=dividend_yield.clone()
+                                                    negative=dividend_yield_negative
+                                                    positive=dividend_yield_positive
+                                                />
+                                            }.into_any(),
+                                            |marker| view! { <AssetMarker text=marker.to_string() /> }.into_any(),
+                                        )}
                                     </td>
                                 </tr>
                             }
@@ -212,6 +227,7 @@ pub fn AssetHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
+            <AccountLegend />
         </div>
     }
 }

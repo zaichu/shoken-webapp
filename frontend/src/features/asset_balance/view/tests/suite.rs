@@ -82,6 +82,7 @@ fn holding_dividend_matches_component_cases() {
             ("0002".to_string(), "error".to_string()),
             ("0003".to_string(), "zero".to_string()),
         ]),
+        responded: true,
     };
     let with_data = holding_dividend("9904", 100.0, 2500.0, &maps);
     assert_eq!(with_data.per_share, Some(50.0));
@@ -91,18 +92,18 @@ fn holding_dividend_matches_component_cases() {
 
     let missing = holding_dividend("9999", 10.0, 100.0, &maps);
     assert_eq!(missing.per_share, None);
-    assert_eq!(format_dividend_per_share(&missing, 0), "—");
+    assert_eq!(format_dividend_per_share(&missing, 0), "取得できません");
 
     let pending = holding_dividend("0001", 10.0, 100.0, &maps);
     assert_eq!(format_dividend_per_share(&pending, 0), "取得中…");
 
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_annual(&error), "取得失敗");
+    assert_eq!(format_dividend_annual(&error), "取得できません");
 
     let zero = holding_dividend("0003", 10.0, 100.0, &maps);
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
-    assert_eq!(format_dividend_per_share(&zero, 0), "¥0");
+    assert_eq!(format_dividend_per_share(&zero, 0), "無配");
     assert_eq!(zero.yield_value, Some(0.0));
 
     let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
@@ -126,9 +127,9 @@ fn holding_dividend_matches_component_cases() {
         assert_eq!(format_dividend_yield(&pending), "取得中…");
     }
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_per_share(&error, 0), "取得失敗");
-    assert_eq!(format_dividend_annual(&error), "取得失敗");
-    assert_eq!(format_dividend_yield(&error), "取得失敗");
+    assert_eq!(format_dividend_per_share(&error, 0), "取得できません");
+    assert_eq!(format_dividend_annual(&error), "取得できません");
+    assert_eq!(format_dividend_yield(&error), "取得できません");
 }
 
 #[test]
@@ -191,6 +192,7 @@ fn filtered_portfolio_keeps_all_holdings_totals_while_searching() {
         let dividends = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
+            responded: true,
         });
         let kpi = Memo::new(move |_| {
             model::calculate_portfolio_kpi(&kpi_holdings, &dividends.get().per_share)
@@ -280,6 +282,7 @@ fn dividend_maps_apply_only_to_current_generation() {
         let fresh = DividendMaps {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
+            responded: true,
         };
         apply_dividend_maps(&balances, &dividends, Generation::new(7), fresh.clone());
         assert!(balances.get_untracked().is_none());
@@ -330,6 +333,7 @@ fn dividend_update_does_not_notify_balance_view() {
             DividendMaps {
                 per_share: HashMap::from([("9904".to_string(), 50.0)]),
                 status: HashMap::new(),
+                responded: true,
             },
         );
 
@@ -834,6 +838,7 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     let maps = DividendMaps {
         per_share: HashMap::from([("9904".to_string(), 50.0)]),
         status: HashMap::new(),
+        responded: true,
     };
     let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)), &maps);
     let dividend = stock.dividend.as_ref().expect("株式の行は1株配当を持つ");

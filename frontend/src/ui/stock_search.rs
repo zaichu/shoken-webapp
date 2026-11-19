@@ -200,7 +200,7 @@ pub fn HoldingAccount(account: Option<String>, children: Children) -> impl IntoV
     view! {
         <div>
             <p class="mb-2">
-                {account.map_or_else(|| labels::MISSING.into_any(), |label| {
+                {account.map_or_else(|| labels::unavailable_text(labels::UnavailableKind::Unassigned).into_any(), |label| {
                     view! { <badge::AccountBadge label=label /> }.into_any()
                 })}
             </p>

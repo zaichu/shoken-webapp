@@ -2128,6 +2128,14 @@
     @apply whitespace-nowrap py-2.5 text-text;
   }
 
+  /* 資産管理の表の値なし表示(対象外・取得できません・未設定・無配)。
+     数字列でも折り返し、表の横スクロールを出さない。数字(Amount)は折り返さない */
+  .asset-table td .asset-marker {
+    @apply break-words font-normal;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   /* 表は1行1段。名前列は残り幅を使うが、広い画面で独占しないよう上限を付ける
      (全文はセルの title)。他列は nowrap なので先に幅を取り、
      残り幅は名前列が使うが 30em を上限としてそれ以上は広げない */
