@@ -331,17 +331,6 @@ pub fn sort_summary(target: &str, order: &str) -> String {
     format!("{target}の{order}")
 }
 
-pub const HOME_DEPOSIT_SUFFIX: &str = " 入金 ";
-
-pub fn previous_dividend_span(current_month: u32) -> String {
-    let months = match current_month {
-        1..=10 => format!("{}〜12月", current_month + 1),
-        11 => "12月".to_string(),
-        _ => return String::new(),
-    };
-    format!("・ 前年の{months}は ")
-}
-
 /// 条件を選ぶ小窓の見出し。対象名だけを引数にして画面ごとに使い回す
 pub fn pick_title(target: &str) -> String {
     format!("{target}を選ぶ")
@@ -743,13 +732,6 @@ pub fn settings_export_failed(kind: &str, error: &str) -> String {
     format!("{kind}のエクスポートに失敗しました: {error}")
 }
 
-/// ホームの残りの書き方(「残り ¥12,000」)
-pub const HOME_REMAINING_PREFIX: &str = "残り ";
-
-/// ホームで配当金が予想を超えたときの書き方(「予想を ¥17,500 上回り」)
-pub const HOME_REMAINING_OVER_PREFIX: &str = "予想を ";
-pub const HOME_REMAINING_OVER_SUFFIX: &str = " 上回り";
-
 /// 資産管理: 画面名
 pub const ASSET_BALANCE_TITLE: &str = "資産管理";
 /// 資産管理: 保有ファンド詳細の画面名
@@ -937,10 +919,9 @@ pub const HOME_FORECAST_LOADING: &str = "/ 年間予想(税引後)を取得中";
 pub const HOME_FORECAST_NAME: &str = "年間予想(税引後)";
 /// ホーム: 予想の取得待ちの末尾(スマホのまとめ行用)
 pub const HOME_FORECAST_LOADING_SUFFIX: &str = "を取得中";
-/// ホーム: 配当カードの前年同期差ラベル
-pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
-/// ホーム: 累計グラフの右端の差の見出し(「前年同期比 +¥12,200」)
-pub const HOME_YOY_COMPARE_LABEL: &str = "前年同期比 ";
+/// ホーム: 累計グラフの直接ラベル
+pub const CUMULATIVE_THIS_YEAR: &str = "今年";
+pub const CUMULATIVE_PREVIOUS_YEAR: &str = "前年";
 /// グラフ縦軸の短い単位(万)。「50万」のように付ける
 pub const AXIS_TEN_THOUSAND: &str = "万";
 /// グラフ縦軸の短い単位(億)。「2億」のように付ける
@@ -978,9 +959,6 @@ fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
 
 /// ホーム: 進捗率の名前(配当金÷年間予想(税引後)の率)
 pub const HOME_PROGRESS_LABEL: &str = "進捗率";
-/// ホーム: 配当金が年間予想(税引後)を超えたときの状態
-pub const HOME_PROGRESS_OVER: &str = "予想を上回りました";
-
 /// ホーム: 予想額の表示(PC 用「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物.
 /// スマホは行頭の「/」を付けず HOME_FORECAST_NAME から組み立てる)
 pub fn home_forecast(forecast: &str) -> String {

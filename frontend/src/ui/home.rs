@@ -207,44 +207,6 @@ pub fn HomeDividendHead(
 }
 
 #[component]
-pub fn HomeDividendNote(
-    #[prop(into)] prefix: String,
-    #[prop(into)] remaining: String,
-    #[prop(into)] suffix: String,
-    previous: Option<(String, String)>,
-    #[prop(into)] yoy_text: String,
-    yoy_negative: bool,
-    yoy_positive: bool,
-    /// 配当金が年間予想(税引後)を超えたか。超えたときだけ文末に状態を添える
-    #[prop(optional)]
-    over: bool,
-) -> impl IntoView {
-    view! {
-        <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
-            {prefix}
-            <Amount text=remaining />
-            {suffix}
-            {previous.map(|(span, amount)| view! {
-                {span}
-                <Amount text=amount />
-                {labels::HOME_DEPOSIT_SUFFIX}
-            })}
-            {labels::HOME_DIVIDEND_YOY_LABEL}
-            <Amount
-                kind=AmountKind::Delta
-                text=yoy_text
-                negative=yoy_negative
-                positive=yoy_positive
-            />
-            {over.then(|| view! {
-                {" "}
-                {labels::HOME_PROGRESS_OVER}
-            })}
-        </p>
-    }
-}
-
-#[component]
 pub fn HomeChartSection(#[prop(into)] label: String, children: Children) -> impl IntoView {
     view! {
         <div class="mt-3 px-4" role="group" aria-label=label>

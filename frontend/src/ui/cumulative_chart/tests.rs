@@ -56,6 +56,21 @@ fn small_max_stays_in_ten_thousands() {
 }
 
 #[test]
+fn end_label_positions_keep_labels_apart_and_inside_the_plot() {
+    let separated = end_label_positions(24.0, Some(40.0), 12);
+    assert_eq!(separated.current, 24.0);
+    assert_eq!(separated.previous, Some(40.0));
+
+    let overlapping = end_label_positions(40.0, Some(42.0), 12);
+    assert_eq!(overlapping.current, 47.0);
+    assert_eq!(overlapping.previous, Some(35.0));
+
+    let near_top = end_label_positions(2.0, Some(1.0), 12);
+    assert_eq!(near_top.current, 7.5);
+    assert_eq!(near_top.previous, Some(19.5));
+}
+
+#[test]
 fn short_labels_use_man_and_oku() {
     assert_eq!(labels::axis_yen_short(0.0), "0");
     assert_eq!(labels::axis_yen_short(5_000.0), "5,000");
@@ -105,15 +120,6 @@ fn cumulative_sums_accumulate_monthly_amounts() {
     ]);
     assert_eq!(sums[0], 250_000_000.0);
     assert_eq!(sums[11], 300_000_000.0);
-}
-
-#[test]
-fn yoy_difference_returns_none_without_previous() {
-    assert_eq!(yoy_difference(20_000.0, Some(14_000.0)), Some(6_000.0));
-    assert_eq!(yoy_difference(10_000.0, Some(14_000.0)), Some(-4_000.0));
-    assert_eq!(yoy_difference(0.0, Some(0.0)), Some(0.0));
-    // 前年なしのときは差を出さない
-    assert_eq!(yoy_difference(20_000.0, None), None);
 }
 
 #[test]

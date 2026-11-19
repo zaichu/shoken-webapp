@@ -155,8 +155,10 @@ test('帯は5項目で株式と投信を合算し、カード群が埋まる', a
 
   // 今年の配当金カード: 税引後の配当金と予想への進捗
   const dividend = page.getByTestId('home-dividend-card');
+  await expect(dividend).not.toContainText('残り');
+  await expect(dividend).not.toContainText('前年の12月は');
+  await expect(dividend).not.toContainText('前年同期より');
   await expect(dividend).toContainText('¥20,000');
-  await expect(dividend).toContainText('前年同期より');
 
   // 資産の内訳: 商品別は株式・投信の2区分
   const composition = page.getByTestId('home-composition-card');
@@ -204,15 +206,13 @@ test('配当グラフは配当金の累計の折れ線で、点からその月�
   const dividend = page.getByTestId('home-dividend-card');
   const chart = dividend.locator('.home-chart').first();
 
-  // 凡例はグラフの上にあり、線と同じ見た目(実線・点線)の印と名前を持つ
-  const legend = dividend.locator('.home-cum-legend');
-  await expect(legend).toContainText(`${THIS_YEAR}年(累計)`);
-  await expect(legend).toContainText(`${LAST_YEAR}年(累計)`);
-  expect(await legend.locator('.home-cum-key-solid').count()).toBeGreaterThan(0);
-  expect(await legend.locator('.home-cum-key-dash').count()).toBeGreaterThan(0);
-
-  // 今年の線の右端に前年同期比が出る
-  await expect(dividend.locator('.home-cum-yoy')).toContainText('前年同期比');
+  await expect(dividend.locator('.home-cum-legend')).toHaveCount(0);
+  const endLabels = chart.locator('.home-cum-end-label');
+  await expect(endLabels.filter({ hasText: '今年' })).toHaveCount(1);
+  await expect(endLabels.filter({ hasText: '前年' })).toHaveCount(1);
+  await expect(endLabels.filter({ hasText: '今年' })).toContainText(/¥[\d,]+/);
+  await expect(endLabels.filter({ hasText: '前年' })).toContainText(/¥[\d,]+/);
+  await expect(dividend.locator('.home-cum-area-current')).toBeVisible();
 
   // 点を押すとその月の配当金とその月までの今年と前年の累計が出る
   const currentMonth = new Date().getMonth() + 1;
@@ -272,7 +272,7 @@ test('配当グラフは配当金の累計の折れ線で、点からその月�
   const probeMonth = Math.min(3, currentMonth);
   await plot.click({ position: { x: xFor(probeMonth), y: box!.height / 2 } });
   await expect(tipFor(probeMonth)).toBeVisible();
-  await legend.click();
+  await dividend.locator('h2').first().click();
   await expect(tipFor(probeMonth)).toBeHidden();
 
   // Tab だけで操作域に到達し、Enter/Space で吹き出しを開閉できる

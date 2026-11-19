@@ -4,8 +4,7 @@
 //! 読み上げ用の表までを部品が持つ。目盛りの段数は axis_ticks が決め、
 //! 線の高さは目盛りの上限にそろえる。
 
-use crate::features::asset_balance;
-use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::amount::Amount;
 use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
@@ -56,9 +55,50 @@ pub fn cumulative_sums(monthly: &[f64]) -> Vec<f64> {
         .collect()
 }
 
-/// 前年同期の点の差 = 今年の累計 - 前年の累計。前年なし(None)のときは None
-pub fn yoy_difference(current_cum: f64, previous_cum: Option<f64>) -> Option<f64> {
-    previous_cum.map(|previous| current_cum - previous)
+struct EndLabelPositions {
+    current: f64,
+    previous: Option<f64>,
+    right: f64,
+}
+
+fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLabelPositions {
+    let current = current.clamp(0.0, 100.0);
+    let right = (100.0 - x_percent(month.clamp(1, 12)) + 1.5).max(0.0);
+    let Some(previous) = previous.map(|value| value.clamp(0.0, 100.0)) else {
+        return EndLabelPositions {
+            current,
+            previous: None,
+            right,
+        };
+    };
+    if (current - previous).abs() >= 12.0 {
+        return EndLabelPositions {
+            current,
+            previous: Some(previous),
+            right,
+        };
+    }
+    let middle = (current + previous) / 2.0;
+    let current_position = (middle + 6.0).clamp(6.0, 94.0);
+    EndLabelPositions {
+        current: current_position,
+        previous: Some(if current_position >= 12.0 {
+            current_position - 12.0
+        } else {
+            current_position + 12.0
+        }),
+        right,
+    }
+}
+
+fn area_points(cumulative: &[f64], top: f64) -> String {
+    if cumulative.is_empty() {
+        return String::new();
+    }
+    let mut points = line_points(cumulative, top);
+    let end_x = x_percent(u32::try_from(cumulative.len()).unwrap_or(u32::MAX));
+    points.push_str(&format!(" {end_x:.2},100.00 0.00,100.00"));
+    points
 }
 
 /// 読み上げ表の今年の欄。未来の月はまだ受取がないため None(「—」で出す)
@@ -222,28 +262,21 @@ pub fn CumulativeChart(
     });
     let current_label = labels::cumulative_year_label(current_year);
     let previous_label = labels::cumulative_year_label(previous_year);
-    let current_line = line_points(
-        &current_cum[..(current_month as usize).min(current_cum.len())],
-        top,
-    );
+    let current_values = &current_cum[..(current_month as usize).min(current_cum.len())];
+    let current_line = line_points(current_values, top);
+    let current_area = area_points(current_values, top);
     let previous_line = previous_cum.as_ref().map(|sums| line_points(sums, top));
-    let end_diff = current_cum
-        .get(current_month as usize - 1)
-        .copied()
-        .and_then(|current| {
-            yoy_difference(
-                current,
-                previous_cum
-                    .as_ref()
-                    .and_then(|sums| sums.get(current_month as usize - 1).copied()),
-            )
-        });
-    let end_diff_text =
-        end_diff.map(|value| asset_balance::format_signed_valuation_amount(Some(value)));
-    let end_diff_negative =
-        end_diff.is_some_and(|value| asset_balance::is_negative_valuation(Some(value)));
-    let end_diff_positive =
-        end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
+    let current_end = current_values.last().copied().unwrap_or(0.0);
+    let previous_end = previous_cum
+        .as_ref()
+        .and_then(|sums| sums.get(current_month as usize - 1).copied());
+    let label_positions = end_label_positions(
+        y_percent(current_end, top),
+        previous_end.map(|value| y_percent(value, top)),
+        current_month,
+    );
+    let current_end_text = format::format_currency(current_end);
+    let previous_end_text = previous_end.map(format::format_currency);
     // スライダーの読み上げ文(「6月 配当金 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
     // 選んだ月で引く。未来月は選べないため今月まで
     let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
@@ -279,18 +312,6 @@ pub fn CumulativeChart(
             })
     };
     view! {
-        <div class="home-cum-legend" aria-hidden="true">
-            <span class="home-cum-legend-item">
-                <span class="home-cum-key home-cum-key-solid"></span>
-                {current_label.clone()}
-            </span>
-            {previous_cum.is_some().then(|| view! {
-                <span class="home-cum-legend-item">
-                    <span class="home-cum-key home-cum-key-dash"></span>
-                    {previous_label.clone()}
-                </span>
-            })}
-        </div>
         <div class="home-chart" node_ref=chart_ref>
             <div class="home-cum-axis" aria-hidden="true">
                 {ticks
@@ -378,6 +399,24 @@ pub fn CumulativeChart(
                         }
                     }
                 >
+                <div class="home-cum-end-labels" aria-hidden="true">
+                    <span
+                        class="home-cum-end-label home-cum-end-label-current"
+                        style:top=format!("{}%", label_positions.current)
+                        style:right=format!("calc({}% + 6px)", label_positions.right)
+                    >
+                        {labels::CUMULATIVE_THIS_YEAR}{" "}<Amount text=current_end_text />
+                    </span>
+                    {previous_end_text.map(|text| view! {
+                        <span
+                            class="home-cum-end-label home-cum-end-label-previous"
+                            style:top=format!("{}%", label_positions.previous.unwrap_or(0.0))
+                            style:right=format!("calc({}% + 6px)", label_positions.right)
+                        >
+                            {labels::CUMULATIVE_PREVIOUS_YEAR}{" "}<Amount text=text />
+                        </span>
+                    })}
+                </div>
                 <div class="home-chart-grid" aria-hidden="true">
                     {ticks
                         .iter()
@@ -399,6 +438,17 @@ pub fn CumulativeChart(
                     preserveAspectRatio="none"
                     aria-hidden="true"
                 >
+                    <defs>
+                        <linearGradient id="home-cum-area-gradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--color-chart-1)" stop-opacity="0.18" />
+                            <stop offset="100%" stop-color="var(--color-chart-1)" stop-opacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <polygon
+                        class="home-cum-area-current"
+                        fill="url(#home-cum-area-gradient)"
+                        points=current_area
+                    />
                     {previous_line
                         .map(|points| view! {
                             <polyline class="home-cum-line-previous" points=points />
@@ -511,20 +561,6 @@ pub fn CumulativeChart(
                 </div>
             </div>
         </div>
-        {end_diff_text
-            .map(|text| {
-                view! {
-                    <p class="home-cum-yoy" aria-hidden="true">
-                        {labels::HOME_YOY_COMPARE_LABEL}
-                        <Amount
-                            kind=AmountKind::Delta
-                            text=text
-                            negative=end_diff_negative
-                            positive=end_diff_positive
-                        />
-                    </p>
-                }
-            })}
         <table class="home-cum-table sr-only">
             <caption>{aria_label}</caption>
             <thead>

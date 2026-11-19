@@ -13,18 +13,6 @@ fn cumulative_slider_valuetext_reads_month_dividend_and_total() {
     );
 }
 
-#[test]
-fn previous_dividend_span_collapses_single_month_and_ends_in_december() {
-    for month in [1, 9, 10] {
-        let text = previous_dividend_span(month);
-        assert!(text.contains(&format!("{}〜12", month + 1)));
-    }
-    let single_month = previous_dividend_span(11);
-    assert!(single_month.contains("12"));
-    assert!(!single_month.contains('〜'));
-    assert_eq!(previous_dividend_span(12), "");
-}
-
 fn source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
 }
