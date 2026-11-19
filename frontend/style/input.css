@@ -1770,8 +1770,11 @@
     @apply relative flex h-full min-w-0 flex-1 items-stretch justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
   }
 
+  /* 丸の横位置は帯の中心。帯(押せる範囲・目盛りの文字)と同じ12等分で、
+     x_percent と一致する */
   .home-cum-dot {
     @apply absolute -translate-x-1/2 -translate-y-1/2 rounded-full;
+    left: 50%;
   }
 
   /* 今年の丸は塗りの小さな丸(直径 6px)。線と同じ x/y の関数で置く */

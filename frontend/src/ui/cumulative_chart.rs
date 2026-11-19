@@ -81,8 +81,10 @@ pub fn table_monthly_text(month: u32, current_month: u32, monthly: &[f64]) -> Op
         .map(|value| format::format_currency(*value))
 }
 
+// 月の x 座標。押せる帯・目盛りの文字は12等分の帯の中心にいるため、
+// 線と丸も同じ帯中心から出す(全幅に広げると端で半月ずれる)
 fn x_percent(month: u32) -> f64 {
-    f64::from(month.saturating_sub(1)) / 11.0 * 100.0
+    (f64::from(month.saturating_sub(1)) + 0.5) / 12.0 * 100.0
 }
 
 fn y_percent(value: f64, top: f64) -> f64 {
@@ -222,19 +224,18 @@ pub fn CumulativeChart(
         end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
 
     let months: Vec<u32> = (1..=12).collect();
-    // 前年の丸は未来月にも置く(前年の線は12か月あるため)。線と同じ x/y で置く
+    // 前年の丸は未来月にも置く(前年の線は12か月あるため)。
+    // 横は帯の中心で、線の x_percent と一致する
     let previous_dot = |month: u32| {
         previous_cum
             .as_ref()
             .and_then(|sums| sums.get(month as usize - 1).copied())
             .map(|value| {
                 let top_pos = y_percent(value, top);
-                let left_pos = x_percent(month);
                 view! {
                     <span
                         class="home-cum-dot home-cum-dot-previous"
                         style:top=format!("{top_pos}%")
-                        style:left=format!("{left_pos}%")
                     />
                 }
             })
@@ -332,7 +333,6 @@ pub fn CumulativeChart(
                         let current_cell = current_label.clone();
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
-                        let dot_left = x_percent(month);
                         // 端の月は吹き出しを内側に寄せ、点より上にあるときは
                         // 凡例に被せないよう点の下に出す
                         let edge = if month == 1 {
@@ -390,7 +390,6 @@ pub fn CumulativeChart(
                                 <span
                                     class="home-cum-dot home-cum-dot-current"
                                     style:top=format!("{dot_top}%")
-                                    style:left=format!("{dot_left}%")
                                 />
                                 <div
                                     class="home-cum-tip"

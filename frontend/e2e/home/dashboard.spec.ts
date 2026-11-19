@@ -264,6 +264,33 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   expect(firstSwatchClass.split(' ')).toContain(barColor);
 });
 
+test('各月の丸はその月の目盛りの文字の真上にある', async ({ page }) => {
+  await setupHomeMocks(page);
+  await page.goto('/');
+
+  const chart = page.getByTestId('home-dividend-card').locator('.home-chart').first();
+  await expect(chart.locator('.home-cum-line-current')).toBeVisible();
+  await expect(chart.locator('.home-chart-month-label')).toHaveCount(12);
+
+  const diffs = await chart.evaluate((root) => {
+    const labels = Array.from(root.querySelectorAll('.home-chart-month-label'));
+    return Array.from(root.querySelectorAll('.home-cum-col')).flatMap((col, index) => {
+      const label = labels[index] as HTMLElement | undefined;
+      if (!label) return [];
+      const labelBox = label.getBoundingClientRect();
+      const center = labelBox.left + labelBox.width / 2;
+      return Array.from(col.querySelectorAll('.home-cum-dot')).map((dot) => {
+        const box = (dot as HTMLElement).getBoundingClientRect();
+        return Math.abs(box.left + box.width / 2 - center);
+      });
+    });
+  });
+  expect(diffs.length).toBeGreaterThan(0);
+  for (const dx of diffs) {
+    expect(dx).toBeLessThanOrEqual(2);
+  }
+});
+
 test('一部の取得が失敗しても、取れた集計で帯とカードを出す', async ({ page }) => {
   await setupHomeMocks(page);
   await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
