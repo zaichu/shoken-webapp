@@ -74,12 +74,11 @@ pub(crate) fn stock_pending_from_parts(
     )
 }
 
-/// 集計帯の補助項目(右に並べる札)。算出条件は注記に添える
+/// 集計帯の補助項目(右側に並べる札)
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SummaryTag {
     pub label: &'static str,
     pub value: String,
-    pub note: &'static str,
 }
 
 /// 集計帯の主要3項目(評価額・評価損益・前日比)
@@ -127,14 +126,12 @@ pub(crate) fn stock_summary_values(
             value: kpi
                 .total_annual_dividends
                 .map_or_else(|| "—".to_string(), balance_format::format_amount),
-            note: labels::ANNUAL_DIVIDEND_NOTE,
         },
         SummaryTag {
             label: labels::ACQUISITION_YIELD,
             value: kpi
                 .dividend_yield
                 .map_or_else(|| "—".to_string(), format::format_percentage_value),
-            note: labels::ACQUISITION_YIELD_NOTE,
         },
     ];
     (values, tags)
@@ -145,7 +142,6 @@ pub(crate) fn purchase_summary_tag(purchase: f64) -> SummaryTag {
     SummaryTag {
         label: labels::TOTAL_ACQUISITION,
         value: balance_format::format_valuation_amount(Some(purchase)),
-        note: "",
     }
 }
 
@@ -264,14 +260,8 @@ pub(crate) fn AssetSummaryBand(
             rate_positive: false,
         });
     }
-    // 算出条件は帯の下に1行で添える(行内に入れると帯の数字の基準線がずれるため)。
-    // 投信・すべてのタブの札には注記がないため出さない
-    let formula_note = tags
-        .iter()
-        .filter(|tag| !tag.note.is_empty())
-        .map(|tag| format!("{}: {}", tag.label, tag.note))
-        .collect::<Vec<_>>()
-        .join(" / ");
+    // 算出条件は表の下の注記に添える(帯・行内に入れると基準線・parity がずれるため)。
+    // 帯・表とも見出しと値は変えない
     view! {
         <section
             id="assetbalance-summary"
@@ -296,9 +286,6 @@ pub(crate) fn AssetSummaryBand(
                 breakdown=breakdown_entries
                 testid_band="portfolio-kpi-grid"
             />
-            {(!formula_note.is_empty()).then(|| view! {
-                <p class="text-cell text-text-muted">{formula_note.clone()}</p>
-            })}
         </section>
     }
 }

@@ -100,7 +100,8 @@ pub(crate) fn holding_detail_cells(
 #[component]
 pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
     view! {
-        <ul class="asset-compact-list" data-testid="asset-holdings-list">
+        <>
+            <ul class="asset-compact-list" data-testid="asset-holdings-list">
             {views
                 .into_iter()
                 .map(|view| {
@@ -204,7 +205,10 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     }
                 })
                 .collect_view()}
-        </ul>
+            </ul>
+            // 算出条件は一覧の下に1行で添える(表と同じ文言)
+            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
+        </>
     }
 }
 

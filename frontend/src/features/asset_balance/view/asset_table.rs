@@ -221,6 +221,8 @@ pub fn AssetHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
+            // 算出条件は表の下に1行で添える(見出し・帯の行内に入れると基準線・parity がずれるため)
+            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
         </div>
     }
 }
