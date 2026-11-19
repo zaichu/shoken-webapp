@@ -1078,10 +1078,6 @@
     @apply flex flex-col items-end gap-0.5 whitespace-normal;
   }
 
-  .receipt-before-tax-sub {
-    @apply text-xs font-normal text-text-soft;
-  }
-
   /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は

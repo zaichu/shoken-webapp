@@ -152,18 +152,22 @@ test('マイナスの損益は符号と色を保つ', async ({ page }) => {
     .first();
   await expect(card).toBeVisible();
   await expect(card.locator('.list-row-primary')).toContainText('−¥5,000');
-  // 金額の下に税引前を小さく添える(国内株式・投資信託のみ)
-  await expect(card.locator('.receipt-before-tax-sub')).toHaveText('税引前 −¥5,000');
-  // 主役と税引前の補助の両方がマイナス表示(赤の目印付き)になる
+  // 金額は税引後の1つだけ(国内株式・投資信託の税引前の小行は出さない)
+  await expect(card.locator('.receipt-before-tax-sub')).toHaveCount(0);
+  // 主役だけがマイナス表示(赤の目印付き)になる
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
-  ).toHaveCount(2);
+  ).toHaveCount(1);
   // 補助の売却額は行に出さない
   await expect(card.locator('.list-row-secondary')).toHaveCount(0);
-  // 詳細ダイアログには売却額を出す
+  // 詳細ダイアログには税引前・税額・税引後を出す
   await card.getByTestId('receipt-row-button').click();
   const dialog = page.getByTestId('receipt-detail-dialog');
   await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('税引前');
+  await expect(dialog).toContainText('税額');
+  await expect(dialog).toContainText('税引後');
+  await expect(dialog).toContainText('売却額(合計)');
   await expect(dialog).toContainText('売却額(合計)');
   await expect(dialog).toContainText('¥55,000');
   await dialog.getByTestId('detail-dialog-close').click();
