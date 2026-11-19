@@ -126,6 +126,7 @@ fn CsvKindRow(
     let (status_text, status_class, has_error_detail, error_detail, status_key) =
         compute_status(kind, &sync_status, &latest_imported_at, count_ready);
     let row_failed = status_key == "failed";
+    let is_stale = status_key == "stale";
 
     let tab = receipts_tab_of(kind);
     let meta = Memo::new(move |_| match kind {
@@ -416,7 +417,7 @@ fn CsvKindRow(
                 <span class="text-text font-bold">{kind.label()}</span>
             </td>
             <td
-                class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:pr-2"
+                class="px-4 py-3 whitespace-nowrap text-right text-text-muted max-sm:col-start-2 max-sm:row-start-1 max-sm:pr-2"
                 data-testid="saved-count"
             >
                 {count.map_or_else(
@@ -424,14 +425,21 @@ fn CsvKindRow(
                     |count| labels::count(usize::try_from(count.max(0)).unwrap_or(usize::MAX)),
                 )}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2 max-sm:pt-0 max-sm:text-cell">
+            <td class="px-4 py-3 whitespace-nowrap max-sm:col-span-2 max-sm:col-start-1 max-sm:row-start-2 max-sm:whitespace-normal max-sm:pt-0 max-sm:text-cell">
                 <div class="csv-status-line">
                     <span class="inline-flex items-center gap-1.5">
                         {status_dot_class(status_key)
                             .map(|dot| {
                                 view! { <span class=dot aria-hidden="true"></span> }
                             })}
-                        <span class=status_class data-status=status_key>{status_text}</span>
+                        <span class=status_class data-status=status_key>
+                            {status_text}
+                            {is_stale.then(|| {
+                                view! {
+                                    <span class="sr-only">{labels::CSV_MANAGE_STATUS_STALE_SR}</span>
+                                }
+                            })}
+                        </span>
                     </span>
                     {has_error_detail.then(|| {
                         view! {
@@ -660,7 +668,7 @@ fn dated_status(
         )
     } else {
         (
-            labels::csv_manage_status_stale(days_ago, date, time),
+            labels::csv_manage_status_updated_days_ago(days_ago, date, time),
             "text-warn-ink",
             "stale",
         )

@@ -383,18 +383,14 @@ pub const CSV_MANAGE_IMPORTED_PREFIX: &str = "最終取り込み";
 pub fn csv_manage_status_updated_today(date: &str, time: &str) -> String {
     format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}")
 }
-/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)
+/// CSV管理: 状態「最終取り込み YYYY/MM/DD HH:MM・N日前」(薄い色)。
+/// 新しいときは緑、古いときは黄で出す。文面は同じ
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前")
 }
-/// CSV管理: 状態「要更新（最終取り込み YYYY/MM/DD HH:MM・N日前)」(黄)。
-/// 状態と最終取込日時を分け、N日前が最終取込からの経過と分かる書き方にする
-pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
-    format!(
-        "{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（{CSV_MANAGE_IMPORTED_PREFIX} {date} {time}・{days}日前）"
-    )
-}
-pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
+/// CSV管理: 古い行に付く読み上げ用の区切り付き「、更新が必要」。
+/// 色だけに頼らないよう、画面外の文字(sr-only)で状態の文面の後に置く
+pub const CSV_MANAGE_STATUS_STALE_SR: &str = "、更新が必要";
 /// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、
 /// 明細は7日以内が新しい (frontend/src/features/csv_page.rs の CsvKind::is_fresh)
 pub const CSV_MANAGE_FRESHNESS_NOTE: &str = "目安：残高は毎日、明細は7日以内に更新";
