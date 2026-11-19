@@ -138,6 +138,7 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
             view! {
                 <CompositionRow
                     label=slice.label.clone()
+                    swatch=chart_color(&slice.label, product_chart_index).1
                     amount=slice.amount
                     detail_rate=pct
                     detail_suffix=labels::count(slice.item_count)
@@ -193,6 +194,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
             view! {
                 <CompositionRow
                     label=slice.label.clone()
+                    swatch=chart_color(&slice.label, account_chart_index).1
                     amount=slice.amount
                     detail_rate=pct
                     detail_suffix=String::new()
@@ -212,22 +214,26 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
 #[component]
 fn CompositionRow(
     label: String,
+    swatch: &'static str,
     amount: f64,
     detail_rate: f64,
     detail_suffix: String,
 ) -> impl IntoView {
     view! {
         <li class="home-composition-row">
-            <div class="min-w-0 flex-1">
-                <span class="block truncate text-body text-text">{label}</span>
-                <span class="block text-cell tabular-nums text-text-muted">
-                    <Amount
-                        text=format::format_integer_percent(detail_rate)
-                    />
-                    {(!detail_suffix.is_empty()).then(|| view! {
-                        {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
-                    })}
-                </span>
+            <div class="home-composition-name">
+                <span class=format!("home-swatch {swatch}") aria-hidden="true"></span>
+                <div class="min-w-0 flex-1">
+                    <span class="block truncate text-body text-text">{label}</span>
+                    <span class="block text-cell tabular-nums text-text-muted">
+                        <Amount
+                            text=format::format_integer_percent(detail_rate)
+                        />
+                        {(!detail_suffix.is_empty()).then(|| view! {
+                            {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}{detail_suffix}
+                        })}
+                    </span>
+                </div>
             </div>
             <span class="shrink-0 text-right text-body font-bold tabular-nums text-text">
                 <Amount

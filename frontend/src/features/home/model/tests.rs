@@ -359,15 +359,6 @@ fn remaining_label_writes_overage_as_exceeding() {
 }
 
 #[test]
-fn bar_height_has_visibility_floor() {
-    assert_eq!(bar_height(dec!(0), dec!(100)), 0.0);
-    assert_eq!(bar_height(dec!(100), dec!(0)), 0.0);
-    assert_eq!(bar_height(dec!(50), dec!(100)), 50.0);
-    // 1% 未満でも棒が見えるよう 3% に底上げ
-    assert_eq!(bar_height(dec!(1), dec!(100)), 3.0);
-}
-
-#[test]
 fn home_as_of_uses_oldest_priced_date() {
     let mut newer = stock("1111", "A", 100, 200, 20_000);
     newer.price_as_of = Some("2026-10-21".to_string());

@@ -889,10 +889,44 @@ pub const HOME_RECEIVED_LABEL: &str = "受取 ";
 pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 /// ホーム: 予想の取得待ち(配当カードの予想欄)
 pub const HOME_FORECAST_LOADING: &str = "/ 予想を取得中";
-/// ホーム: 月別グラフの差の見出し
-pub const HOME_DIFF_LABEL: &str = "差";
 /// ホーム: 配当カードの前年同期差ラベル
 pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
+/// ホーム: 累計グラフの右端の差の見出し(「前年同期比 +¥12,200」)
+pub const HOME_YOY_COMPARE_LABEL: &str = "前年同期比";
+/// グラフ縦軸の短い単位(万)。「50万」のように付ける
+pub const AXIS_TEN_THOUSAND: &str = "万";
+/// グラフ縦軸の短い単位(億)。「2億」のように付ける
+pub const AXIS_HUNDRED_MILLION: &str = "億";
+
+/// グラフ縦軸の目盛り(「0」「5,000」「50万」「2億」)。
+/// きりのよい値だけを渡す前提で短く書く
+pub fn axis_yen_short(value: f64) -> String {
+    let rounded = value.round();
+    if rounded == 0.0 {
+        return "0".to_string();
+    }
+    let abs = rounded.abs();
+    if abs >= 100_000_000.0 {
+        return short_unit(rounded, 100_000_000.0, AXIS_HUNDRED_MILLION);
+    }
+    if abs >= 10_000.0 {
+        return short_unit(rounded, 10_000.0, AXIS_TEN_THOUSAND);
+    }
+    format::format_abs_number(rounded).unwrap_or_else(|| MISSING.to_string())
+}
+
+fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
+    let quotient = value / unit;
+    if quotient.fract() == 0.0 {
+        format!("{quotient:.0}{suffix}")
+    } else {
+        let text = format!("{:.1}", (quotient * 10.0).round() / 10.0);
+        format!(
+            "{}{suffix}",
+            text.trim_end_matches('0').trim_end_matches('.')
+        )
+    }
+}
 
 /// ホーム: 取込日の表示(「データ: 10/21 12:00 取り込み」)
 pub fn home_import_label(label: &str) -> String {
@@ -904,29 +938,31 @@ pub fn home_forecast(forecast: &str) -> String {
     format!("/ 予想 {forecast}")
 }
 
-/// ホーム: 月別グラフの領域名(「月別の税引後配当(2026年と2025年)」)
-pub fn home_monthly_aria(year: u32, previous_year: u32) -> String {
-    format!("月別の税引後配当({year}年と{previous_year}年)")
+/// ホーム: 累計グラフの凡例名(「2026年(累計)」)
+pub fn cumulative_year_label(year: u32) -> String {
+    format!("{year}年(累計)")
 }
 
-/// ホーム: 月別グラフの棒の読み上げ文
-pub fn home_month_aria(
+/// ホーム: 累計グラフの領域名(「受取の累計(2026年と2025年)」)
+pub fn home_cumulative_aria(year: u32, previous_year: u32) -> String {
+    format!("受取の累計({year}年と{previous_year}年)")
+}
+
+/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の累計だけ出す
+pub fn home_cumulative_month_aria(
     month: u32,
     current_note: &str,
     year: u32,
     cur_text: &str,
-    previous_year: u32,
-    prev_text: &str,
-    diff_text: &str,
+    previous_year: Option<u32>,
+    prev_text: Option<&str>,
 ) -> String {
-    format!(
-        "{month}月{current_note}: {year}年 {cur_text} / {previous_year}年 {prev_text} / 差 {diff_text}"
-    )
-}
-
-/// ホーム: 年と金額の並び(「2026年 ¥12,000」)
-pub fn home_year_amount(year: u32, amount: &str) -> String {
-    format!("{year}年 {amount}")
+    match (previous_year, prev_text) {
+        (Some(previous_year), Some(prev_text)) => format!(
+            "{month}月{current_note}: {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
+        ),
+        _ => format!("{month}月{current_note}: {year}年 累計 {cur_text}"),
+    }
 }
 
 /// 銘柄検索: 不正なコード指定の警告

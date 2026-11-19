@@ -163,13 +163,12 @@ test('帯は5項目で株式と投信を合算し、カード群が埋まる', a
   await expect(composition).toContainText('国内株式');
   await expect(composition).toContainText('投資信託');
 
-  // グラフの棒・進捗・商品別の帯・口座別の帯は本番 CSP 下でも描画される
-  const monthBars = dividend.locator('.home-month-bar');
-  expect(
-    await monthBars.evaluateAll((els) =>
-      els.some((el) => el.getBoundingClientRect().height > 20),
-    ),
-  ).toBe(true);
+  // グラフの累計の折れ線は本番 CSP 下でも描画される
+  const ticks = dividend.locator('.home-cum-tick');
+  await expect(ticks.filter({ hasText: /^0$/ })).toHaveCount(1);
+  expect(await ticks.count()).toBeGreaterThanOrEqual(3);
+  await expect(dividend.locator('.home-cum-line-current')).toBeVisible();
+  await expect(dividend.locator('.home-cum-line-previous')).toBeVisible();
   const progress = dividend.locator('.home-progress > div');
   expect((await progress.boundingBox())?.width).toBeGreaterThan(0);
   const compositionRows = composition.locator('.home-composition-rows').first().locator('li');
@@ -196,6 +195,67 @@ test('帯は5項目で株式と投信を合算し、カード群が埋まる', a
   const pnl = page.getByTestId('home-pnl-card');
   await expect(pnl).toContainText('架空投資信託グローバル株式ファンド');
   await expect(pnl).toContainText('含み損');
+});
+
+test('配当グラフは受取の累計の折れ線で、点からその月までの累計を出せる', async ({ page }) => {
+  await setupHomeMocks(page);
+  await page.goto('/');
+
+  const dividend = page.getByTestId('home-dividend-card');
+  const chart = dividend.locator('.home-chart').first();
+
+  // 凡例はグラフの上にあり、線と同じ見た目(実線・点線)の印と名前を持つ
+  const legend = dividend.locator('.home-cum-legend');
+  await expect(legend).toContainText(`${THIS_YEAR}年(累計)`);
+  await expect(legend).toContainText(`${LAST_YEAR}年(累計)`);
+  expect(await legend.locator('.home-cum-key-solid').count()).toBeGreaterThan(0);
+  expect(await legend.locator('.home-cum-key-dash').count()).toBeGreaterThan(0);
+
+  // 今年の線の右端に前年同期比が出る
+  await expect(dividend.locator('.home-cum-yoy')).toContainText('前年同期比');
+
+  // 点を押すとその月までの今年と前年の累計が出る
+  const currentMonth = new Date().getMonth() + 1;
+  const monthOf = (date: string) => Number(date.slice(5, 7));
+  const currentCum = CURRENT_DIVIDENDS.filter((row) => monthOf(row.settlement_date) <= currentMonth).reduce(
+    (sum, row) => sum + row.net_amount_received,
+    0,
+  );
+  const previousCum = PREVIOUS_DIVIDENDS.filter((row) => monthOf(row.settlement_date) <= currentMonth).reduce(
+    (sum, row) => sum + row.net_amount_received,
+    0,
+  );
+  const point = chart.locator('.home-cum-col').nth(currentMonth - 1);
+  await point.click();
+  const tip = point.locator('.home-cum-tip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText(`¥${currentCum.toLocaleString('en-US')}`);
+  await expect(tip).toContainText(`¥${previousCum.toLocaleString('en-US')}`);
+
+  // キーボードでも出せる(Enter で開き、Escape で閉じる)
+  // click 後はマウスが点の上に残り hover で、press は focus で吹き出しが出続けるため外してから閉じる
+  await page.mouse.move(5, 5);
+  await point.press('Escape');
+  await point.evaluate((el) => (el as HTMLElement).blur());
+  await expect(tip).toBeHidden();
+  await chart.locator('.home-cum-col').first().press('Enter');
+  await expect(chart.locator('.home-cum-col').first().locator('.home-cum-tip')).toBeVisible();
+
+  // 資産の内訳の行には横棒と同じ色の印が出る
+  const composition = page.getByTestId('home-composition-card');
+  const rows = composition.locator('.home-composition-row');
+  const swatches = rows.locator('.home-swatch');
+  expect(await swatches.count()).toBe(await rows.count());
+  const firstBarClass = (await composition
+    .locator('.home-stacked-bar')
+    .first()
+    .locator('> span')
+    .first()
+    .getAttribute('class')) ?? '';
+  const firstSwatchClass = (await rows.first().locator('.home-swatch').getAttribute('class')) ?? '';
+  const barColor = firstBarClass.split(' ').find((name) => name.startsWith('bg-chart-'));
+  expect(barColor).toBeTruthy();
+  expect(firstSwatchClass.split(' ')).toContain(barColor);
 });
 
 test('一部の取得が失敗しても、取れた集計で帯とカードを出す', async ({ page }) => {
