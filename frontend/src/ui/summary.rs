@@ -262,8 +262,10 @@ pub fn SummaryBand(
                         size=SummarySize::Primary
                         label_note=label_note.clone()
                         label_note_stale=as_of_stale
-                        label_note2=primary_note2.clone()
-                        label_note2_stale=primary_note2_stale
+                        // PC の集計帯に2つ目の補足は出さない。古い取込は
+                        // ページヘッダー右上に出し、数字の基準線をそろえたままにする
+                        label_note2=""
+                        label_note2_stale=false
                         tone=primary_tone
                     />
                     {has_aux.then(|| view! {

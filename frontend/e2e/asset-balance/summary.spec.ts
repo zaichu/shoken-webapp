@@ -117,18 +117,27 @@ test('取込が株価より古いときは帯に印と読み上げ文を出し�
   await page.goto('/assetbalance');
   await page.getByTestId('asset-kind-tab-stock').click();
 
-  const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('取り込み 1/1');
-  // 画面にはかっこ書きを出さず、色と注意の印で示す
-  // (PC・スマホの両方の帯に出すため、最初の1つで確かめる)
-  await expect(band).not.toContainText('（株価');
+  // 取込が古いときは PC の右上に出す。集計帯の数字はほかの列とそろったままにする
+  const header = page.locator('.page-frame-head');
+  await expect(header.getByText('取り込み 1/1').first()).toBeVisible();
   await expect(
-    band.locator('.summary-label-note2 svg[aria-hidden="true"]').first(),
+    header
+      .getByText('取り込み 1/1')
+      .first()
+      .locator('svg[aria-hidden="true"]'),
   ).toBeVisible();
   // 理由は画面外の文字で読み上げに残す
   await expect(
-    band.getByText('株価の日付より古い', { exact: true }).first(),
+    header.getByText('株価の日付より古い', { exact: true }),
   ).toBeAttached();
+
+  const band = page.getByTestId('asset-portfolio-summary');
+  // 画面にはかっこ書きを出さない
+  await expect(band).not.toContainText('（株価');
+  // PC の集計帯には出さない
+  await expect(band.locator('.summary-band-pc')).not.toContainText('取り込み');
+  // スマホは帯の2行目に出す
+  await expect(band.locator('.summary-band-rows')).toContainText('取り込み 1/1');
 });
 
 test('取込が古くないときは帯に取込の行を出さない', async ({ page }) => {
@@ -166,4 +175,5 @@ test('取込が古くないときは帯に取込の行を出さない', async ({
   const band = page.getByTestId('asset-portfolio-summary');
   await expect(band).toContainText('1/10 時点');
   await expect(band).not.toContainText('取り込み');
+  await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });
