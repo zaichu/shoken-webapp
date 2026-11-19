@@ -50,8 +50,6 @@ struct DeviceListResponse {
 
 fn result_badge_variant(result: &str) -> BadgeVariant {
     match result {
-        "new_device" => BadgeVariant::Info,
-        "location_changed" => BadgeVariant::Accent,
         "failure" => BadgeVariant::Danger,
         _ => BadgeVariant::Positive,
     }
@@ -59,10 +57,26 @@ fn result_badge_variant(result: &str) -> BadgeVariant {
 
 fn result_label(result: &str) -> &'static str {
     match result {
-        "new_device" => labels::LOGIN_RESULT_NEW_DEVICE,
-        "location_changed" => labels::LOGIN_RESULT_LOCATION_CHANGED,
         "failure" => labels::LOGIN_RESULT_FAILURE,
+        // 新しい端末・場所の変化もログイン自体は成功。注意は別の列に出す
         _ => labels::LOGIN_RESULT_SUCCESS,
+    }
+}
+
+/// 注意の種類(バッジの文言・配色・短い補足)。成否以外の記録だけ返す
+pub(crate) fn attention_of(result: &str) -> Option<(&'static str, BadgeVariant, &'static str)> {
+    match result {
+        "new_device" => Some((
+            labels::LOGIN_RESULT_NEW_DEVICE,
+            BadgeVariant::Info,
+            labels::LOGIN_ATTENTION_NEW_DEVICE_NOTE,
+        )),
+        "location_changed" => Some((
+            labels::LOGIN_RESULT_LOCATION_CHANGED,
+            BadgeVariant::Accent,
+            labels::LOGIN_ATTENTION_LOCATION_CHANGED_NOTE,
+        )),
+        _ => None,
     }
 }
 
@@ -71,7 +85,11 @@ pub(crate) fn format_place(country: &Option<String>, region: &Option<String>) ->
 }
 
 pub(crate) fn format_agent(browser: &Option<String>, os: &Option<String>) -> String {
-    shared::login_display::format_agent(browser.as_deref(), os.as_deref())
+    shared::login_display::format_agent_with_unknown_label(
+        browser.as_deref(),
+        os.as_deref(),
+        labels::LOGIN_UNKNOWN_BROWSER,
+    )
 }
 
 pub(crate) fn format_datetime(occurred_at: &str) -> String {
@@ -113,6 +131,50 @@ pub(crate) fn ResultBadge(result: String) -> impl IntoView {
     let label = self::result_label(&result);
     let variant = self::result_badge_variant(&result);
     view! { <Badge variant=variant>{label}</Badge> }
+}
+
+/// 注意の列・行。該当しない記録は「—」にする
+#[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
+pub(crate) fn AttentionCell(result: String) -> impl IntoView {
+    match self::attention_of(&result) {
+        Some((label, variant, note)) => view! {
+            <Badge variant=variant>{label}</Badge>
+            {" "}
+            {note}
+        }
+        .into_any(),
+        None => view! { {labels::MISSING} }.into_any(),
+    }
+}
+
+/// スマホ行の primary に付ける注意のバッジ。該当しない記録は何も出さない
+#[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
+pub(crate) fn AttentionBadge(result: String) -> impl IntoView {
+    match self::attention_of(&result) {
+        Some((label, variant, _)) => view! { <Badge variant=variant>{label}</Badge> }.into_any(),
+        None => ().into_any(),
+    }
+}
+
+/// スマホ行の meta に付ける注意の短い補足。該当しない記録は何も出さない
+#[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos component props are owned by the view"
+)]
+pub(crate) fn AttentionNote(result: String) -> impl IntoView {
+    match self::attention_of(&result) {
+        Some((_, _, note)) => view! { {" · "} {note} }.into_any(),
+        None => ().into_any(),
+    }
 }
 
 #[component]
@@ -174,6 +236,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                     {labels::LOGIN_HISTORY_SECTION}
                 </SectionHeading>
                 <settings_ui::SettingsNote>{labels::LOGIN_HISTORY_COOKIE_NOTE}</settings_ui::SettingsNote>
+                <settings_ui::SettingsNote>{labels::LOGIN_HISTORY_LEGEND}</settings_ui::SettingsNote>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
                     Some(Err(message)) => {
@@ -196,6 +259,7 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                             <tr>
                                                 <th scope="col">{labels::LOGIN_HISTORY_COL_DATETIME}</th>
                                                 <th scope="col">{labels::LOGIN_HISTORY_COL_RESULT}</th>
+                                                <th scope="col">{labels::LOGIN_HISTORY_COL_ATTENTION}</th>
                                                 <th scope="col">{labels::LOGIN_HISTORY_COL_PLACE}</th>
                                                 <th scope="col">{labels::LOGIN_HISTORY_COL_AGENT}</th>
                                             </tr>
@@ -217,6 +281,9 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                                             <td class="login-history-result">
                                                                 <ResultBadge result=entry.result.clone() />
                                                             </td>
+                                                            <td class="login-history-result">
+                                                                <AttentionCell result=entry.result.clone() />
+                                                            </td>
                                                             <td class="login-history-place">{place}</td>
                                                             <td class="login-history-agent">{agent}</td>
                                                         </tr>
@@ -233,12 +300,20 @@ pub fn SectionLoginHistory() -> impl IntoView {
                                             let place = self::format_place(&entry.country, &entry.region);
                                             let agent = self::format_agent(&entry.browser, &entry.os);
                                             let datetime = self::format_datetime(&entry.occurred_at);
+                                            let attention_result = entry.result.clone();
                                             view! {
                                                 <li class="list-row-item">
                                                     <ListRowStatic
                                                         name=move || datetime.clone()
-                                                        primary=move || view! { <ResultBadge result=entry.result.clone() /> }
-                                                        meta=move || place.clone()
+                                                        primary=move || view! {
+                                                            <ResultBadge result=entry.result.clone() />
+                                                            {" "}
+                                                            <AttentionBadge result=entry.result.clone() />
+                                                        }
+                                                        meta=move || view! {
+                                                            {place.clone()}
+                                                            <AttentionNote result=attention_result.clone() />
+                                                        }
                                                         secondary=move || agent.clone()
                                                     />
                                                 </li>
