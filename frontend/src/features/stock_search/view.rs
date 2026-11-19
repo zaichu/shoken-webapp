@@ -644,13 +644,10 @@ fn detail_item_count(
     count - usize::from(collapsed) * if show_common { 2 } else { 1 }
 }
 
-fn yield_tile_wide(
-    show_common: bool,
-    has_average: bool,
-    has_account: bool,
-    collapsed: bool,
-) -> bool {
-    detail_item_count(show_common, has_average, has_account, collapsed) % 2 == 1
+/// 末尾が1つだけ残る段を作らないよう、利回り/無配の項目を全幅にする条件。
+/// 2列(スマホ)は奇数、4列(PC)は4で割って1余るとき。戻り値は(スマホ, PC)
+const fn dividend_tile_spans(count: usize) -> (bool, bool) {
+    (count % 2 == 1, count % 4 == 1)
 }
 
 #[component]
@@ -714,12 +711,12 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
     let show_common = data.show_common;
     let show_account = show_common && data.account.is_some();
     let collapsed = data.no_dividend;
-    let wide_dividend = yield_tile_wide(
+    let (wide_dividend, wide_dividend_lg) = dividend_tile_spans(detail_item_count(
         show_common,
         data.average_price.is_some(),
         data.account.is_some(),
         collapsed,
-    );
+    ));
     let price_tiles = show_common.then(|| {
         view! {
             <CommonDetailTiles
@@ -734,6 +731,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                 label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
                 title=labels::ANNUAL_DIVIDEND_NOTE
                 wide=wide_dividend
+                wide_lg=wide_dividend_lg
             >
                 <Amount
                     kind=AmountKind::Delta
@@ -770,6 +768,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
             <HoldingDetailItem
                 label=labels::ACQUISITION_YIELD.to_string()
                 wide=wide_dividend
+                wide_lg=wide_dividend_lg
                 title=labels::ACQUISITION_YIELD_NOTE
             >
                 <Amount

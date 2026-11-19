@@ -52,16 +52,26 @@ pub fn HoldingDetails(children: Children) -> impl IntoView {
 #[component]
 pub fn HoldingDetailItem(
     #[prop(into)] label: String,
-    /// 末尾だけ段に残さないよう全幅で出す
+    /// 2列(スマホ)で末尾が1つ残るとき全幅で出す
     #[prop(optional)]
     wide: bool,
+    /// 4列(PC)でも全幅で出す(2列と別に要るときだけ wide と合わせて付ける)
+    #[prop(optional)]
+    wide_lg: bool,
     /// 算出条件などの補足(ホバー・読み上げの説明用。空なら出さない)
     #[prop(into, optional)]
     title: Option<String>,
     children: Children,
 ) -> impl IntoView {
+    let class = if wide_lg {
+        "holding-detail-item holding-detail-item-wide"
+    } else if wide {
+        "holding-detail-item holding-detail-item-wide-sm"
+    } else {
+        "holding-detail-item"
+    };
     view! {
-        <div class=if wide { "holding-detail-item holding-detail-item-wide" } else { "holding-detail-item" } title=title>
+        <div class=class title=title>
             <dt class="holding-detail-label">{label}</dt>
             <dd class="holding-detail-value">{children()}</dd>
         </div>

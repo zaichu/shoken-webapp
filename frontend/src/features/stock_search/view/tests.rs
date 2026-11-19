@@ -159,15 +159,22 @@ fn empty_search_description_differs_for_initial_and_no_results() {
 }
 
 #[test]
-fn yield_tile_wide_only_for_odd_detail_counts() {
+fn dividend_tile_spans_avoid_single_item_rows() {
+    // 2列(スマホ)は奇数、4列(PC)は4で割って1余るときだけ全幅にする
+    assert_eq!(super::dividend_tile_spans(9), (true, true));
+    assert_eq!(super::dividend_tile_spans(8), (false, false));
+    assert_eq!(super::dividend_tile_spans(7), (true, false));
+    assert_eq!(super::dividend_tile_spans(5), (true, true));
+    assert_eq!(super::dividend_tile_spans(6), (false, false));
+    assert_eq!(super::dividend_tile_spans(4), (false, false));
+}
+
+#[test]
+fn detail_item_count_matches_rendered_tiles() {
     assert_eq!(super::detail_item_count(true, true, true, false), 9);
     assert_eq!(super::detail_item_count(true, true, false, false), 8);
     assert_eq!(super::detail_item_count(true, false, false, false), 7);
     assert_eq!(super::detail_item_count(false, true, false, false), 5);
-    assert!(super::yield_tile_wide(true, true, true, false));
-    assert!(!super::yield_tile_wide(true, true, false, false));
-    assert!(super::yield_tile_wide(true, false, false, false));
-    assert!(super::yield_tile_wide(false, true, false, false));
 }
 
 #[test]
@@ -177,10 +184,6 @@ fn yield_tile_wide_counts_collapsed_dividend_as_single_item() {
     assert_eq!(super::detail_item_count(true, true, false, true), 6);
     assert_eq!(super::detail_item_count(true, false, false, true), 5);
     assert_eq!(super::detail_item_count(false, true, false, true), 4);
-    assert!(super::yield_tile_wide(true, true, true, true));
-    assert!(!super::yield_tile_wide(true, true, false, true));
-    assert!(super::yield_tile_wide(true, false, false, true));
-    assert!(!super::yield_tile_wide(false, true, false, true));
 }
 
 #[test]
