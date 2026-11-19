@@ -1,5 +1,8 @@
 use serde::{Deserialize, Deserializer, Serializer};
-use time::{Date, format_description::well_known::Iso8601};
+use time::Date;
+
+const ISO_DATE: &[time::format_description::FormatItem<'static>] =
+    time::macros::format_description!("[year]-[month padding:none]-[day padding:none]");
 
 pub fn serialize<S>(date: &Date, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -13,5 +16,5 @@ where
     D: Deserializer<'de>,
 {
     let value = String::deserialize(deserializer)?;
-    Date::parse(&value, &Iso8601::DATE).map_err(serde::de::Error::custom)
+    Date::parse(&value, ISO_DATE).map_err(serde::de::Error::custom)
 }

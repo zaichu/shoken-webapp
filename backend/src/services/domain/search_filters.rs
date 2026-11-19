@@ -10,7 +10,7 @@ use time::Date;
 fn parse_date_param(field: &str, value: &str) -> Result<Date, ApiError> {
     Date::parse(
         value,
-        time::macros::format_description!("[year]-[month]-[day]"),
+        time::macros::format_description!("[year]-[month padding:none]-[day padding:none]"),
     )
     .map_err(|_| ApiError::Validation(format!("{field} の形式が不正です（YYYY-MM-DD）")))
 }
@@ -322,6 +322,12 @@ mod tests {
     #[test]
     fn test_parse_date_param_accepts_iso_format_and_rejects_others() {
         assert!(parse_date_param("date", "2026-01-15").is_ok());
+        for unpadded in ["2026-1-5", "2026-01-5", "2026-1-05"] {
+            assert_eq!(
+                parse_date_param("date", unpadded).unwrap(),
+                Date::from_calendar_date(2026, time::Month::January, 5).unwrap()
+            );
+        }
         for invalid in ["2026/01/15", "15-01-2026", "not-a-date", ""] {
             assert!(
                 matches!(

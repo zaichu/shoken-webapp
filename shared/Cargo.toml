@@ -64,7 +64,7 @@ validate = ["dep:validator"]
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 bytes = { version = "1", optional = true }
-time = { version = "0.3.51", default-features = false, features = ["serde", "parsing", "formatting"], optional = true }
+time = { version = "0.3.51", default-features = false, features = ["serde", "parsing", "formatting", "macros"], optional = true }
 rust_decimal = { version = "1", features = ["serde-float", "serde-arbitrary-precision"] }
 uuid = { version = "1", default-features = false, features = ["serde", "std"], optional = true }
 utoipa = { version = "6", optional = true, features = ["time", "uuid"] }
@@ -77,7 +77,7 @@ validator = { version = "0.21.0", optional = true }
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
-time = { version = "0.3.51", default-features = false, features = ["serde", "parsing", "formatting"] }
+time = { version = "0.3.51", default-features = false, features = ["serde", "parsing", "formatting", "macros"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 proptest = { version = "1.11.0", default-features = false, features = ["std", "bit-set"] }

@@ -13,7 +13,10 @@ pub type NaiveDate = String;
 #[cfg(any(feature = "typed", test))]
 mod date_serde {
     use serde::{Deserialize, Deserializer, Serializer};
-    use time::{Date, format_description::well_known::Iso8601};
+    use time::Date;
+
+    const ISO_DATE: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[year]-[month padding:none]-[day padding:none]");
 
     pub fn serialize<S>(date: &Date, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -27,7 +30,7 @@ mod date_serde {
         D: Deserializer<'de>,
     {
         let value = String::deserialize(deserializer)?;
-        Date::parse(&value, &Iso8601::DATE).map_err(serde::de::Error::custom)
+        Date::parse(&value, ISO_DATE).map_err(serde::de::Error::custom)
     }
 
     pub mod option {
@@ -48,7 +51,7 @@ mod date_serde {
             D: Deserializer<'de>,
         {
             Option::<String>::deserialize(deserializer)?
-                .map(|value| Date::parse(&value, &Iso8601::DATE).map_err(serde::de::Error::custom))
+                .map(|value| Date::parse(&value, ISO_DATE).map_err(serde::de::Error::custom))
                 .transpose()
         }
     }
@@ -269,6 +272,7 @@ pub struct AssetBalance {
     pub daily_change: Decimal,
     /// 現在値の基準日（JST）。CSV 取込値・cron 自動取得値のどちらが入っているかの判定に使う
     #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>, format = "date"))]
+    #[serde(default)]
     #[cfg_attr(feature = "typed", serde(with = "date_serde::option"))]
     pub price_as_of: Option<NaiveDate>,
     /// 前日終値。共有価格(security_prices)由来の行のみ持ち、
@@ -450,6 +454,12 @@ mod tests {
 
     #[test]
     fn date_serde_helpers_keep_iso_date_wire_format() {
+        #[derive(Deserialize)]
+        struct DateField {
+            #[serde(with = "date_serde")]
+            date: time::Date,
+        }
+
         #[derive(Serialize, Deserialize)]
         struct DateFields {
             #[serde(with = "date_serde")]
@@ -472,6 +482,33 @@ mod tests {
         let decoded: DateFields = serde_json::from_value(json).expect("deserialize dates");
         assert_eq!(decoded.date, fields.date);
         assert_eq!(decoded.optional_date, fields.optional_date);
+
+        for unpadded in ["2024-1-5", "2024-01-5", "2024-1-05"] {
+            let value = serde_json::json!({"date": unpadded});
+            let decoded: DateField = serde_json::from_value(value).expect("deserialize date");
+            assert_eq!(decoded.date.to_string(), "2024-01-05", "{unpadded}");
+        }
+    }
+
+    #[cfg(feature = "typed")]
+    #[test]
+    fn asset_balance_accepts_missing_price_as_of() {
+        let value = serde_json::json!({
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "security_code": "1301",
+            "security_name": "極洋",
+            "shares": 1,
+            "average_purchase_price": 1,
+            "total_purchase_amount": 1,
+            "current_price": 1,
+            "daily_change": 0,
+            "prev_close": null,
+            "created_at": "2024-01-15T00:00:00Z",
+            "updated_at": "2024-01-15T00:00:00Z"
+        });
+
+        let balance: AssetBalance = serde_json::from_value(value).expect("missing date accepted");
+        assert_eq!(balance.price_as_of, None);
     }
 
     #[cfg(feature = "typed")]

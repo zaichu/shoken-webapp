@@ -85,7 +85,10 @@ pub fn parse_date(s: &str) -> Result<Date, CellError> {
     ) {
         return Ok(d);
     }
-    if let Ok(d) = Date::parse(s, &time::format_description::well_known::Iso8601::DATE) {
+    if let Ok(d) = Date::parse(
+        s,
+        time::macros::format_description!("[year]-[month padding:none]-[day padding:none]"),
+    ) {
         return Ok(d);
     }
     Err(CellError::InvalidDate(s.to_string()))
@@ -329,6 +332,12 @@ mod tests {
             Date::from_calendar_date(2024, time::Month::try_from(1).unwrap(), 15).unwrap();
         for input in ["2024/01/15", "2024-01-15"] {
             assert_eq!(parse_date(input).unwrap(), expected_date);
+        }
+        for input in ["2024-1-5", "2024-01-5", "2024-1-05"] {
+            assert_eq!(
+                parse_date(input).unwrap(),
+                Date::from_calendar_date(2024, time::Month::January, 5).unwrap()
+            );
         }
         for (account, realized_pnl, expected_taxes, expected_after) in [
             ("特定", dec!(10000), dec!(2031), dec!(7969)),
