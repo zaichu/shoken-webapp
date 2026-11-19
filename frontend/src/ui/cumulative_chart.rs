@@ -343,6 +343,7 @@ pub fn CumulativeChart(
                     })
                     .collect_view()}
                 </div>
+            </div>
                 <div class="home-chart-month-labels" aria-hidden="true">
                     {months
                         .iter()
@@ -356,7 +357,6 @@ pub fn CumulativeChart(
                         })
                         .collect_view()}
                 </div>
-            </div>
         </div>
         </div>
         {end_diff_text
