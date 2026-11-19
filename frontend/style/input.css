@@ -1801,6 +1801,10 @@
     @apply block min-w-0 flex-1 text-center text-eyebrow text-text-muted;
   }
 
+  .home-chart-month-unit {
+    @apply max-sm:hidden;
+  }
+
   .home-chart-month-label[data-current="true"] {
     @apply font-bold text-text;
   }

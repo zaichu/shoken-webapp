@@ -343,7 +343,7 @@ pub fn CumulativeChart(
                     })
                     .collect_view()}
                 </div>
-            </div>
+                </div>
                 <div class="home-chart-month-labels" aria-hidden="true">
                     {months
                         .iter()
@@ -351,13 +351,18 @@ pub fn CumulativeChart(
                             let is_current = *month == current_month;
                             view! {
                                 <span class="home-chart-month-label" data-current=is_current.to_string()>
-                                    {labels::receipt_month_label(*month)}
+                                    {month.to_string()}<span
+                                        class="home-chart-month-unit"
+                                        aria-hidden="true"
+                                    >
+                                        {labels::MONTH}
+                                    </span>
                                 </span>
                             }
                         })
                         .collect_view()}
                 </div>
-        </div>
+            </div>
         </div>
         {end_diff_text
             .map(|text| {
