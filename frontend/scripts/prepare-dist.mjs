@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// trunk が生成する nonce 付きインライン init script を外部ファイル化する。
+// trunk が生成するインライン init script を外部ファイル化する。
+// (0.21 までは nonce 付き、0.22 からは nonce 無し。どちらも受け付ける)
 // 静的配信ではレスポンスごとの nonce を発行できないため、
 // 外部化して script-src 'self' で通せる形にする。
 // あわせて shoken-api-origin の meta に backend の URL を埋める(第2引数で差し替え可能。
@@ -48,7 +49,7 @@ if (html.includes('<script type="module" src="/init-')) {
   process.exit(0);
 }
 
-const match = html.match(/<script type="module" nonce="[^"]*">([\s\S]*?)<\/script>/);
+const match = html.match(/<script type="module"(?: nonce="[^"]*")?>([\s\S]*?)<\/script>/);
 if (!match) {
   console.error(`inline init script not found in ${indexPath}`);
   process.exit(1);
