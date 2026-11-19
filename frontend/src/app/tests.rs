@@ -116,6 +116,21 @@ fn protected_path_covers_feature_sub_paths() {
 }
 
 #[test]
+fn return_path_only_accepts_protected_same_origin_routes() {
+    for path in ["/receipts?tab=domesticstock", "/settings#login-history"] {
+        assert!(protected_path(path));
+        assert_eq!(spa_path(path).as_deref(), Some(path));
+    }
+    for path in [
+        "https://example.com/receipts",
+        "//example.com/receipts",
+        "/login",
+    ] {
+        assert!(spa_path(path).is_none() || !protected_path(path));
+    }
+}
+
+#[test]
 fn spa_path_only_accepts_root_relative() {
     assert_eq!(spa_path("/receipts").as_deref(), Some("/receipts"));
     assert_eq!(

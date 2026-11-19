@@ -6626,7 +6626,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     let hash_plain_b = backend::services::login_notify::token_hash(&plain_b);
 
     for signature in [
-        "public.auth_lookup_user_id_by_session(bytea)",
+        "public.auth_lookup_user_id_by_session(bytea,timestamptz)",
         "public.auth_delete_session_by_token(bytea)",
         "public.login_notify_peek_by_token(bytea)",
         "public.login_notify_consume_by_token(bytea)",
@@ -6688,7 +6688,10 @@ async fn stage5b_definer_functions_and_app_enter() {
 
     for (signature, volatile) in [
         ("public.app_enter(uuid)", "v"),
-        ("public.auth_lookup_user_id_by_session(bytea)", "s"),
+        (
+            "public.auth_lookup_user_id_by_session(bytea,timestamp with time zone)",
+            "s",
+        ),
         ("public.auth_delete_session_by_token(bytea)", "v"),
         ("public.login_notify_peek_by_token(bytea)", "s"),
         ("public.login_notify_consume_by_token(bytea)", "v"),
@@ -6729,8 +6732,11 @@ async fn stage5b_definer_functions_and_app_enter() {
     let denied_url = format!("postgres://fn_nogrant:fn-nogrant-password@127.0.0.1:{port}/postgres");
     let denied = connect_with_retry(&denied_url).await;
     let err = db::query(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(hash_a.clone())],
+        "SELECT auth_lookup_user_id_by_session($1, $2)",
+        vec![
+            Bind::Bytes(hash_a.clone()),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .execute(&denied)
     .await
@@ -6756,8 +6762,11 @@ async fn stage5b_definer_functions_and_app_enter() {
         .await
         .expect("ロールの切り替えに失敗");
     let found = db::query_scalar::<Option<UserId>>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(hash_a.clone())],
+        "SELECT auth_lookup_user_id_by_session($1, $2)",
+        vec![
+            Bind::Bytes(hash_a.clone()),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .fetch_one(&mut tx)
     .await
@@ -6768,8 +6777,11 @@ async fn stage5b_definer_functions_and_app_enter() {
         "所有するハッシュでは本人の利用者 ID が返るはず"
     );
     let unknown = db::query_scalar::<Option<UserId>>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(vec![91u8; 32])],
+        "SELECT auth_lookup_user_id_by_session($1, $2)",
+        vec![
+            Bind::Bytes(vec![91u8; 32]),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .fetch_one(&mut tx)
     .await

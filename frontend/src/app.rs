@@ -25,9 +25,27 @@ pub(crate) fn current_location() -> String {
             let location = window.location();
             let pathname = location.pathname().ok()?;
             let search = location.search().ok()?;
-            Some(format!("{pathname}{search}"))
+            let hash = location.hash().ok()?;
+            Some(format!("{pathname}{search}{hash}"))
         })
         .unwrap_or_default()
+}
+
+const RETURN_PATH_KEY: &str = "session_return_path";
+
+fn save_return_path(path: &str) {
+    if protected_path(path)
+        && let Some(storage) = web_sys::window().and_then(|w| w.session_storage().ok().flatten())
+    {
+        let _ = storage.set_item(RETURN_PATH_KEY, path);
+    }
+}
+
+fn take_return_path() -> Option<String> {
+    let storage = web_sys::window()?.session_storage().ok().flatten()?;
+    let path = storage.get_item(RETURN_PATH_KEY).ok().flatten()?;
+    let _ = storage.remove_item(RETURN_PATH_KEY);
+    spa_path(&path).filter(|path| protected_path(path) && pathname_of(path) != "/login")
 }
 
 /// アプリ内遷移でナビのアクティブ表示を追随させるための現在パス(pathname + search)
@@ -384,9 +402,20 @@ pub fn App() -> impl IntoView {
         let authed = session.user.get().is_some();
         let current = path.get();
         if protected_path(&current) && !authed && session.connection_error.get().is_none() {
+            save_return_path(&current);
             navigate(path, "/login", true);
         } else if route.get() == Route::Login && authed {
-            navigate(path, "/", true);
+            navigate(
+                path,
+                &take_return_path().unwrap_or_else(|| "/".to_string()),
+                true,
+            );
+        } else if authed
+            && session.loaded.get()
+            && pathname_of(&current) == "/"
+            && let Some(return_path) = take_return_path()
+        {
+            navigate(path, &return_path, true);
         }
     });
     let show_bottom_nav = move || show_bottom_nav_for(route.get());

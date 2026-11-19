@@ -54,7 +54,7 @@ where
             .value()
             .parse()
             .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
-        // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
+        // セッション照会は最終利用時刻も更新する
         let user = auth_service::select_user_by_session(&app_state.pool, token)
             .await
             .map_err(session_lookup_error)?
