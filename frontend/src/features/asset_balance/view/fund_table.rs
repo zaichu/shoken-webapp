@@ -32,6 +32,8 @@ pub fn FundHoldingsTable(
                         <th scope="col" class="col-text">{labels::DISTRIBUTION_COURSE}</th>
                         {sort_header(labels::FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
                         {sort_header(labels::BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
+                        // 1行にすると1280で表がはみ出すため単位だけ改行する。
+                        // 読み上げ名は変わらない(「前日比 (1万口あたり)」)
                         <th
                             scope="col"
                             class="col-num"
@@ -39,6 +41,8 @@ pub fn FundHoldingsTable(
                             abbr=labels::DAY_CHANGE_COLUMN_NOTE
                         >
                             {labels::DAY_CHANGE}
+                            <br />
+                            {labels::PER_10K_UNIT}
                         </th>
                         {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
                         {sort_header(
@@ -191,7 +195,7 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
             bold: false,
             kind: AmountKind::Delta,
         },
-        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
+        DetailCell::plain(labels::AVERAGE_PRICE_PER_10K.to_string(), average_text),
         DetailCell::plain(labels::DISTRIBUTION_COURSE.to_string(), course_text),
     ];
     let mut pnl_cell = DetailCell::strong_sub(
@@ -327,7 +331,7 @@ mod tests {
             [
                 labels::BASE_PRICE,
                 labels::BASE_PRICE_MONTH_CHANGE,
-                labels::AVERAGE_PRICE,
+                labels::AVERAGE_PRICE_PER_10K,
                 labels::DISTRIBUTION_COURSE
             ]
         );

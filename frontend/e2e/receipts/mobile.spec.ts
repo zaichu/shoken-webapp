@@ -233,7 +233,7 @@ test('国内株式タブでも2行の行にコード・口座・金額が出る'
   await card.getByTestId('receipt-row-button').click();
   const dialog = page.getByTestId('receipt-detail-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('売却額');
+  await expect(dialog).toContainText('売却額(合計)');
   await expect(dialog).toContainText('¥55,000');
   await dialog.getByTestId('detail-dialog-close').click();
   // 1件だけのとき帯・見出し・行の税引後が一致する
@@ -255,7 +255,7 @@ test('投資信託タブでもファンド名が出る', async ({ page }) => {
   await card.getByTestId('receipt-row-button').click();
   const dialog = page.getByTestId('receipt-detail-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('解約額');
+  await expect(dialog).toContainText('解約額(合計)');
   await dialog.getByTestId('detail-dialog-close').click();
 });
 

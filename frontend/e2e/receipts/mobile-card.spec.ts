@@ -164,7 +164,7 @@ test('マイナスの損益は符号と色を保つ', async ({ page }) => {
   await card.getByTestId('receipt-row-button').click();
   const dialog = page.getByTestId('receipt-detail-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('売却額');
+  await expect(dialog).toContainText('売却額(合計)');
   await expect(dialog).toContainText('¥55,000');
   await dialog.getByTestId('detail-dialog-close').click();
 });

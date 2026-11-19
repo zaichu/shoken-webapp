@@ -199,7 +199,7 @@ test.describe('資産管理のタブ', () => {
     }
 
     await page.getByTestId('asset-kind-tab-fund').click();
-    const values = await columnDecimals(page, '基準価額');
+    const values = await columnDecimals(page, '基準価額(1万口あたり)');
     expect(values.length).toBeGreaterThan(1);
     const decimals = values.map(decimalsOf);
     expect(decimals.every((value) => value !== null)).toBe(true);

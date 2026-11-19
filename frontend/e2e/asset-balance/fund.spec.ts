@@ -232,8 +232,12 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
   await expect(page.getByText(/前日比が最新/)).toHaveCount(0);
   await expect(page.getByText(/更新待ち \d件/)).toHaveCount(0);
 
-  // 「前日比」列の見出しに説明(title と abbr でキーボードからも読める)
-  const header = table.getByRole('columnheader', { name: '前日比' });
+  // 「前日比(1万口あたり)」列の見出しに説明(title と abbr でキーボードからも読める)。
+  // 1280で表がはみ出さないよう単位だけ改行しているため読み上げ名は半角空白入り
+  const header = table.getByRole('columnheader', {
+    name: '前日比 (1万口あたり)',
+    exact: true,
+  });
   await expect(header).toHaveAttribute('title', /最新の基準価額の日の前日比/);
   await expect(header).toHaveAttribute('abbr', /最新の基準価額の日の前日比/);
 
@@ -264,9 +268,13 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
   await expect(allBand).toContainText('価格基準日 1/1');
   await expect(allBand).toContainText('一部更新待ち');
 
-  // 「すべて」タブでも投信の行は前日比の横に基準日を出さない
+  // 「すべて」タブでは株と投信が混ざるため前日比は騰落率(%)で出す。
+  // 架空バランスファンドA号: 50円×10000口/10000=50円、前日評価額 109,950円 → +0.0%
   const mergedLatest = merged.getByRole('row', { name: /架空バランスファンドA号/ });
-  await expect(mergedLatest).toContainText('+¥50');
+  await expect(
+    merged.getByRole('columnheader', { name: '前日比(%)', exact: true }),
+  ).toBeVisible();
+  await expect(mergedLatest).toContainText('+0.0%');
   await expect(mergedLatest).not.toContainText(/\(\d{1,2}\/\d{1,2}\)/);
 });
 
