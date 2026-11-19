@@ -136,11 +136,13 @@ test('スマホ幅では明細が2行の行表示になりテーブルは隠れ�
   await expect(cardList.getByTestId('receipt-card')).toHaveCount(3);
   await expect(cardList.getByTestId('receipt-card-group')).toHaveCount(2);
 
-  // 1行目は銘柄名と受取額(税引後)、2行目は日付・コード・口座だけ出す(補助の金額は出さない)
+  // 1行目は銘柄名と受取額、2行目は日付・コード・口座だけ出す(補助の金額は出さない)
+  // 税区分は行ごとではなく一覧の上の注記に1回だけ出す
+  await expect(cardList).toContainText('金額は税引後');
   // 先頭は入金日順で架空電信電話
   const card = cardList.getByTestId('receipt-card').first();
   await expect(card.locator('.list-row-name')).toHaveText('架空電信電話');
-  await expect(card.locator('.list-row-primary')).toHaveText('+¥1,594(税引後)');
+  await expect(card.locator('.list-row-primary')).toHaveText('+¥1,594');
   const meta = card.locator('.list-row-meta');
   await expect(meta).toContainText('3/15');
   await expect(meta).toContainText('9910');

@@ -107,7 +107,6 @@ fn DividendCardBody(
             received_positive=asset_balance::is_positive_valuation(received_value)
             forecast_text=(!pending).then(|| forecast.clone())
             progress_text=progress.text
-            over=progress.over
         />
         <div class="home-progress">
             <div
@@ -123,6 +122,7 @@ fn DividendCardBody(
             yoy_text=yoy_text
             yoy_negative=asset_balance::is_negative_valuation(yoy_value)
             yoy_positive=asset_balance::is_positive_valuation(yoy_value)
+            over=progress.over
         />
         <DividendMonthlyChart
             monthly=model.monthly

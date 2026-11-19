@@ -507,6 +507,8 @@ pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "配当金(税引後)";
 pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
 /// 月見出しの右に出す短い受取表記(配当金タブ。税引後の合計)
 pub const RECEIPT_SHORT: &str = "受取(税引後)";
+/// 一覧の上の注記(配当タブの2行表示の金額は税引後。行ごとの接尾辞の代わりに1回だけ出す)
+pub const RECEIPT_LIST_AMOUNT_NOTE: &str = "金額は税引後";
 /// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
 pub const PROFIT_SHORT: &str = "損益";
 /// 取引明細の画面名
@@ -915,8 +917,12 @@ pub const HOME_CURRENT_MONTH: &str = "(今月)";
 pub const HOME_RECEIVED_LABEL: &str = "受取 ";
 /// ホーム: 予想の取得待ち(帯の内訳)
 pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
-/// ホーム: 予想の取得待ち(配当カードの予想欄)
+/// ホーム: 予想の取得待ち(配当カードの予想欄。PC は区切りの「/ 」付き)
 pub const HOME_FORECAST_LOADING: &str = "/ 年間予想(税引後)を取得中";
+/// ホーム: 年間予想の名前(スマホのまとめ行・取得待ちの組み立て用)
+pub const HOME_FORECAST_NAME: &str = "年間予想(税引後)";
+/// ホーム: 予想の取得待ちの末尾(スマホのまとめ行用)
+pub const HOME_FORECAST_LOADING_SUFFIX: &str = "を取得中";
 /// ホーム: 配当カードの前年同期差ラベル
 pub const HOME_DIVIDEND_YOY_LABEL: &str = "・ 前年同期より ";
 /// ホーム: 累計グラフの右端の差の見出し(「前年同期比 +¥12,200」)
@@ -966,9 +972,10 @@ pub const HOME_PROGRESS_LABEL: &str = "進捗率";
 /// ホーム: 受取が年間予想(税引後)を超えたときの状態
 pub const HOME_PROGRESS_OVER: &str = "予想を上回りました";
 
-/// ホーム: 予想額の表示(「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物)
+/// ホーム: 予想額の表示(PC 用「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物.
+/// スマホは行頭の「/」を付けず HOME_FORECAST_NAME から組み立てる)
 pub fn home_forecast(forecast: &str) -> String {
-    format!("/ 年間予想(税引後) {forecast}")
+    format!("/ {HOME_FORECAST_NAME} {forecast}")
 }
 
 /// ホーム: 累計グラフの凡例名(「2026年(累計)」)
