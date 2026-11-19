@@ -5,6 +5,34 @@ use crate::testing::asset_balance;
 use rust_decimal_macros::dec;
 
 #[test]
+fn no_dividend_judges_zero_missing_and_positive() {
+    let zero = HoldingDividend {
+        per_share: Some(0.0),
+        annual: Some(0.0),
+        yield_value: Some(0.0),
+        status: Some("zero".to_string()),
+        responded: true,
+    };
+    assert!(is_no_dividend(&zero));
+    let missing = HoldingDividend {
+        per_share: None,
+        annual: None,
+        yield_value: None,
+        status: None,
+        responded: true,
+    };
+    assert!(!is_no_dividend(&missing));
+    let positive = HoldingDividend {
+        per_share: Some(90.0),
+        annual: Some(9_000.0),
+        yield_value: Some(3.6),
+        status: Some("ok".to_string()),
+        responded: true,
+    };
+    assert!(!is_no_dividend(&positive));
+}
+
+#[test]
 fn known_zero_dividend_has_zero_yield() {
     let mut maps = DividendMaps {
         responded: true,

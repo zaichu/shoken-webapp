@@ -22,14 +22,17 @@ const STOCK_LINKS: &[(&str, &str)] = &[
         "https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric={code}.T",
     ),
     (
-        labels::STOCK_LINK_SBI,
-        "https://site3.sbisec.co.jp/ETGate/?_ControlID=WPLETsiR001Control&_DataStoreID=DSWPLETsiR001Control&_PageID=WPLETsiR001Ilst10&_ActionID=getDetailOfStockPriceJP&s_rkbn=1&i_stock_sec=%94%43%93%56%93%B0&i_dom_flg=1&i_exchange_code=JPN&i_output_type=0&stock_sec_code_mul={code}",
-    ),
-    (
         labels::STOCK_LINK_KABUTAN,
         "https://kabutan.jp/stock/?code={code}",
     ),
-    ("Yahoo! Finance", "https://finance.yahoo.co.jp/quote/{code}"),
+    (
+        labels::STOCK_LINK_YAHOO,
+        "https://finance.yahoo.co.jp/quote/{code}",
+    ),
+    (
+        labels::STOCK_LINK_SBI,
+        "https://site3.sbisec.co.jp/ETGate/?_ControlID=WPLETsiR001Control&_DataStoreID=DSWPLETsiR001Control&_PageID=WPLETsiR001Ilst10&_ActionID=getDetailOfStockPriceJP&s_rkbn=1&i_stock_sec=%94%43%93%56%93%B0&i_dom_flg=1&i_exchange_code=JPN&i_output_type=0&stock_sec_code_mul={code}",
+    ),
     (
         labels::STOCK_LINK_NIKKEI,
         "https://www.nikkei.com/nkd/company/?scode={code}",
@@ -42,7 +45,7 @@ const STOCK_LINKS: &[(&str, &str)] = &[
         labels::STOCK_LINK_MINKABU,
         "https://minkabu.jp/stock/{code}/",
     ),
-    ("IR BANK", "https://irbank.net/{code}"),
+    (labels::STOCK_LINK_IR_BANK, "https://irbank.net/{code}"),
     (
         labels::STOCK_LINK_SCOUTER,
         "https://monex.ifis.co.jp/index.php?sa=report_index&bcode={code}",
@@ -51,7 +54,10 @@ const STOCK_LINKS: &[(&str, &str)] = &[
         labels::STOCK_LINK_ZAIMANI,
         "https://zaimani.com/search/?_sf_s={code}",
     ),
-    ("JPX Explorer", "https://jpx-explorer.com/ja-JP/{code}-TSE"),
+    (
+        labels::STOCK_LINK_JPX,
+        "https://jpx-explorer.com/ja-JP/{code}-TSE",
+    ),
 ];
 
 #[component]
@@ -507,6 +513,9 @@ struct HoldingTilesData {
     quantity: String,
     average_price: Option<String>,
     purchase: String,
+    /// 無配のときだけ真。1株配当・年間配当(予想)・取得額利回りの3項目を
+    /// 「無配」の1項目にまとめる(値はどれも無配と出るため)
+    no_dividend: bool,
     per_share: String,
     per_share_negative: bool,
     per_share_positive: bool,
@@ -550,6 +559,7 @@ impl HoldingTilesData {
             quantity: labels::stock_shares_label(&format::format_number_value(input.shares)),
             average_price: input.average_tile.map(format::format_currency),
             purchase: format::format_currency(input.purchase),
+            no_dividend: asset_balance::is_no_dividend(&dividend),
             per_share: asset_balance::format_dividend_per_share(
                 &dividend,
                 format::unit_price_decimals(dividend.per_share.into_iter()),
@@ -619,15 +629,28 @@ struct TileInput<'a> {
     show_common: bool,
 }
 
-/// 詳細が奇数項目だと末尾が1つ残るため利回りだけ全幅にする
-fn detail_item_count(show_common: bool, has_average: bool, has_account: bool) -> usize {
-    4 + usize::from(show_common) * 3
+/// 詳細が奇数項目だと末尾が1つ残るため利回りだけ全幅にする。
+/// 無配で畳んだ分(合計は2項目・口座ごとは1項目)も引いて数える
+fn detail_item_count(
+    show_common: bool,
+    has_average: bool,
+    has_account: bool,
+    collapsed: bool,
+) -> usize {
+    let count = 4
+        + usize::from(show_common) * 3
         + usize::from(has_average)
-        + usize::from(show_common && has_account)
+        + usize::from(show_common && has_account);
+    count - usize::from(collapsed) * if show_common { 2 } else { 1 }
 }
 
-fn yield_tile_wide(show_common: bool, has_average: bool, has_account: bool) -> bool {
-    detail_item_count(show_common, has_average, has_account) % 2 == 1
+fn yield_tile_wide(
+    show_common: bool,
+    has_average: bool,
+    has_account: bool,
+    collapsed: bool,
+) -> bool {
+    detail_item_count(show_common, has_average, has_account, collapsed) % 2 == 1
 }
 
 #[component]
@@ -690,10 +713,12 @@ fn PerShareDetailTile(per_share: String, negative: bool, positive: bool) -> impl
 fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
     let show_common = data.show_common;
     let show_account = show_common && data.account.is_some();
-    let wide_yield = yield_tile_wide(
+    let collapsed = data.no_dividend;
+    let wide_dividend = yield_tile_wide(
         show_common,
         data.average_price.is_some(),
         data.account.is_some(),
+        collapsed,
     );
     let price_tiles = show_common.then(|| {
         view! {
@@ -703,23 +728,69 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
             />
         }
     });
-    let per_share_tile = show_common.then(|| {
+    let dividend_tiles = if collapsed {
         view! {
-            <PerShareDetailTile
-                per_share=data.per_share.clone()
-                negative=data.per_share_negative
-                positive=data.per_share_positive
-            />
+            <HoldingDetailItem
+                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
+                title=labels::ANNUAL_DIVIDEND_NOTE
+                wide=wide_dividend
+            >
+                <Amount
+                    kind=AmountKind::Delta
+                    text=data.annual.clone()
+                    negative=data.annual_negative
+                    positive=data.annual_positive
+                />
+            </HoldingDetailItem>
         }
-    });
+        .into_any()
+    } else {
+        let per_share_tile = show_common.then(|| {
+            view! {
+                <PerShareDetailTile
+                    per_share=data.per_share.clone()
+                    negative=data.per_share_negative
+                    positive=data.per_share_positive
+                />
+            }
+        });
+        view! {
+            {per_share_tile}
+            <HoldingDetailItem
+                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
+                title=labels::ANNUAL_DIVIDEND_NOTE
+            >
+                <Amount
+                    kind=AmountKind::Delta
+                    text=data.annual.clone()
+                    negative=data.annual_negative
+                    positive=data.annual_positive
+                />
+            </HoldingDetailItem>
+            <HoldingDetailItem
+                label=labels::ACQUISITION_YIELD.to_string()
+                wide=wide_dividend
+                title=labels::ACQUISITION_YIELD_NOTE
+            >
+                <Amount
+                    kind=AmountKind::Delta
+                    text=data.yield_text.clone()
+                    negative=data.yield_negative
+                    positive=data.yield_positive
+                />
+            </HoldingDetailItem>
+        }
+        .into_any()
+    };
     view! {
         <HoldingDetails>
             {price_tiles}
             <HoldingDetailItem label=labels::QUANTITY.to_string()>
-                <span class="tabular-nums">{data.quantity}</span>
+                <span class="tabular-nums">{data.quantity.clone()}</span>
             </HoldingDetailItem>
             {data
                 .average_price
+                .clone()
                 .map(|average| {
                     view! {
                         <HoldingDetailItem label=labels::AVERAGE_PRICE.to_string()>
@@ -728,7 +799,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                     }
                 })}
             <HoldingDetailItem label=labels::TOTAL_ACQUISITION.to_string()>
-                <Amount text=data.purchase />
+                <Amount text=data.purchase.clone() />
             </HoldingDetailItem>
             {show_account
                 .then(|| {
@@ -742,30 +813,7 @@ fn HoldingDetailTiles(data: HoldingTilesData) -> impl IntoView {
                             }
                         })
                 })}
-            {per_share_tile}
-            <HoldingDetailItem
-                label=labels::ANNUAL_DIVIDEND_FORECAST.to_string()
-                title=labels::ANNUAL_DIVIDEND_NOTE
-            >
-                <Amount
-                    kind=AmountKind::Delta
-                    text=data.annual
-                    negative=data.annual_negative
-                    positive=data.annual_positive
-                />
-            </HoldingDetailItem>
-            <HoldingDetailItem
-                label=labels::ACQUISITION_YIELD.to_string()
-                wide=wide_yield
-                title=labels::ACQUISITION_YIELD_NOTE
-            >
-                <Amount
-                    kind=AmountKind::Delta
-                    text=data.yield_text
-                    negative=data.yield_negative
-                    positive=data.yield_positive
-                />
-            </HoldingDetailItem>
+            {dividend_tiles}
         </HoldingDetails>
     }
 }

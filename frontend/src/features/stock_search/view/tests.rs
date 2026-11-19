@@ -31,6 +31,52 @@ fn tile_row(account: &str, shares: f64, purchase: f64) -> HoldingView {
     }
 }
 
+fn zero_maps(code: &str) -> DividendMaps {
+    let mut maps = DividendMaps {
+        responded: true,
+        ..DividendMaps::default()
+    };
+    maps.status.insert(code.to_string(), "zero".to_string());
+    maps
+}
+
+fn ok_maps(code: &str, per_share: f64) -> DividendMaps {
+    let mut maps = DividendMaps {
+        responded: true,
+        ..DividendMaps::default()
+    };
+    maps.status.insert(code.to_string(), "ok".to_string());
+    maps.per_share.insert(code.to_string(), per_share);
+    maps
+}
+
+#[test]
+fn holding_total_tiles_collapse_zero_dividends_into_single_item() {
+    let group = tile_group(vec![tile_row("特定", 100.0, 250_000.0)]);
+    let zero = HoldingTilesData::total(&group, &zero_maps("9904"));
+    assert!(zero.no_dividend);
+    assert_eq!(zero.annual, labels::NO_DIVIDEND);
+    let ok = HoldingTilesData::total(&group, &ok_maps("9904", 90.0));
+    assert!(!ok.no_dividend);
+    assert_ne!(ok.annual, labels::NO_DIVIDEND);
+}
+
+#[test]
+fn holding_account_tiles_collapse_zero_dividends_into_single_item() {
+    let group = tile_group(vec![
+        tile_row("特定", 100.0, 250_000.0),
+        tile_row("NISA成長", 50.0, 130_000.0),
+    ]);
+    for row in &group.rows {
+        let zero = HoldingTilesData::account(row, &group, &zero_maps("9904"));
+        assert!(zero.no_dividend);
+        assert_eq!(zero.annual, labels::NO_DIVIDEND);
+        let ok = HoldingTilesData::account(row, &group, &ok_maps("9904", 90.0));
+        assert!(!ok.no_dividend);
+        assert_ne!(ok.annual, labels::NO_DIVIDEND);
+    }
+}
+
 #[test]
 fn holding_total_tiles_sum_accounts_without_unit_price() {
     let group = tile_group(vec![
@@ -86,6 +132,21 @@ fn stock_links_contain_code_placeholder() {
 }
 
 #[test]
+fn stock_links_lead_with_main_three_and_keep_all() {
+    assert_eq!(STOCK_LINKS.len(), 11);
+    let names: Vec<&str> = STOCK_LINKS.iter().map(|(name, _)| *name).collect();
+    assert_eq!(
+        &names[..3],
+        &[
+            labels::STOCK_LINK_RAKUTEN,
+            labels::STOCK_LINK_KABUTAN,
+            labels::STOCK_LINK_YAHOO,
+        ]
+    );
+    assert_eq!(names.len() - 3, 8);
+}
+
+#[test]
 fn empty_search_description_differs_for_initial_and_no_results() {
     assert_eq!(
         empty_search_description("銘柄を検索"),
@@ -99,14 +160,27 @@ fn empty_search_description_differs_for_initial_and_no_results() {
 
 #[test]
 fn yield_tile_wide_only_for_odd_detail_counts() {
-    assert_eq!(super::detail_item_count(true, true, true), 9);
-    assert_eq!(super::detail_item_count(true, true, false), 8);
-    assert_eq!(super::detail_item_count(true, false, false), 7);
-    assert_eq!(super::detail_item_count(false, true, false), 5);
-    assert!(super::yield_tile_wide(true, true, true));
-    assert!(!super::yield_tile_wide(true, true, false));
-    assert!(super::yield_tile_wide(true, false, false));
-    assert!(super::yield_tile_wide(false, true, false));
+    assert_eq!(super::detail_item_count(true, true, true, false), 9);
+    assert_eq!(super::detail_item_count(true, true, false, false), 8);
+    assert_eq!(super::detail_item_count(true, false, false, false), 7);
+    assert_eq!(super::detail_item_count(false, true, false, false), 5);
+    assert!(super::yield_tile_wide(true, true, true, false));
+    assert!(!super::yield_tile_wide(true, true, false, false));
+    assert!(super::yield_tile_wide(true, false, false, false));
+    assert!(super::yield_tile_wide(false, true, false, false));
+}
+
+#[test]
+fn yield_tile_wide_counts_collapsed_dividend_as_single_item() {
+    // 合計は3項目→1項目で2減、口座ごとは2項目→1項目で1減
+    assert_eq!(super::detail_item_count(true, true, true, true), 7);
+    assert_eq!(super::detail_item_count(true, true, false, true), 6);
+    assert_eq!(super::detail_item_count(true, false, false, true), 5);
+    assert_eq!(super::detail_item_count(false, true, false, true), 4);
+    assert!(super::yield_tile_wide(true, true, true, true));
+    assert!(!super::yield_tile_wide(true, true, false, true));
+    assert!(super::yield_tile_wide(true, false, false, true));
+    assert!(!super::yield_tile_wide(false, true, false, true));
 }
 
 #[test]

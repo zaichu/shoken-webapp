@@ -1076,6 +1076,17 @@ pub const STOCK_LINK_MINKABU: &str = "みんかぶ";
 pub const STOCK_LINK_SCOUTER: &str = "銘柄スカウター";
 /// 銘柄検索: 外部リンク名
 pub const STOCK_LINK_ZAIMANI: &str = "ザイマニ";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_YAHOO: &str = "Yahoo! Finance";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_IR_BANK: &str = "IR BANK";
+/// 銘柄検索: 外部リンク名
+pub const STOCK_LINK_JPX: &str = "JPX Explorer";
+
+/// 銘柄検索: 残りの外部リンクを開く入口(残り件数付き。「その他のサイト(8)」)
+pub fn stock_links_more(count: usize) -> String {
+    format!("その他のサイト({count})")
+}
 
 /// 銘柄検索: 外部リンクの読み上げ文(「◯◯（新しいタブで開く）」)
 pub fn stock_search_new_tab(name: &str) -> String {
