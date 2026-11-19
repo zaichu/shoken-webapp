@@ -1417,7 +1417,7 @@ fn group_headline_amount_uses_delta_kind() {
         ("税引後", "¥400".to_string()),
     ];
     let item = group_headline_summary(ReceiptsTab::Dividend, &dividend).expect("見出しがある");
-    assert_eq!(item.label, "受取");
+    assert_eq!(item.label, "受取(税引後)");
     assert_eq!(item.value, "+¥400");
     assert_eq!(item.kind, AmountKind::Delta);
     assert!(item.positive);

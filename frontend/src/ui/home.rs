@@ -174,8 +174,9 @@ pub fn HomeDividendHead(
                     />
                 </strong>
             </span>
-            <span class="text-label text-text-muted">
-                {forecast_text.map_or_else(
+            // PC は受取の横に「/ 予想」を置く(1行に収まるため今の並びのまま)
+            <span class="text-label text-text-muted max-sm:hidden">
+                {forecast_text.clone().map_or_else(
                     || view! { {labels::HOME_FORECAST_LOADING} }.into_any(),
                     |forecast| {
                         view! {
@@ -186,7 +187,34 @@ pub fn HomeDividendHead(
                     },
                 )}
             </span>
-            <Amount class="ml-auto text-label font-bold" text=progress_text />
+            <span class="ml-auto text-label font-bold max-sm:hidden">
+                {labels::HOME_PROGRESS_LABEL}
+                {" "}
+                <Amount text=progress_text.clone() />
+            </span>
+            // スマホは受取の下の1行に「年間予想(税引後) ¥… ・ 進捗率 …」とまとめる。
+            // 行頭の「/」は付けない。超えの状態はバーの下の補足に出す
+            <span class="hidden text-label text-text-muted max-sm:inline">
+                {forecast_text.map_or_else(
+                    || view! {
+                        {labels::HOME_FORECAST_NAME}
+                        {labels::HOME_FORECAST_LOADING_SUFFIX}
+                    }
+                        .into_any(),
+                    |forecast| {
+                        view! {
+                            {labels::HOME_FORECAST_NAME}
+                            {" "}
+                            <Amount text=forecast />
+                            {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}
+                            {labels::HOME_PROGRESS_LABEL}
+                            {" "}
+                            <Amount text=progress_text />
+                        }
+                            .into_any()
+                    },
+                )}
+            </span>
         </div>
     }
 }
@@ -200,6 +228,9 @@ pub fn HomeDividendNote(
     #[prop(into)] yoy_text: String,
     yoy_negative: bool,
     yoy_positive: bool,
+    /// 受取が年間予想(税引後)を超えたか。超えたときだけ文末に状態を添える
+    #[prop(optional)]
+    over: bool,
 ) -> impl IntoView {
     view! {
         <p class="break-keep px-4 pt-1.5 text-label text-text-muted">
@@ -218,6 +249,10 @@ pub fn HomeDividendNote(
                 negative=yoy_negative
                 positive=yoy_positive
             />
+            {over.then(|| view! {
+                {" "}
+                {labels::HOME_PROGRESS_OVER}
+            })}
         </p>
     }
 }

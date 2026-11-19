@@ -91,7 +91,7 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         market_cell,
-        DetailCell::plain(labels::ANNUAL_DIVIDEND.to_string(), annual),
+        DetailCell::plain(labels::ANNUAL_DIVIDEND_FORECAST.to_string(), annual),
         DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
@@ -100,7 +100,8 @@ pub(crate) fn holding_detail_cells(
 #[component]
 pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
     view! {
-        <ul class="asset-compact-list" data-testid="asset-holdings-list">
+        <>
+            <ul class="asset-compact-list" data-testid="asset-holdings-list">
             {views
                 .into_iter()
                 .map(|view| {
@@ -204,7 +205,10 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     }
                 })
                 .collect_view()}
-        </ul>
+            </ul>
+            // 算出条件は一覧の下に1行で添える(表と同じ文言)
+            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
+        </>
     }
 }
 
@@ -251,7 +255,7 @@ mod tests {
                 labels::QUANTITY,
                 labels::TOTAL_ACQUISITION,
                 labels::MARKET_VALUE,
-                labels::ANNUAL_DIVIDEND,
+                labels::ANNUAL_DIVIDEND_FORECAST,
                 labels::PRICE_AS_OF
             ]
         );
