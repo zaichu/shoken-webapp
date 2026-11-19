@@ -687,6 +687,7 @@ async fn session_cookie_legacy_migration_preserves_valid_sessions_and_rejects_ex
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+#[allow(clippy::literal_string_with_formatting_args)]
 async fn deleting_current_device_clears_both_session_cookie_names() {
     use axum::{
         Router,

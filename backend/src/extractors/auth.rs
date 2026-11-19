@@ -111,9 +111,13 @@ mod tests {
             .expect("request should be built");
         let (mut parts, ()) = request.into_parts();
 
-        let error = AuthenticatedUser::from_request_parts(&mut parts, &state)
-            .await
-            .expect_err("database connection failure should reject extraction");
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            AuthenticatedUser::from_request_parts(&mut parts, &state),
+        )
+        .await
+        .expect("session lookup should not wait indefinitely")
+        .expect_err("database connection failure should reject extraction");
 
         assert!(matches!(error, ApiError::Database(_)));
         assert_eq!(error.status(), StatusCode::INTERNAL_SERVER_ERROR);
