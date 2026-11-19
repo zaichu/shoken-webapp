@@ -297,6 +297,8 @@ pub fn csv_sync_plunge_question(kind: &str, new_rows: usize, saved_rows: usize) 
 
 /// 統一前の語。画面の文言には使わない(括弧内は現在の用語)。
 /// `labels.rs` の単体テストが `frontend/src` の他のソースに現れないことを確かめる
+/// 「受取」は分配金コースの「受取型」を除き配当金にそろえる。
+/// 「損益」は単独では使わず評価損益・実現損益の複合語でのみ使う
 #[cfg(test)]
 pub const FORBIDDEN_TERMS: &[(&str, &str)] = &[
     ("含み損益", VALUATION_PROFIT_LOSS),
@@ -310,6 +312,8 @@ pub const FORBIDDEN_TERMS: &[(&str, &str)] = &[
     ("一株配当", PER_SHARE_DIVIDEND),
     ("資産残高", ASSET_BALANCE_TITLE),
     ("保有数量(株)", QUANTITY),
+    ("受取", DIVIDEND_AMOUNT),
+    ("損益", REALIZED_PROFIT_LOSS),
 ];
 
 /// 件数の書き方
@@ -514,12 +518,6 @@ pub const BEFORE_TAX: &str = "税引前";
 pub const RECEIVED_DIVIDEND_AFTER_TAX: &str = "配当金(税引後)";
 /// 取引明細の帯の主役(国内株式・投資信託タブ)
 pub const REALIZED_AFTER_TAX: &str = "実現損益(税引後)";
-/// 月見出しの右に出す短い受取表記(配当金タブ。税引後の合計)
-pub const RECEIPT_SHORT: &str = "受取(税引後)";
-/// 一覧の上の注記(配当タブの2行表示の金額は税引後。行ごとの接尾辞の代わりに1回だけ出す)
-pub const RECEIPT_LIST_AMOUNT_NOTE: &str = "金額は税引後";
-/// 月見出しの右に出す短い損益表記(国内株式・投資信託タブ。#1634 の指定による例外)
-pub const PROFIT_SHORT: &str = "損益";
 /// 取引明細の画面名
 pub const RECEIPTS_TITLE: &str = "取引明細";
 /// CSV管理の画面名
@@ -748,7 +746,7 @@ pub fn settings_export_failed(kind: &str, error: &str) -> String {
 /// ホームの残りの書き方(「残り ¥12,000」)
 pub const HOME_REMAINING_PREFIX: &str = "残り ";
 
-/// ホームで受取が予想を超えたときの書き方(「予想を ¥17,500 上回り」)
+/// ホームで配当金が予想を超えたときの書き方(「予想を ¥17,500 上回り」)
 pub const HOME_REMAINING_OVER_PREFIX: &str = "予想を ";
 pub const HOME_REMAINING_OVER_SUFFIX: &str = " 上回り";
 
@@ -933,8 +931,6 @@ pub const HOME_LOSS_GROUP: &str = "含み損";
 pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
 /// ホーム: 当月を示す印
 pub const HOME_CURRENT_MONTH: &str = "(今月)";
-/// ホーム: 受取額の頭に付ける文言(後ろに空白あり)
-pub const HOME_RECEIVED_LABEL: &str = "受取 ";
 /// ホーム: 予想の取得待ち(帯の内訳)
 pub const HOME_ESTIMATE_PENDING: &str = "予想を取得中です";
 /// ホーム: 予想の取得待ち(配当カードの予想欄。PC は区切りの「/ 」付き)
@@ -982,9 +978,9 @@ fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
     }
 }
 
-/// ホーム: 進捗率の名前(受取÷年間予想(税引後)の率)
+/// ホーム: 進捗率の名前(配当金÷年間予想(税引後)の率)
 pub const HOME_PROGRESS_LABEL: &str = "進捗率";
-/// ホーム: 受取が年間予想(税引後)を超えたときの状態
+/// ホーム: 配当金が年間予想(税引後)を超えたときの状態
 pub const HOME_PROGRESS_OVER: &str = "予想を上回りました";
 
 /// ホーム: 予想額の表示(PC 用「/ 年間予想(税引後) ¥12,000」。集計帯の税引前とは別物.
@@ -998,20 +994,20 @@ pub fn cumulative_year_label(year: u32) -> String {
     format!("{year}年(累計)")
 }
 
-/// ホーム: 累計グラフの月の受取の見出し(「6月の受取」)
+/// ホーム: 累計グラフの月の配当金の見出し(「6月の配当金」)
 pub fn cumulative_month_receipt_label(month: u32) -> String {
-    format!("{month}月の受取")
+    format!("{month}月の配当金")
 }
 
-/// ホーム: 累計グラフの読み上げ表の月の受取の列名(「月の受取」)
-pub const CUMULATIVE_MONTHLY_RECEIPT: &str = "月の受取";
+/// ホーム: 累計グラフの読み上げ表の月の配当金の列名(「月の配当金」)
+pub const CUMULATIVE_MONTHLY_RECEIPT: &str = "月の配当金";
 
-/// ホーム: 累計グラフの領域名(「受取の累計(2026年と2025年)」)
+/// ホーム: 累計グラフの領域名(「配当金の累計(2026年と2025年)」)
 pub fn home_cumulative_aria(year: u32, previous_year: u32) -> String {
-    format!("受取の累計({year}年と{previous_year}年)")
+    format!("配当金の累計({year}年と{previous_year}年)")
 }
 
-/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の受取と累計だけ出す
+/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の配当金と累計だけ出す
 pub fn home_cumulative_month_aria(
     month: u32,
     current_note: &str,
@@ -1023,10 +1019,10 @@ pub fn home_cumulative_month_aria(
 ) -> String {
     match (previous_year, prev_text) {
         (Some(previous_year), Some(prev_text)) => format!(
-            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
+            "{month}月{current_note}: {year}年 配当金 {monthly_text} / {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
         ),
         _ => format!(
-            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text}"
+            "{month}月{current_note}: {year}年 配当金 {monthly_text} / {year}年 累計 {cur_text}"
         ),
     }
 }

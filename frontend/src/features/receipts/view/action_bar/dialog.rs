@@ -336,7 +336,7 @@ pub fn ReceiptsMobileSearchEntry(store: ReceiptsStore) -> impl IntoView {
         >
             <ConditionTags search=search has_years=has_years />
             <ReceiptDialogFooter>
-                <ReceiptSearchCount store=store tab=tab tax_note=true />
+                <ReceiptSearchCount store=store tab=tab />
                 <MoreLink
                     href="/csv".to_string()
                     label=labels::CSV_MANAGE_TITLE.to_string()

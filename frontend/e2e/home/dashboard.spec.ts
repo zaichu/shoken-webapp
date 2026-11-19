@@ -153,7 +153,7 @@ test('帯は5項目で株式と投信を合算し、カード群が埋まる', a
   await expect(band.locator('dt:visible')).toHaveCount(5);
   await expect(band).not.toContainText('税引後');
 
-  // 今年の配当金カード: 税引後の受取と予想への進捗
+  // 今年の配当金カード: 税引後の配当金と予想への進捗
   const dividend = page.getByTestId('home-dividend-card');
   await expect(dividend).toContainText('¥20,000');
   await expect(dividend).toContainText('前年同期より');
@@ -197,7 +197,7 @@ test('帯は5項目で株式と投信を合算し、カード群が埋まる', a
   await expect(pnl).toContainText('含み損');
 });
 
-test('配当グラフは受取の累計の折れ線で、点からその月までの累計を出せる', async ({ page }) => {
+test('配当グラフは配当金の累計の折れ線で、点からその月までの累計を出せる', async ({ page }) => {
   await setupHomeMocks(page);
   await page.goto('/');
 
@@ -214,7 +214,7 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   // 今年の線の右端に前年同期比が出る
   await expect(dividend.locator('.home-cum-yoy')).toContainText('前年同期比');
 
-  // 点を押すとその月の受取とその月までの今年と前年の累計が出る
+  // 点を押すとその月の配当金とその月までの今年と前年の累計が出る
   const currentMonth = new Date().getMonth() + 1;
   const monthOf = (date: string) => Number(date.slice(5, 7));
   const currentMonthly = CURRENT_DIVIDENDS.filter((row) => monthOf(row.settlement_date) === currentMonth).reduce(
@@ -233,7 +233,7 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   await point.click();
   const tip = point.locator('.home-cum-tip');
   await expect(tip).toBeVisible();
-  await expect(tip).toContainText(`${currentMonth}月の受取`);
+  await expect(tip).toContainText(`${currentMonth}月の配当金`);
   await expect(tip).toContainText(`¥${currentMonthly.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${currentCum.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${previousCum.toLocaleString('en-US')}`);

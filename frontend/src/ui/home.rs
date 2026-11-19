@@ -150,7 +150,8 @@ pub fn HomeDividendHead(
     view! {
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 pt-3">
             <span class="text-subhero">
-                {labels::HOME_RECEIVED_LABEL}
+                {labels::DIVIDEND_AMOUNT}
+                {" "}
                 <strong class="text-subhero">
                     <Amount
                         kind=AmountKind::Delta
@@ -160,7 +161,7 @@ pub fn HomeDividendHead(
                     />
                 </strong>
             </span>
-            // PC は受取の横に「/ 予想」を置く(1行に収まるため今の並びのまま)
+            // PC は配当金の横に「/ 予想」を置く(1行に収まるため今の並びのまま)
             <span class="text-label text-text-muted max-sm:hidden">
                 {forecast_text.clone().map_or_else(
                     || view! { {labels::HOME_FORECAST_LOADING} }.into_any(),
@@ -178,7 +179,7 @@ pub fn HomeDividendHead(
                 {" "}
                 <Amount text=progress_text.clone() />
             </span>
-            // スマホは受取の下の1行に「年間予想(税引後) ¥… ・ 進捗率 …」とまとめる。
+            // スマホは配当金の下の1行に「年間予想(税引後) ¥… ・ 進捗率 …」とまとめる。
             // 行頭の「/」は付けない。超えの状態はバーの下の補足に出す
             <span class="hidden text-label text-text-muted max-sm:inline">
                 {forecast_text.map_or_else(
@@ -214,7 +215,7 @@ pub fn HomeDividendNote(
     #[prop(into)] yoy_text: String,
     yoy_negative: bool,
     yoy_positive: bool,
-    /// 受取が年間予想(税引後)を超えたか。超えたときだけ文末に状態を添える
+    /// 配当金が年間予想(税引後)を超えたか。超えたときだけ文末に状態を添える
     #[prop(optional)]
     over: bool,
 ) -> impl IntoView {
