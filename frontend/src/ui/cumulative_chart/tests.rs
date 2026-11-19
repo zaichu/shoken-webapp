@@ -115,3 +115,23 @@ fn yoy_difference_returns_none_without_previous() {
     // 前年なしのときは差を出さない
     assert_eq!(yoy_difference(20_000.0, None), None);
 }
+
+#[test]
+fn table_current_text_hides_future_months() {
+    let sums = cumulative_sums(&[
+        0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    ]);
+    // 6月時点: 6月までは累計、7月以降はまだ受取がないため出さない
+    assert_eq!(
+        table_current_text(6, 6, &sums),
+        Some(format::format_currency(5_000.0))
+    );
+    assert_eq!(table_current_text(7, 6, &sums), None);
+    assert_eq!(table_current_text(12, 6, &sums), None);
+    // 12月時点: 12月まで出す
+    assert_eq!(
+        table_current_text(12, 12, &sums),
+        Some(format::format_currency(5_000.0))
+    );
+    assert_eq!(table_current_text(0, 12, &sums), None);
+}

@@ -59,6 +59,16 @@ pub fn yoy_difference(current_cum: f64, previous_cum: Option<f64>) -> Option<f64
     previous_cum.map(|previous| current_cum - previous)
 }
 
+/// 読み上げ表の今年の欄。未来の月はまだ受取がないため None(「—」で出す)
+pub fn table_current_text(month: u32, current_month: u32, cumulative: &[f64]) -> Option<String> {
+    if month == 0 || month > current_month {
+        return None;
+    }
+    cumulative
+        .get(month as usize - 1)
+        .map(|value| format::format_currency(*value))
+}
+
 fn x_percent(month: u32) -> f64 {
     f64::from(month.saturating_sub(1)) / 11.0 * 100.0
 }
@@ -198,7 +208,12 @@ pub fn CumulativeChart(
                     .map(|month| {
                         let month = *month;
                         if month > current_month {
-                            return ().into_any();
+                            // 未来の月も同じ幅の枠だけ置く。線の12か月座標と
+                            // 点・押せる範囲・月ラベルをずらさないため
+                            return view! {
+                                <div class="home-cum-col" aria-hidden="true"></div>
+                            }
+                                .into_any();
                         }
                         let current_value = current_cum.get(month as usize - 1).copied().unwrap_or(0.0);
                         let previous_value = previous_cum
@@ -328,9 +343,8 @@ pub fn CumulativeChart(
             <tbody>
                 {(1..=12u32)
                     .map(|month| {
-                        let current_text = format::format_currency(
-                            current_cum.get(month as usize - 1).copied().unwrap_or(0.0),
-                        );
+                        let current_text = table_current_text(month, current_month, &current_cum)
+                            .unwrap_or_else(|| labels::MISSING.to_string());
                         let previous_text = previous_cum
                             .as_ref()
                             .and_then(|sums| sums.get(month as usize - 1).copied())
