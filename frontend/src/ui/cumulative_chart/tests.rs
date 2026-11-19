@@ -74,12 +74,7 @@ fn end_label_positions_keep_labels_apart_and_inside_the_plot() {
 fn end_label_horizontal_fits_by_width_and_month() {
     for month in [1, 3, 4, 6, 11, 12] {
         let narrow = end_label_horizontal(month, 120.0, 304.0);
-        if month <= 2 {
-            assert!(
-                matches!(narrow, EndLabelSide::Right(_)),
-                "{month}: {narrow:?}"
-            );
-        } else if month == 3 || month == 4 {
+        if month <= 4 {
             assert!(
                 matches!(narrow, EndLabelSide::Right(_)),
                 "{month}: {narrow:?}"
