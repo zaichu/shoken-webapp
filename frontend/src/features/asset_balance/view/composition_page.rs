@@ -62,7 +62,8 @@ fn basis_cells(
                     view.average_price,
                     dividends,
                 );
-                let cause = if dividend.status.as_deref() == Some("pending") {
+                let cause = if !dividends.responded || dividend.status.as_deref() == Some("pending")
+                {
                     Some(Pending)
                 } else if asset_balance::is_no_dividend(&dividend) {
                     Some(NoDividend)
@@ -668,6 +669,7 @@ mod tests {
                 .iter()
                 .map(|(code, value)| ((*code).to_string(), (*value).to_string()))
                 .collect::<HashMap<_, _>>(),
+            responded: true,
         }
     }
 
@@ -692,6 +694,7 @@ mod tests {
             ]
             .into_iter()
             .collect(),
+            responded: true,
         };
         let cells = basis_cells(&views, &funds, CompositionBasis::Dividend, &maps);
         assert_eq!(cells.len(), 5);
@@ -728,5 +731,20 @@ mod tests {
         assert!(cells[0].0.is_some());
         assert_eq!(cells[0].1, None);
         assert_eq!(cells[1], (None, Some(UnavailableKind::Unavailable)));
+    }
+
+    #[test]
+    fn dividend_basis_shows_pending_before_first_response() {
+        let views = vec![holding("9904", 2600.0)];
+        let funds = vec![fund("A")];
+        // 推定の応答前は空のマップ。株式は取得中、投信は対象外のまま
+        let cells = basis_cells(
+            &views,
+            &funds,
+            CompositionBasis::Dividend,
+            &DividendMaps::default(),
+        );
+        assert_eq!(cells[0], (None, Some(UnavailableKind::Pending)));
+        assert_eq!(cells[1], (None, Some(UnavailableKind::OutOfScope)));
     }
 }

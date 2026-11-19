@@ -19,6 +19,8 @@ const DIVIDEND_MILLIS_PER_CODE: u64 = 12_000;
 pub(crate) struct DividendMaps {
     pub per_share: HashMap<String, f64>,
     pub status: HashMap<String, String>,
+    /// 推定の応答を1度でも受けたか。未応答の空と応答後の欠測を区別する
+    pub responded: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -55,7 +57,10 @@ pub(crate) fn dividend_pending_max_retries(unique_count: usize) -> u32 {
 }
 
 pub(crate) fn dividend_maps_from_batch(batch: &DividendBatchResponse) -> (DividendMaps, bool) {
-    let mut maps = DividendMaps::default();
+    let mut maps = DividendMaps {
+        responded: true,
+        ..DividendMaps::default()
+    };
     let mut has_pending = false;
     for item in &batch.items {
         if let Some(status) = &item.status {

@@ -211,8 +211,9 @@ test('推定の初回レスポンス後に配当値が表示される(PC)', asyn
   const row = table.getByRole('row', { name: /架空自動車/ });
   const perShareIndex = await columnIndex(table, '1株配当');
   const annualIndex = await columnIndex(table, '年間配当');
-  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('取得できません');
-  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('取得できません');
+  // 推定の応答前は取得中と出す(取得失敗と区別する)
+  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('取得中…');
+  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('取得中…');
   releaseEstimate();
   await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
   await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');

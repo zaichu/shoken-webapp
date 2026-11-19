@@ -7,6 +7,7 @@ use rust_decimal_macros::dec;
 #[test]
 fn known_zero_dividend_has_zero_yield() {
     let mut maps = DividendMaps::default();
+    maps.responded = true;
     maps.status.insert("9904".to_string(), "zero".to_string());
     for average_price in [2500.0, 0.0] {
         let dividend = holding_dividend("9904", 100.0, average_price, &maps);
@@ -20,6 +21,7 @@ fn known_zero_dividend_has_zero_yield() {
 fn dividend_display_distinguishes_no_dividend_and_unavailable() {
     use crate::ui::labels::{self, UnavailableKind};
     let mut maps = DividendMaps::default();
+    maps.responded = true;
     maps.status
         .insert("zero-code".to_string(), "zero".to_string());
     maps.status
@@ -57,6 +59,7 @@ fn dividend_display_distinguishes_no_dividend_and_unavailable() {
 fn missing_dividend_keeps_yield_unknown() {
     for status in [None, Some("pending"), Some("error")] {
         let mut maps = DividendMaps::default();
+        maps.responded = true;
         if let Some(status) = status {
             maps.status.insert("9904".to_string(), status.to_string());
         }
@@ -65,6 +68,27 @@ fn missing_dividend_keeps_yield_unknown() {
         assert!(dividend.annual.is_none());
         assert!(dividend.yield_value.is_none());
     }
+}
+
+#[test]
+fn dividend_before_first_response_shows_pending() {
+    use crate::ui::labels::{self, UnavailableKind};
+    // 推定の応答前は空のマップ。取得失敗ではなく取得中と出す
+    let maps = DividendMaps::default();
+    assert!(!maps.responded);
+    let loading = holding_dividend("9904", 100.0, 2500.0, &maps);
+    assert_eq!(
+        dividend_display_kind(&loading),
+        Some(UnavailableKind::Pending)
+    );
+    assert_eq!(
+        format_dividend_per_share(&loading, 0),
+        labels::CSV_MANAGE_FETCH_RUNNING
+    );
+    assert_eq!(
+        format_dividend_annual(&loading),
+        labels::CSV_MANAGE_FETCH_RUNNING
+    );
 }
 
 fn saved(prev_close: Option<rust_decimal::Decimal>) -> AssetBalanceRow {

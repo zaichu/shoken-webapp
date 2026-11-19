@@ -16,6 +16,7 @@ fn sort_input(code: &str, market: f64, purchase: f64, annual: Option<f64>) -> So
         annual,
         yield_value: annual.map(|v| v / purchase * 100.0),
         status: None,
+        responded: true,
     }));
     SortInput {
         code: Box::leak(code.to_string().into_boxed_str()),
@@ -583,6 +584,7 @@ fn sort_holdings_allows_other_keys_while_dividend_pending() {
         annual: None,
         yield_value: None,
         status: Some("pending".to_string()),
+        responded: true,
     }));
     pending.dividend = &*pending_dividend;
     let inputs = vec![
