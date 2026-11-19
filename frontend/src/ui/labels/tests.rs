@@ -359,9 +359,50 @@ fn glossary_builds_counts_and_placeholders() {
     assert_eq!(count(1_000_000), "1000000件");
     assert_eq!(search_placeholder("銘柄名・コード"), "銘柄名・コードで検索");
     assert_eq!(group_count("2026年10月", 3), "2026年10月 · 3件");
-    assert_eq!(price_as_of("2026-10-21"), "価格基準日 10/21");
+    assert_eq!(price_as_of_with_role("2026-10-21"), "10/21 時点の株価");
     assert_eq!(composition_others(3), "ほか3件");
     assert_eq!(composition_others(67), "ほか67件");
+}
+
+#[test]
+fn unavailable_text_distinguishes_scenes() {
+    assert_eq!(unavailable_text(UnavailableKind::OutOfScope), "対象外");
+    assert_eq!(
+        unavailable_text(UnavailableKind::Unavailable),
+        "取得できません"
+    );
+    assert_eq!(unavailable_text(UnavailableKind::Unassigned), "未設定");
+    assert_eq!(unavailable_text(UnavailableKind::NoDividend), "無配");
+}
+
+#[test]
+fn account_notes_cover_all_badges() {
+    assert!(account_note(ACCOUNT_SPECIFIC).contains("特定"));
+    assert!(account_note(ACCOUNT_GENERAL).contains("一般"));
+    assert!(account_note(ACCOUNT_SPECIFIC_GENERAL).contains("合算"));
+    assert!(account_note(ACCOUNT_OLD_NISA).contains("旧NISA"));
+    assert!(account_note(ACCOUNT_NISA_GROWTH).contains("NISA成長"));
+    assert!(account_note(ACCOUNT_NISA_TSUMITATE).contains("NISAつみたて"));
+    assert!(ACCOUNT_LEGEND.contains("特定・一般"));
+    assert!(ACCOUNT_LEGEND.contains("合算"));
+}
+
+#[test]
+fn date_role_notes_keep_headings() {
+    let price = price_as_of_with_role("2026-10-20");
+    assert_eq!(price, "10/20 時点の株価");
+    let import = home_import_with_role("2026/1/1");
+    assert!(import.contains("取り込み"));
+    assert!(import.contains("最終"));
+    assert!(import_as_of_note("10/21").contains("最終取り込み"));
+    assert_eq!(older_is_first("2026-01-01", "2026-10-20"), Some(true));
+    assert_eq!(older_is_first("2026-10-20", "2026-01-01"), Some(false));
+    assert_eq!(older_is_first("2026-10-20", "2026-10-20"), None);
+    assert_eq!(older_is_first("xxx", "2026-10-20"), None);
+    assert_eq!(stale_sides("2026-01-01", "2026-10-20"), (true, false));
+    assert_eq!(stale_sides("2026-10-20", "2026-01-01"), (false, true));
+    assert_eq!(stale_sides("2026-10-20", "2026-10-20"), (false, false));
+    assert_eq!(unavailable_text(UnavailableKind::Pending), "取得中…");
 }
 
 #[test]

@@ -116,9 +116,13 @@ pub fn HomeCompositionNote(children: Children) -> impl IntoView {
 
 /// ヘッダー脇の取り込み日表示。補足は 400 のままにする
 #[component]
-pub fn HomeImportLabel(children: Children) -> impl IntoView {
+pub fn HomeImportLabel(children: Children, #[prop(optional)] stale: bool) -> impl IntoView {
     view! {
-        <span class="hidden text-label font-normal text-text-muted lg:inline">
+        <span class=if stale {
+            "hidden text-label font-normal text-warn-ink lg:inline"
+        } else {
+            "hidden text-label font-normal text-text-muted lg:inline"
+        }>
             {children()}
         </span>
     }

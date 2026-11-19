@@ -36,10 +36,10 @@ pub(crate) fn holding_detail_cells(
     let per_share = holdings::format_dividend_per_share(&dividend, 0);
     let annual = holdings::format_dividend_annual(&dividend);
     let yield_text = holdings::format_dividend_yield(&dividend);
-    let as_of = view
-        .price_as_of
-        .clone()
-        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
+    let as_of = view.price_as_of.clone().map_or_else(
+        || labels::FETCH_UNAVAILABLE.to_string(),
+        |date| format::format_iso_date(&date),
+    );
     let left = vec![
         DetailCell::with_sub(
             labels::CURRENT_PRICE.to_string(),

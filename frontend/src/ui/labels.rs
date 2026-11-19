@@ -348,11 +348,6 @@ pub fn group_count(label: &str, total: usize) -> String {
     format!("{label} · {}", count(total))
 }
 
-/// 基準日の書き方(「価格基準日 10/21」)
-pub fn price_as_of(date: &str) -> String {
-    format!("{PRICE_AS_OF} {}", format::format_price_date(date))
-}
-
 /// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)
 pub fn filtering_count(filtered: usize, total: usize) -> String {
     format!("{FILTERING}({} / {})", count(filtered), count(total))
@@ -766,8 +761,6 @@ pub const ASSET_KIND_TABS_LABEL: &str = "保有の種類";
 /// 前日比列の見出しの説明
 pub const DAY_CHANGE_COLUMN_NOTE: &str =
     "最新の基準価額の日の前日比がわかる行だけ出します。更新待ちの行は CSV を取り込むと出ます";
-/// 配当の取得失敗の表示
-pub const HOLDING_DIVIDEND_FAILED: &str = "取得失敗";
 
 /// 株数の書き方(「100株」)
 pub fn stock_shares_label(shares: &str) -> String {
@@ -960,11 +953,6 @@ fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
             text.trim_end_matches('0').trim_end_matches('.')
         )
     }
-}
-
-/// ホーム: 取込日の表示(「データ: 10/21 12:00 取り込み」)
-pub fn home_import_label(label: &str) -> String {
-    format!("データ: {label} 取り込み")
 }
 
 /// ホーム: 進捗率の名前(受取÷年間予想(税引後)の率)
@@ -1175,6 +1163,100 @@ pub const LIST_LOADING_MESSAGE: &str = "データを読み込んでいます…"
 /// 可視テキストは頭文字を含むため空白で単語を区切る
 pub fn user_menu_button_label(initials: &str, aria_name: &str) -> String {
     format!("{initials} {ACCOUNT_BUTTON} {aria_name}のアカウントメニュー")
+}
+
+/// 値なし表示の書き分け(「—」の使い分け。PC 1280 で横スクロールを増やさない短い語)
+/// 対象外・取得不能・口座未割当・無配を区別する
+pub const OUT_OF_SCOPE: &str = "対象外";
+pub const FETCH_UNAVAILABLE: &str = "取得できません";
+pub const ACCOUNT_UNASSIGNED: &str = "未設定";
+pub const NO_DIVIDEND: &str = "無配";
+
+/// 値なし表示の種類
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnavailableKind {
+    OutOfScope,
+    Unavailable,
+    Unassigned,
+    NoDividend,
+    Pending,
+}
+
+/// 値なし表示の文言。どの場面がどれかをここで決める
+pub const fn unavailable_text(kind: UnavailableKind) -> &'static str {
+    match kind {
+        UnavailableKind::OutOfScope => OUT_OF_SCOPE,
+        UnavailableKind::Unavailable => FETCH_UNAVAILABLE,
+        UnavailableKind::Unassigned => ACCOUNT_UNASSIGNED,
+        UnavailableKind::NoDividend => NO_DIVIDEND,
+        UnavailableKind::Pending => CSV_MANAGE_FETCH_RUNNING,
+    }
+}
+
+/// 口座バッジの短い説明。バッジの title と凡例1行に使う
+pub const ACCOUNT_SPECIFIC_NOTE: &str = "特定:課税口座(源泉あり)";
+pub const ACCOUNT_GENERAL_NOTE: &str = "一般:課税口座(源泉なし)";
+pub const ACCOUNT_SPECIFIC_GENERAL_NOTE: &str = "特定・一般:特定と一般の合算";
+pub const ACCOUNT_OLD_NISA_NOTE: &str = "旧NISA:非課税(新規買付不可)";
+pub const ACCOUNT_NISA_GROWTH_NOTE: &str = "NISA成長:非課税の成長枠";
+pub const ACCOUNT_NISA_TSUMITATE_NOTE: &str = "NISAつみたて:非課税の積立枠";
+/// 口座バッジの凡例1行
+pub const ACCOUNT_LEGEND: &str = "特定は源泉あり・一般は源泉なしの課税口座、特定・一般は2口座の合算、旧NISA・NISA成長・NISAつみたては非課税";
+
+/// 口座表示名に対応する短い説明。対応表にない口座はそのまま返す
+pub fn account_note(account: &str) -> &str {
+    match account {
+        ACCOUNT_SPECIFIC => ACCOUNT_SPECIFIC_NOTE,
+        ACCOUNT_GENERAL => ACCOUNT_GENERAL_NOTE,
+        ACCOUNT_SPECIFIC_GENERAL => ACCOUNT_SPECIFIC_GENERAL_NOTE,
+        ACCOUNT_OLD_NISA => ACCOUNT_OLD_NISA_NOTE,
+        ACCOUNT_NISA_GROWTH => ACCOUNT_NISA_GROWTH_NOTE,
+        ACCOUNT_NISA_TSUMITATE => ACCOUNT_NISA_TSUMITATE_NOTE,
+        _ => account,
+    }
+}
+
+/// 価格基準日の役割注記。「10/20 時点の株価」のように短く書く
+/// (帯の1項目に収まる短さにするため。PC 1280 の縦線・並びを崩さない)
+pub fn price_as_of_with_role(date: &str) -> String {
+    format!("{} 時点の株価", format::format_price_date(date))
+}
+
+/// 取込日の役割注記。最終取り込みであることを添える
+pub fn home_import_with_role(label: &str) -> String {
+    format!("最終取り込み {label}")
+}
+
+/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
+pub const PRICE_STALE_MARK: &str = "（取込の日付より古い）";
+/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
+pub const IMPORT_STALE_MARK: &str = "（株価の日付より古い）";
+
+/// 取込日の役割注記。最終取り込みであることを添える
+pub fn import_as_of_note(ymd: &str) -> String {
+    format!("最終取り込み {ymd}")
+}
+
+/// 2つの日付(YYYY-MM-DD)のどちらが古いか。等しい・読めないときは None
+/// true は前者が古い、false は後者が古い
+pub fn older_is_first(first: &str, second: &str) -> Option<bool> {
+    let first_parts = format::date_parts(first)?;
+    let second_parts = format::date_parts(second)?;
+    if first_parts == second_parts {
+        None
+    } else {
+        Some(first_parts < second_parts)
+    }
+}
+
+/// 価格と取込のどちらが古いか。(価格が古い, 取込が古い)
+/// 等しい・読めないときは両方 false
+pub fn stale_sides(price_iso: &str, import_iso: &str) -> (bool, bool) {
+    match older_is_first(price_iso, import_iso) {
+        Some(true) => (true, false),
+        Some(false) => (false, true),
+        None => (false, false),
+    }
 }
 
 #[cfg(test)]

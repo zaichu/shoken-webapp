@@ -100,7 +100,16 @@ pub fn account_display_name(value: &str) -> &str {
 pub fn AccountBadge(#[prop(into)] label: String) -> impl IntoView {
     let label = account_display_name(&label).to_string();
     let variant = account_badge_variant(&label);
-    view! { <Badge variant=variant>{label}</Badge> }
+    let title = labels::account_note(&label).to_string();
+    view! { <span class=variant.class() title=title>{label}</span> }
+}
+
+/// 口座バッジの凡例1行。表の下に置き、「特定・一般」が2口座の合算であることを示す
+#[component]
+pub fn AccountLegend() -> impl IntoView {
+    view! {
+        <p class="mt-1 text-cell text-text-muted">{labels::ACCOUNT_LEGEND}</p>
+    }
 }
 
 /// 口座名の配色。連結した口座名(「特定・一般」)は単独の口座名ではないので

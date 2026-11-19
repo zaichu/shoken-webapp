@@ -82,6 +82,7 @@ fn apply_loaded_asset_balances_replaces_same_generation_list() {
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("9914".to_string(), 40.0)]),
             status: HashMap::new(),
+            responded: true,
         });
         let lookup = RwSignal::new(AssetBalanceLookupStore::new());
         lookup.update(|store| store.seed(generation, &[balance_row(9914)]));

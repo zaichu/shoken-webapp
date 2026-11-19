@@ -129,6 +129,22 @@ pub fn DayChangeNote(text: String) -> impl IntoView {
     }
 }
 
+/// 資産管理の表の値なし表示(対象外・取得できません・未設定・無配)。
+/// 数字列でも折り返し、表の横スクロールを出さない
+#[component]
+pub fn AssetMarker(
+    #[prop(into)] text: String,
+    /// 口座欄など、もとが薄い文字色の箇所に置くときだけ付ける
+    #[prop(optional)]
+    soft: bool,
+) -> impl IntoView {
+    view! {
+        <span class=if soft { "asset-marker text-text-soft" } else { "asset-marker" }>
+            {text}
+        </span>
+    }
+}
+
 /// 構成比の枠。PC もスマホも同じ最大幅で真ん中に寄せる
 #[component]
 pub fn CompositionFrame(children: Children) -> impl IntoView {

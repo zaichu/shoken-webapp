@@ -89,6 +89,7 @@ fn dividend_batch_maps_match_hook() {
     };
     let (maps, has_pending) = dividend_maps_from_batch(&batch);
     assert!(has_pending);
+    assert!(maps.responded);
     assert_eq!(maps.per_share.get("9904"), Some(&50.0));
     assert!(!maps.per_share.contains_key("9914"));
     assert!(!maps.per_share.contains_key("0003"));

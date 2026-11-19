@@ -87,16 +87,36 @@ pub fn HomePage() -> impl IntoView {
         if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
             stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
         }
-        format::format_latest_import_date(stamps.iter().map(String::as_str))
+        let label = format::format_latest_import_date(stamps.iter().map(String::as_str));
+        let import_iso = model::latest_import_iso(&stamps);
+        let price_iso = {
+            let assets = store::current_summary(data.assets, generation).flatten();
+            let funds = store::current_summary(data.funds, generation).flatten();
+            let stocks = assets.map_or_default(|loaded| loaded.rows.clone());
+            let funds = funds.map_or_default(|loaded| loaded.rows.clone());
+            model::oldest_home_price_iso(&stocks, &funds)
+        };
+        let stale = match (price_iso, import_iso) {
+            (Some(price), Some(import)) => labels::stale_sides(&price, &import).1,
+            _ => false,
+        };
+        label.map(|label| (label, stale))
     });
     let links: Children = Box::new(move || {
         view! {
             {move || {
-                import_label.get().map(|label| {
+                import_label.get().map(|(label, stale)| {
+                    let text = if stale {
+                        format!(
+                            "{}{}",
+                            labels::home_import_with_role(&label),
+                            labels::IMPORT_STALE_MARK
+                        )
+                    } else {
+                        labels::home_import_with_role(&label)
+                    };
                     view! {
-                        <HomeImportLabel>
-                            {labels::home_import_label(&label)}
-                        </HomeImportLabel>
+                        <HomeImportLabel stale=stale>{text}</HomeImportLabel>
                     }
                 })
             }}

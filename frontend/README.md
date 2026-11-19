@@ -25,7 +25,7 @@ cargo fmt --check
 cargo clippy --all-targets --target wasm32-unknown-unknown -- -D warnings
 cargo clippy --all-targets -- -D warnings
 cargo test
-npx playwright test --config playwright.leptos.config.ts
+env -u NO_COLOR env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts
 npx playwright test --config playwright.deploy.config.ts
 ```
 
