@@ -174,6 +174,8 @@ fn ProductDonut(products: Vec<ProductCompositionSlice>) -> impl IntoView {
 #[component]
 fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
     let account_total: f64 = accounts.iter().map(|slice| slice.amount).sum();
+    let amounts: Vec<f64> = accounts.iter().map(|slice| slice.amount).collect();
+    let display = crate::features::asset_balance::largest_remainder_percents(&amounts, 0);
     let bars = accounts
         .iter()
         .map(|slice| {
@@ -189,8 +191,15 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
         .collect_view();
     let rows = accounts
         .iter()
-        .map(|slice| {
-            let pct = slice.amount / account_total * 100.0;
+        .enumerate()
+        .map(|(index, slice)| {
+            let pct = display.get(index).copied().unwrap_or_else(|| {
+                if account_total > 0.0 {
+                    slice.amount / account_total * 100.0
+                } else {
+                    0.0
+                }
+            });
             view! {
                 <CompositionRow
                     label=slice.label.clone()
@@ -207,6 +216,7 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
             <HomeCompositionNote>{labels::HOME_ACCOUNT_FUND_LABEL}</HomeCompositionNote>
             <HomeStackedBar secondary=true>{bars}</HomeStackedBar>
             <HomeCompositionRows>{rows}</HomeCompositionRows>
+            <HomeCompositionNote>{labels::ACCOUNT_LEGEND}</HomeCompositionNote>
         </HomeCompositionAccounts>
     }
 }

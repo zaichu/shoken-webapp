@@ -121,16 +121,46 @@ pub(crate) fn holding_dividend(
     }
 }
 
+fn is_no_dividend(dividend: &HoldingDividend) -> bool {
+    dividend.status.as_deref() == Some("zero") || dividend.per_share == Some(0.0)
+}
+
+/// 配当表示の種類。無配・欠測・表示可を区別する純粋な判定
+pub(crate) fn dividend_display_kind(
+    dividend: &HoldingDividend,
+) -> Option<crate::ui::labels::UnavailableKind> {
+    if dividend.status.as_deref() == Some("pending") {
+        return None;
+    }
+    if is_no_dividend(dividend) {
+        return Some(crate::ui::labels::UnavailableKind::NoDividend);
+    }
+    if dividend.status.as_deref() == Some("error") {
+        return Some(crate::ui::labels::UnavailableKind::Unavailable);
+    }
+    match dividend.per_share {
+        Some(_) => None,
+        None => Some(crate::ui::labels::UnavailableKind::Unavailable),
+    }
+}
+
 fn format_dividend_value(
     dividend: &HoldingDividend,
     value: Option<f64>,
     format: impl Fn(f64) -> String,
 ) -> String {
-    match dividend.status.as_deref() {
-        Some("pending") => labels::CSV_MANAGE_FETCH_RUNNING.to_string(),
-        Some("error") => labels::HOLDING_DIVIDEND_FAILED.to_string(),
-        _ => value.map_or_else(|| "—".to_string(), format),
+    if dividend.status.as_deref() == Some("pending") {
+        return labels::CSV_MANAGE_FETCH_RUNNING.to_string();
     }
+    dividend_display_kind(dividend).map_or_else(
+        || {
+            value.map_or_else(
+                || labels::unavailable_text(labels::UnavailableKind::Unavailable).to_string(),
+                format,
+            )
+        },
+        |kind| labels::unavailable_text(kind).to_string(),
+    )
 }
 
 /// 1株配当。列の中で小数桁がそろうよう decimals を渡す

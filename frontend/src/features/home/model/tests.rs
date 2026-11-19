@@ -368,7 +368,10 @@ fn home_as_of_uses_oldest_priced_date() {
     unpriced.price_as_of = Some("2026-10-10".to_string());
     let fund = fund("F", "特定", 100_000, 5_000);
     let as_of = oldest_home_as_of(&[newer, older, unpriced], &[fund]);
-    assert_eq!(as_of.as_deref(), Some("価格基準日 10/17"));
+    assert_eq!(
+        as_of.as_deref(),
+        Some("価格基準日 10/17・評価額はこの日の価格")
+    );
     assert!(oldest_home_as_of(&[], &[]).is_none());
 }
 

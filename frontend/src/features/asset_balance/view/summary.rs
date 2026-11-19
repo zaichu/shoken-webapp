@@ -23,26 +23,42 @@ pub(crate) fn stock_price_dates(rows: &[AssetBalanceRow]) -> Vec<&str> {
         .collect()
 }
 
-/// 帯のラベルの横に出す時点。混在時は最も古い日を出し、嘘の新しさを見せない
-pub(crate) fn oldest_stock_as_of(rows: &[AssetBalanceRow]) -> Option<String> {
+/// 株式の最古の価格日(YYYY-MM-DD)。比較用の素の日付
+pub(crate) fn oldest_stock_price_iso(rows: &[AssetBalanceRow]) -> Option<String> {
     let mut dates = stock_price_dates(rows);
     dates.sort_unstable();
-    dates.first().map(|date| labels::price_as_of(date))
+    dates.into_iter().next().map(str::to_string)
 }
 
-/// 投信の基準日のうち最も古い日を帯の時点に出す
-pub(crate) fn oldest_fund_as_of(view: &ResolvedFundBalance) -> Option<String> {
+/// 旧表示用の帯の注記。テストの互換のために残す
+#[cfg(test)]
+pub(crate) fn oldest_stock_as_of(rows: &[AssetBalanceRow]) -> Option<String> {
+    oldest_stock_price_iso(rows)
+        .as_deref()
+        .map(labels::price_as_of_with_role)
+}
+
+/// 投信の最古の基準日(YYYY-MM-DD)。比較用の素の日付
+pub(crate) fn oldest_fund_price_iso(view: &ResolvedFundBalance) -> Option<String> {
     let mut dates: Vec<String> = view
         .rows
         .iter()
         .map(|row| row.price_as_of.clone())
         .collect();
     dates.sort();
-    dates.first().map(|date| labels::price_as_of(date))
+    dates.into_iter().next()
 }
 
-/// 株と投信を合わせた時点。混在時は最も古い日を出す
-pub(crate) fn oldest_combined_as_of(
+/// 旧表示用の帯の注記。テストの互換のために残す
+#[cfg(test)]
+pub(crate) fn oldest_fund_as_of(view: &ResolvedFundBalance) -> Option<String> {
+    oldest_fund_price_iso(view)
+        .as_deref()
+        .map(labels::price_as_of_with_role)
+}
+
+/// 株と投信を合わせた最古の日(YYYY-MM-DD)。比較用の素の日付
+pub(crate) fn oldest_combined_price_iso(
     stock_rows: &[AssetBalanceRow],
     fund_view: &ResolvedFundBalance,
 ) -> Option<String> {
@@ -52,7 +68,52 @@ pub(crate) fn oldest_combined_as_of(
         .collect();
     dates.extend(fund_view.rows.iter().map(|row| row.price_as_of.clone()));
     dates.sort();
-    dates.first().map(|date| labels::price_as_of(date))
+    dates.into_iter().next()
+}
+
+/// 旧表示用の帯の注記。テストの互換のために残す
+#[cfg(test)]
+pub(crate) fn oldest_combined_as_of(
+    stock_rows: &[AssetBalanceRow],
+    fund_view: &ResolvedFundBalance,
+) -> Option<String> {
+    oldest_combined_price_iso(stock_rows, fund_view)
+        .as_deref()
+        .map(labels::price_as_of_with_role)
+}
+
+/// 取込日の素の日付(YYYY-MM-DD)。JSTで最も新しい日
+pub(crate) fn latest_import_iso<'a>(stamps: impl Iterator<Item = &'a str>) -> Option<String> {
+    stamps
+        .filter_map(format::jst_date)
+        .max()
+        .map(|(year, month, day)| format!("{year:04}-{month:02}-{day:02}"))
+}
+
+/// 価格と取込を合わせた帯の注記。両方あるときは両方出し、古い方に印を付ける
+/// 戻り値は (注記, 古い方があるか)
+pub(crate) fn combined_date_note(
+    price_iso: Option<&str>,
+    import_ymd: Option<&str>,
+    import_iso: Option<&str>,
+) -> (String, bool) {
+    let mut price_note = price_iso.map_or_else(String::new, labels::price_as_of_with_role);
+    let mut import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
+    let (price_stale, import_stale) = match (price_iso, import_iso) {
+        (Some(price), Some(import)) => labels::stale_sides(price, import),
+        _ => (false, false),
+    };
+    if price_stale && !price_note.is_empty() {
+        price_note.push_str(labels::DATE_STALE_MARK);
+    }
+    if import_stale && !import_note.is_empty() {
+        import_note.push_str(labels::DATE_STALE_MARK);
+    }
+    let note = match (!price_note.is_empty(), !import_note.is_empty()) {
+        (true, true) => format!("{price_note}{}{import_note}", labels::TAG_SEPARATOR),
+        _ => format!("{price_note}{import_note}"),
+    };
+    (note, price_stale || import_stale)
 }
 
 /// 投信に更新待ちの行があるか。前日比の合計に入っていない行があれば true
@@ -166,6 +227,9 @@ pub(crate) fn AssetSummaryBand(
     /// 更新待ちの行があるときの小さな表示
     #[prop(optional)]
     show_pending: bool,
+    /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
+    #[prop(optional)]
+    as_of_stale: bool,
 ) -> impl IntoView {
     let market_text = balance_format::format_valuation_amount(market);
     let profit_text = balance_format::format_signed_valuation_amount(profit);
@@ -273,6 +337,7 @@ pub(crate) fn AssetSummaryBand(
                 primary_value=market_text
                 primary_as_of=as_of
                 show_pending=show_pending
+                as_of_stale=as_of_stale
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text

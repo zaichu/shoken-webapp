@@ -295,11 +295,10 @@ pub fn composition_entries(
                 CompositionProduct::Fund => source.name.clone(),
             },
             CompositionGroup::Product => source.product.label().to_string(),
-            CompositionGroup::Account => source
-                .account
-                .as_deref()
-                .map_or(labels::MISSING, badge::account_display_name)
-                .to_string(),
+            CompositionGroup::Account => source.account.as_deref().map_or_else(
+                || labels::unavailable_text(labels::UnavailableKind::Unassigned).to_string(),
+                |account| badge::account_display_name(account).to_string(),
+            ),
         };
         let is_new_holding = matches!(group, CompositionGroup::Holding);
         let position = if is_new_holding {
@@ -319,11 +318,13 @@ pub fn composition_entries(
                 name: match group {
                     CompositionGroup::Holding => source.name.clone(),
                     CompositionGroup::Product => source.product.label().to_string(),
-                    CompositionGroup::Account => source
-                        .account
-                        .as_deref()
-                        .map_or(labels::MISSING, badge::account_display_name)
-                        .to_string(),
+                    CompositionGroup::Account => source.account.as_deref().map_or_else(
+                        || {
+                            labels::unavailable_text(labels::UnavailableKind::Unassigned)
+                                .to_string()
+                        },
+                        |account| badge::account_display_name(account).to_string(),
+                    ),
                 },
                 sub: match group {
                     CompositionGroup::Holding => source.sub.clone(),

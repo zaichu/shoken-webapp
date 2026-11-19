@@ -139,15 +139,15 @@ test('国内株式の表に1株配当の列があり、1株配当と年間配当
   await expect(priced.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
   await expect(priced.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');
 
-  // 無配は0円
+  // 無配は無配と出す
   const zero = table.getByRole('row', { name: /架空食品工業/ });
-  await expect(zero.getByRole('cell').nth(perShareIndex)).toHaveText('¥0');
+  await expect(zero.getByRole('cell').nth(perShareIndex)).toHaveText('無配');
 
-  // 取得失敗と、応答に無い銘柄は数字を出さない
+  // 取得失敗と、応答に無い銘柄は取得できないと出す
   const failed = table.getByRole('row', { name: /架空精密機器/ });
-  await expect(failed.getByRole('cell').nth(perShareIndex)).toHaveText('取得失敗');
+  await expect(failed.getByRole('cell').nth(perShareIndex)).toHaveText('取得できません');
   const missing = table.getByRole('row', { name: /架空総合化学/ });
-  await expect(missing.getByRole('cell').nth(perShareIndex)).toHaveText('—');
+  await expect(missing.getByRole('cell').nth(perShareIndex)).toHaveText('取得できません');
 
   // 合計は取得できた銘柄だけ(90×100 + 70×50)
   const kpi = page.getByTestId('portfolio-kpi-grid');
@@ -211,8 +211,8 @@ test('推定の初回レスポンス後に配当値が表示される(PC)', asyn
   const row = table.getByRole('row', { name: /架空自動車/ });
   const perShareIndex = await columnIndex(table, '1株配当');
   const annualIndex = await columnIndex(table, '年間配当');
-  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('—');
-  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('—');
+  await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('取得できません');
+  await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('取得できません');
   releaseEstimate();
   await expect(row.getByRole('cell').nth(perShareIndex)).toHaveText('¥90');
   await expect(row.getByRole('cell').nth(annualIndex)).toHaveText('¥9,000');

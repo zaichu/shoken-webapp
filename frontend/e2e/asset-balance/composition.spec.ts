@@ -309,7 +309,7 @@ test.describe('スマホの構成比', () => {
     // 算出不可の行も個別に残し、「その他」にはまとめない
     const missing = list.getByTestId('comp-row').nth(1);
     await expect(missing).toContainText('価格なし銘柄');
-    await expect(missing).toContainText('—');
+    await expect(missing).toContainText('取得できません');
     await expect(list.getByText('その他')).toHaveCount(0);
   });
 
@@ -430,7 +430,7 @@ test('評価額が出せない銘柄は構成比を出さずに一覧へ残す',
   await expect(items.nth(0)).toContainText('100.0%');
   const giftedItem = items.filter({ hasText: '贈与銘柄' });
   await expect(giftedItem).toHaveCount(1);
-  await expect(giftedItem).toContainText('—');
+  await expect(giftedItem).toContainText('取得できません');
 });
 
 test('評価額の合計が0のときは算出不可を表示する', async ({ page }) => {

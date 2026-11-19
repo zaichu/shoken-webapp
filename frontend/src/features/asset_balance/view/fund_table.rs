@@ -5,7 +5,7 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::AssetRateAmount;
-use crate::ui::badge::AccountBadge;
+use crate::ui::badge::{AccountBadge, AccountLegend};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
 use crate::ui::labels;
@@ -87,7 +87,7 @@ pub fn FundHoldingsTable(
                                         <AccountBadge label=view.account.clone() />
                                     </td>
                                     <td class="col-text text-text-soft">
-                                        {view.course.clone().unwrap_or_else(|| "—".to_string())}
+                                        {view.course.clone().unwrap_or_else(|| labels::FETCH_UNAVAILABLE.to_string())}
                                     </td>
                                     <td class="col-num text-text-soft">
                                         <Amount kind=AmountKind::Plain text=shares_text />
@@ -134,6 +134,7 @@ pub fn FundHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
+            <AccountLegend />
         </div>
     }
 }
@@ -161,7 +162,10 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
         view.average_purchase_price,
         format::unit_price_decimals(std::iter::once(view.average_purchase_price)),
     );
-    let course_text = view.course.clone().unwrap_or_else(|| "—".to_string());
+    let course_text = view
+        .course
+        .clone()
+        .unwrap_or_else(|| labels::FETCH_UNAVAILABLE.to_string());
     let shares_text = labels::fund_units_label(&format::format_number_value(view.shares));
     let purchase_text = format::format_currency(view.purchase);
     let market_text = balance_format::format_row_valuation_amount(Some(view.market_value));
@@ -171,10 +175,10 @@ pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<Detail
     let pnl_rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
     let pnl_negative = balance_format::is_negative_valuation(Some(view.profit_loss));
     let pnl_positive = balance_format::is_positive_valuation(Some(view.profit_loss));
-    let as_of = view
-        .price_as_of
-        .clone()
-        .map_or_else(|| "—".to_string(), |date| format::format_iso_date(&date));
+    let as_of = view.price_as_of.clone().map_or_else(
+        || labels::FETCH_UNAVAILABLE.to_string(),
+        |date| format::format_iso_date(&date),
+    );
     let left = vec![
         DetailCell::with_sub(
             labels::BASE_PRICE.to_string(),

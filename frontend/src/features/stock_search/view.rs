@@ -544,7 +544,7 @@ impl HoldingTilesData {
             pnl_rate_positive: asset_balance::is_positive_rate(valuation.profit_loss.rate),
             current_price: format::format_currency(input.current_price),
             price_as_of: input.price_as_of.map_or_else(
-                || labels::MISSING.to_string(),
+                || labels::FETCH_UNAVAILABLE.to_string(),
                 |date| format::format_iso_date(&date),
             ),
             quantity: labels::stock_shares_label(&format::format_number_value(input.shares)),

@@ -365,6 +365,47 @@ fn glossary_builds_counts_and_placeholders() {
 }
 
 #[test]
+fn unavailable_text_distinguishes_scenes() {
+    assert_eq!(unavailable_text(UnavailableKind::OutOfScope), "対象外");
+    assert_eq!(
+        unavailable_text(UnavailableKind::Unavailable),
+        "取得できません"
+    );
+    assert_eq!(unavailable_text(UnavailableKind::Unassigned), "未設定");
+    assert_eq!(unavailable_text(UnavailableKind::NoDividend), "無配");
+}
+
+#[test]
+fn account_notes_cover_all_badges() {
+    assert!(account_note(ACCOUNT_SPECIFIC).contains("特定"));
+    assert!(account_note(ACCOUNT_GENERAL).contains("一般"));
+    assert!(account_note(ACCOUNT_SPECIFIC_GENERAL).contains("合算"));
+    assert!(account_note(ACCOUNT_OLD_NISA).contains("旧NISA"));
+    assert!(account_note(ACCOUNT_NISA_GROWTH).contains("NISA成長"));
+    assert!(account_note(ACCOUNT_NISA_TSUMITATE).contains("NISAつみたて"));
+    assert!(ACCOUNT_LEGEND.contains("特定・一般"));
+    assert!(ACCOUNT_LEGEND.contains("合算"));
+}
+
+#[test]
+fn date_role_notes_keep_headings() {
+    let price = price_as_of_with_role("2026-10-20");
+    assert!(price.contains("価格基準日 10/20"));
+    assert!(price.contains("評価額"));
+    let import = home_import_with_role("2026/1/1");
+    assert!(import.contains("取り込み"));
+    assert!(import.contains("最終"));
+    assert!(import_as_of_note("10/21").contains("最終取り込み"));
+    assert_eq!(older_is_first("2026-01-01", "2026-10-20"), Some(true));
+    assert_eq!(older_is_first("2026-10-20", "2026-01-01"), Some(false));
+    assert_eq!(older_is_first("2026-10-20", "2026-10-20"), None);
+    assert_eq!(older_is_first("xxx", "2026-10-20"), None);
+    assert_eq!(stale_sides("2026-01-01", "2026-10-20"), (true, false));
+    assert_eq!(stale_sides("2026-10-20", "2026-01-01"), (false, true));
+    assert_eq!(stale_sides("2026-10-20", "2026-10-20"), (false, false));
+}
+
+#[test]
 fn no_japanese_literals_outside_glossary() {
     let mut actual = collect_japanese_entries();
     actual.sort();

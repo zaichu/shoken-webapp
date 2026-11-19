@@ -91,18 +91,18 @@ fn holding_dividend_matches_component_cases() {
 
     let missing = holding_dividend("9999", 10.0, 100.0, &maps);
     assert_eq!(missing.per_share, None);
-    assert_eq!(format_dividend_per_share(&missing, 0), "—");
+    assert_eq!(format_dividend_per_share(&missing, 0), "取得できません");
 
     let pending = holding_dividend("0001", 10.0, 100.0, &maps);
     assert_eq!(format_dividend_per_share(&pending, 0), "取得中…");
 
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_annual(&error), "取得失敗");
+    assert_eq!(format_dividend_annual(&error), "取得できません");
 
     let zero = holding_dividend("0003", 10.0, 100.0, &maps);
     assert_eq!(zero.per_share, Some(0.0));
     assert_eq!(zero.annual, Some(0.0));
-    assert_eq!(format_dividend_per_share(&zero, 0), "¥0");
+    assert_eq!(format_dividend_per_share(&zero, 0), "無配");
     assert_eq!(zero.yield_value, Some(0.0));
 
     let zero_price = holding_dividend("9904", 10.0, 0.0, &maps);
@@ -126,9 +126,9 @@ fn holding_dividend_matches_component_cases() {
         assert_eq!(format_dividend_yield(&pending), "取得中…");
     }
     let error = holding_dividend("0002", 10.0, 100.0, &maps);
-    assert_eq!(format_dividend_per_share(&error, 0), "取得失敗");
-    assert_eq!(format_dividend_annual(&error), "取得失敗");
-    assert_eq!(format_dividend_yield(&error), "取得失敗");
+    assert_eq!(format_dividend_per_share(&error, 0), "取得できません");
+    assert_eq!(format_dividend_annual(&error), "取得できません");
+    assert_eq!(format_dividend_yield(&error), "取得できません");
 }
 
 #[test]

@@ -165,6 +165,49 @@ pub fn chart_percentages(values: &[f64]) -> Vec<Option<f64>> {
         .collect()
 }
 
+/// 表示用の割合を最大剰余法で丸め、合計が 100% になるようにする。
+/// `decimals` は小数桁(口座別は 0 または 1)。空・合計 0 は空を返す
+pub fn largest_remainder_percents(values: &[f64], decimals: u32) -> Vec<f64> {
+    if values.is_empty() {
+        return Vec::new();
+    }
+    let total: f64 = values.iter().map(|value| value.abs()).sum();
+    if total <= 0.0 {
+        return vec![0.0; values.len()];
+    }
+    let decimals = decimals.min(9);
+    let factor = 10_f64.powi(decimals.cast_signed());
+    let raw: Vec<f64> = values
+        .iter()
+        .map(|value| value.abs() / total * 100.0 * factor)
+        .collect();
+    let mut floors: Vec<i64> = raw
+        .iter()
+        .map(|value| value.floor().to_i64().unwrap_or(0))
+        .collect();
+    let target = (100.0 * factor).round().to_i64().unwrap_or(0);
+    let mut remainder = target - floors.iter().sum::<i64>();
+    let mut order: Vec<usize> = (0..raw.len()).collect();
+    order.sort_by(|&a, &b| {
+        let frac_a = raw[a] - floors[a].to_f64().unwrap_or(0.0);
+        let frac_b = raw[b] - floors[b].to_f64().unwrap_or(0.0);
+        frac_b
+            .total_cmp(&frac_a)
+            .then_with(|| values[b].abs().total_cmp(&values[a].abs()))
+            .then_with(|| a.cmp(&b))
+    });
+    let mut index = 0;
+    while remainder > 0 && !order.is_empty() {
+        floors[order[index % order.len()]] += 1;
+        remainder -= 1;
+        index += 1;
+    }
+    floors
+        .iter()
+        .map(|value| value.to_f64().unwrap_or(0.0) / factor)
+        .collect()
+}
+
 /// KPI 計算への入力1件。欠損は呼び出し側で `0.0` に寄せる。
 #[derive(Clone, Debug)]
 pub struct KpiHolding {

@@ -15,6 +15,7 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::ui::amount::Amount;
 use crate::ui::asset_balance::{AssetPageEmpty, AssetPageError, CompositionFrame};
+use crate::ui::badge::AccountLegend;
 use crate::ui::button::TabButton;
 use crate::ui::format;
 use crate::ui::labels;
@@ -264,6 +265,15 @@ fn CompositionContent(
                     .collect();
                 let (total, percentages) = portfolio::composition_percentages(&raw);
                 let rows = portfolio::composition_rows(&entries, &percentages);
+                let raw_abs: Vec<f64> =
+                    raw.iter().map(|value| value.unwrap_or(0.0)).collect();
+                let display_percents = model::largest_remainder_percents(&raw_abs, 1);
+                let missing_text = match current_basis {
+                    CompositionBasis::Dividend => {
+                        labels::unavailable_text(labels::UnavailableKind::OutOfScope)
+                    }
+                    CompositionBasis::MarketValue => labels::FETCH_UNAVAILABLE,
+                };
                 let center = match current_group {
                     CompositionGroup::Holding => labels::composition_total(entries.len()),
                     CompositionGroup::Product => labels::composition_kinds(entries.len()),
@@ -279,17 +289,25 @@ fn CompositionContent(
                             .into_any()
                     } else {
                         view! {
-                            <CompositionDonut rows=rows.clone() center=center />
+                            <CompositionDonut
+                                rows=rows.clone()
+                                center=center
+                                missing_text=missing_text
+                            />
                             <ul
                                 class="asset-compact-list"
                                 data-testid="asset-composition-list"
                             >
                                 {rows
                                     .into_iter()
-                                    .map(|row| {
+                                    .enumerate()
+                                    .map(|(index, row)| {
                                         let fill = color_fill_class(row.color);
                                         let static_computable = row.computable;
-                                        let static_percentage = row.percentage;
+                                        let static_percentage = display_percents
+                                            .get(index)
+                                            .copied()
+                                            .unwrap_or(row.percentage);
                                         let row_value = row.value;
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
@@ -302,7 +320,7 @@ fn CompositionContent(
                                             <ListRow
                                                 name=move || name.clone()
                                                 primary=move || row_value.map_or_else(
-                                                    || view! { {labels::MISSING} }.into_any(),
+                                                    || view! { {missing_text} }.into_any(),
                                                     |value| view! {
                                                         <Amount
                                                             text=format::format_currency(value)
@@ -318,7 +336,7 @@ fn CompositionContent(
                                                             />
                                                         }.into_any()
                                                     } else {
-                                                        view! { {labels::MISSING} }.into_any()
+                                                        view! { {missing_text} }.into_any()
                                                     }}
                                                 }
                                             />
@@ -348,7 +366,7 @@ fn CompositionContent(
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
                                                             primary=move || static_value.map_or_else(
-                                                                || view! { {labels::MISSING} }.into_any(),
+                                                                || view! { {missing_text} }.into_any(),
                                                                 |value| view! {
                                                                     <Amount
                                                                         text=format::format_currency(value)
@@ -360,7 +378,7 @@ fn CompositionContent(
                                                                 <Amount
                                                                     text=format::format_fixed_percent(static_percentage, 1)
                                                                 />
-                                                            }.into_any() } else { view! { {labels::MISSING} }.into_any() }
+                                                            }.into_any() } else { view! { {missing_text} }.into_any() }
                                                         />
                                                         <div class="comp-bar" aria-hidden="true">
                                                             <span
@@ -380,6 +398,8 @@ fn CompositionContent(
                                     })
                                     .collect_view()}
                             </ul>
+                            {matches!(current_group, CompositionGroup::Account)
+                                .then(|| view! { <AccountLegend /> })}
                         }
                             .into_any()
                     }}
@@ -393,7 +413,11 @@ fn CompositionContent(
 /// 凡例は比率の大きい順に上位5件、6件目以降は「ほか N 件」にまとめる。
 /// 切れの間のすき間は地の色の線で空け、同じ色が隣り合っても区別できるようにする
 #[component]
-fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView {
+fn CompositionDonut(
+    rows: Vec<CompositionRow>,
+    center: String,
+    #[prop(into)] missing_text: &'static str,
+) -> impl IntoView {
     let geometry = DonutGeometry::SQUARE;
     let mut cursor = 0.0;
     let slices: Vec<(CompositionRow, f64)> = rows
@@ -405,6 +429,8 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
             (row, start)
         })
         .collect();
+    let amounts: Vec<f64> = rows.iter().map(|row| row.value.unwrap_or(0.0)).collect();
+    let display = crate::features::asset_balance::model::largest_remainder_percents(&amounts, 1);
     let center_x = geometry.center_x;
     let center_y = geometry.center_y;
     let radius = geometry.radius;
@@ -492,12 +518,16 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 {rows
                     .into_iter()
                     .take(visible)
-                    .map(|row| {
+                    .enumerate()
+                    .map(|(index, row)| {
                         let fill = color_fill_class(row.color);
                         let rate = if row.computable {
-                            format::format_fixed_percent(row.percentage, 1)
+                            format::format_fixed_percent(
+                                display.get(index).copied().unwrap_or(row.percentage),
+                                1,
+                            )
                         } else {
-                            labels::MISSING.to_string()
+                            missing_text.to_string()
                         };
                         let name = row.name.clone();
                         view! {

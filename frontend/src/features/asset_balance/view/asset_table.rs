@@ -9,7 +9,7 @@ use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::AssetRateAmount;
-use crate::ui::badge::AccountBadge;
+use crate::ui::badge::{AccountBadge, AccountLegend};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -135,7 +135,7 @@ pub fn AssetHoldingsTable(
                                     </td>
                                     <td class="col-text">
                                         {view.account.clone().map_or_else(
-                                            || view! { "—" }.into_any(),
+                                            || view! { {labels::unavailable_text(labels::UnavailableKind::Unassigned)} }.into_any(),
                                             |account| {
                                                 view! { <AccountBadge label=account /> }.into_any()
                                             },
@@ -212,6 +212,7 @@ pub fn AssetHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
+            <AccountLegend />
         </div>
     }
 }
