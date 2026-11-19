@@ -1133,8 +1133,9 @@
   }
 
   /* 撮影用の案Cの低いカード。スマホの行はすでに py-2 のため、
-     効かせる値は py-1 にし、行内の段間も詰める。中身2行で 44px 以上を保つ */
-  .list-row-action.receipt-compact-low {
+     効かせる値は py-1 にし、行内の段間も詰める。中身2行で 44px 以上を保つ。
+     スマホ幅の指定(0,3,0)より強くするため、行の testid まで書く */
+  .list-row-item[data-testid="receipt-card"] .list-row-action.receipt-compact-low {
     @apply py-1;
   }
 
