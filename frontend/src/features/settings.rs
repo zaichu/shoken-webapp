@@ -1,7 +1,10 @@
 mod export;
 mod login_history;
 mod toc;
-pub(crate) use login_history::{ResultBadge, format_agent, format_datetime, format_place};
+pub(crate) use login_history::{
+    AttentionBadge, AttentionCell, AttentionNote, ResultBadge, format_agent, format_datetime,
+    format_place,
+};
 
 use crate::session;
 use crate::settings;
