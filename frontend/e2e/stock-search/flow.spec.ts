@@ -242,7 +242,15 @@ test('折りたたみをキーボードで開くと外部リンクが11件にな
   const links = page.getByTestId('stock-links');
   const toggle = links.getByRole('button', { name: 'その他のサイト(8)' });
 
-  await toggle.focus();
+  // .focus() は到達の検証にならないため Tab だけでトグルまで進む
+  const maxTabs = 100;
+  for (let pressed = 0; pressed < maxTabs; pressed += 1) {
+    if (await toggle.evaluate((el) => el === document.activeElement).catch(() => false)) {
+      break;
+    }
+    await page.keyboard.press('Tab');
+  }
+  await expect(toggle, 'Tab だけでトグルに届くこと').toBeFocused();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(links.getByRole('link')).toHaveCount(11);
