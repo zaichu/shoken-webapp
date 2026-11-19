@@ -215,6 +215,69 @@ fn present(value: Option<&str>) -> Option<&str> {
     }
 }
 
+/// 生の User-Agent 文字列か。対応表にある短い名前(例 `vivaldi`)は
+/// そのまま出し、Mozilla 形式などの長い文字列だけ丸めの対象にする。
+fn is_raw_user_agent(value: &str) -> bool {
+    let lower = value.to_lowercase();
+    if lower.contains("mozilla/") || lower.contains("applewebkit") || lower.contains("like gecko") {
+        return true;
+    }
+    if value.contains('/') && (value.contains('(') || value.contains(';')) {
+        return true;
+    }
+    value.contains(char::is_whitespace) && value.chars().count() > 32
+}
+
+/// 丸めるときの OS 名。生の文字列の中に既知の OS があれば正式名を抜き出し、
+/// 短い1語(例 `freebsd`)は従来どおり先頭だけ大文字にして残す。
+/// どちらでもない長い不明文字列は何も返さない(括弧を付けないため)。
+fn os_for_unknown_browser(os: Option<&str>) -> Option<String> {
+    let raw = present(os)?;
+    if !raw.contains(char::is_whitespace)
+        && !raw.contains('/')
+        && !raw.contains('(')
+        && !raw.contains(';')
+        && raw.chars().count() <= 32
+    {
+        return Some(mapped_label(OS_TABLE, raw));
+    }
+    let lower = raw.to_lowercase();
+    if lower.contains("windows") {
+        return Some("Windows".to_string());
+    }
+    if lower.contains("iphone") || lower.contains("ipad") {
+        return Some("iOS".to_string());
+    }
+    if lower.contains("android") {
+        return Some("Android".to_string());
+    }
+    if lower.contains("mac os") || lower.contains("macintosh") || lower.contains("macosx") {
+        return Some("macOS".to_string());
+    }
+    if lower.contains("linux") {
+        return Some("Linux".to_string());
+    }
+    None
+}
+
+/// 端末表示。生の User-Agent は `unknown_browser` に丸め、OS が分かれば
+/// `不明なブラウザ(Windows)` のように括弧で添える。文言は呼び出し側が
+/// `ui::labels` から渡す(このクレートは文言を持たない)。
+#[must_use]
+pub fn format_agent_with_unknown_label(
+    browser: Option<&str>,
+    os: Option<&str>,
+    unknown_browser: &str,
+) -> String {
+    if present(browser).is_some_and(is_raw_user_agent) {
+        return match os_for_unknown_browser(os) {
+            Some(os_label) => format!("{unknown_browser}({os_label})"),
+            None => unknown_browser.to_string(),
+        };
+    }
+    format_agent(browser, os)
+}
+
 fn join_with(first: Option<String>, second: Option<String>, separator: &str) -> String {
     match (first, second) {
         (Some(first), Some(second)) => format!("{first}{separator}{second}"),
@@ -589,5 +652,123 @@ mod tests {
         assert_eq!(days_in_month(2026, 2), 28);
         assert_eq!(days_in_month(2026, 0), 28);
         assert_eq!(days_in_month(2026, 13), 28);
+    }
+
+    #[test]
+    fn raw_detection_triggers_on_single_markers() {
+        // `||` の各分岐が単独で丸めを起こすこと(変異の `&&` 化の検出用)
+        for ua in [
+            "Mozilla/5.0",
+            "Something AppleWebKit/605.1.15",
+            "rv:132.0 like Gecko",
+            "CustomAgent/1.0 (Windows)",
+        ] {
+            assert!(is_raw_user_agent(ua), "{ua} は生の User-Agent として丸める");
+        }
+        // `/` があっても `(` `;` がなければ短い名前は残す。空白だけの短い名前も残す
+        assert!(!is_raw_user_agent("CustomAgent/1.0"));
+        assert!(!is_raw_user_agent("Mac OS"));
+        assert!(!is_raw_user_agent(&"a".repeat(40)));
+    }
+
+    #[test]
+    fn raw_detection_boundary_counts_chars_with_whitespace() {
+        // 32文字ちょうど(空白あり)は丸めない、33文字は丸める
+        let exactly_32 = format!("{} {}", "a".repeat(15), "b".repeat(16));
+        assert_eq!(exactly_32.chars().count(), 32);
+        assert!(!is_raw_user_agent(&exactly_32));
+        let over_32 = format!("{} {}", "a".repeat(16), "b".repeat(16));
+        assert_eq!(over_32.chars().count(), 33);
+        assert!(is_raw_user_agent(&over_32));
+    }
+
+    #[test]
+    fn unknown_rounding_keeps_short_single_token_os() {
+        let raw = "Mozilla/5.0";
+        assert_eq!(
+            format_agent_with_unknown_label(Some(raw), Some("freebsd"), "不明なブラウザ"),
+            "不明なブラウザ(Freebsd)"
+        );
+        let token_32 = "c".repeat(32);
+        assert_eq!(
+            format_agent_with_unknown_label(Some(raw), Some(&token_32), "不明なブラウザ"),
+            format!("不明なブラウザ({})", capitalize_first(&token_32))
+        );
+    }
+
+    #[test]
+    fn unknown_rounding_extracts_each_known_os_token() {
+        let raw = "Mozilla/5.0";
+        for (os, expected) in [
+            ("iPhone; CPU iPhone OS 17_0", "iOS"),
+            ("Mac OS X 10_15_7", "macOS"),
+            ("PowerMac Macintosh G3", "macOS"),
+        ] {
+            assert_eq!(
+                format_agent_with_unknown_label(Some(raw), Some(os), "不明なブラウザ"),
+                format!("不明なブラウザ({expected})"),
+                "{os}"
+            );
+        }
+    }
+    #[test]
+    fn raw_user_agent_rounds_to_unknown_browser_with_os() {
+        let raw = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        assert_eq!(
+            format_agent_with_unknown_label(Some(raw), Some("windows"), "不明なブラウザ"),
+            "不明なブラウザ(Windows)"
+        );
+        assert_eq!(
+            format_agent_with_unknown_label(Some(raw), None, "不明なブラウザ"),
+            "不明なブラウザ"
+        );
+    }
+
+    #[test]
+    fn long_os_inside_raw_agent_still_yields_known_os() {
+        let raw = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0 とても長いブラウザ名の表示確認用";
+        let long_os = "Windows 10 Pro 64ビット版とても長いOS名の表示確認用";
+        assert_eq!(
+            format_agent_with_unknown_label(Some(raw), Some(long_os), "不明なブラウザ"),
+            "不明なブラウザ(Windows)"
+        );
+        assert_eq!(
+            format_agent_with_unknown_label(
+                Some(raw),
+                Some("Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/132.0"),
+                "不明なブラウザ"
+            ),
+            "不明なブラウザ(Linux)"
+        );
+    }
+
+    #[test]
+    fn short_unknown_names_pass_through_without_rounding() {
+        assert_eq!(
+            format_agent_with_unknown_label(Some("vivaldi"), Some("windows"), "不明なブラウザ"),
+            "Vivaldi / Windows"
+        );
+        assert_eq!(
+            format_agent_with_unknown_label(Some("vivaldi"), Some("freebsd"), "不明なブラウザ"),
+            "Vivaldi / Freebsd"
+        );
+        assert_eq!(
+            format_agent_with_unknown_label(None, None, "不明なブラウザ"),
+            "—"
+        );
+    }
+
+    #[test]
+    fn raw_agent_without_known_os_has_no_parentheses() {
+        let raw =
+            "Mozilla/5.0 (PlayStation; PlayStation 5) AppleWebKit/605.1.15 (KHTML, like Gecko)";
+        assert_eq!(
+            format_agent_with_unknown_label(
+                Some(raw),
+                Some("とても長い 不明なOS名の 表示確認用ダミー文字列"),
+                "不明なブラウザ"
+            ),
+            "不明なブラウザ"
+        );
     }
 }

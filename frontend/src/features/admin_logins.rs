@@ -421,6 +421,7 @@ pub fn AdminLoginsPage() -> impl IntoView {
                     }
                 })
             }}
+            <admin_logins_ui::AdminTableNote>{labels::LOGIN_HISTORY_LEGEND}</admin_logins_ui::AdminTableNote>
             <div aria-busy=move || initial.with(std::option::Option::is_none).to_string()>
                 {move || match initial.get() {
                     None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
@@ -472,6 +473,10 @@ fn LoginEntries(
                         <th scope="col" aria-sort=move || query.with(|query| (query.sort_by == column).then_some(if query.descending { "descending" } else { "ascending" }))>
                             <LoginSortButton column=column label=label query=query reload=reload />
                         </th>
+                        // 注意は結果から派生するため並べ替えは結果の列に寄せる
+                        {(column == "result").then(|| view! {
+                            <th scope="col">{labels::LOGIN_HISTORY_COL_ATTENTION}</th>
+                        })}
                     })}
                     <th scope="col">{labels::LOGIN_HISTORY_COL_AGENT}</th>
                 </tr></thead>
@@ -479,7 +484,8 @@ fn LoginEntries(
                     <tr>
                         <td class="tabular-nums">{settings::format_datetime(&entry.occurred_at)}</td>
                         <td class="break-all">{entry.email}</td>
-                        <td><ResultBadge result=entry.result /></td>
+                        <td><ResultBadge result=entry.result.clone() /></td>
+                        <td><settings::AttentionCell result=entry.result /></td>
                         <td>{settings::format_place(&entry.country, &entry.region)}</td>
                         <td>{settings::format_agent(&entry.browser, &entry.os)}</td>
                     </tr>
@@ -487,16 +493,25 @@ fn LoginEntries(
             </table>
         </div>
         <ul class="asset-compact-list lg:hidden" data-testid="admin-login-list">
-            {mobile.into_iter().map(|entry| view! {
+            {mobile.into_iter().map(|entry| {
+                let attention_result = entry.result.clone();
+                view! {
                 <li class="list-row-item">
                     <ListRowStatic
                         name=move || entry.email.clone()
-                        primary=move || view! { <ResultBadge result=entry.result.clone() /> }
-                        meta=move || format!("{} · {}", settings::format_datetime(&entry.occurred_at), settings::format_place(&entry.country, &entry.region))
+                        primary=move || view! {
+                            <ResultBadge result=entry.result.clone() />
+                            {" "}
+                            <settings::AttentionBadge result=entry.result.clone() />
+                        }
+                        meta=move || view! {
+                            {format!("{} · {}", settings::format_datetime(&entry.occurred_at), settings::format_place(&entry.country, &entry.region))}
+                            <settings::AttentionNote result=attention_result.clone() />
+                        }
                         secondary=move || settings::format_agent(&entry.browser, &entry.os)
                     />
                 </li>
-            }).collect_view()}
+            }}).collect_view()}
         </ul>
     }
 }

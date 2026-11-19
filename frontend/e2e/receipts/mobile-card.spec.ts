@@ -151,9 +151,9 @@ test('マイナスの損益は符号と色を保つ', async ({ page }) => {
     .getByTestId('receipt-card')
     .first();
   await expect(card).toBeVisible();
-  await expect(card.locator('.list-row-primary')).toContainText('-¥5,000');
+  await expect(card.locator('.list-row-primary')).toContainText('−¥5,000');
   // 金額の下に税引前を小さく添える(国内株式・投資信託のみ)
-  await expect(card.locator('.receipt-before-tax-sub')).toHaveText('税引前 -¥5,000');
+  await expect(card.locator('.receipt-before-tax-sub')).toHaveText('税引前 −¥5,000');
   // 主役と税引前の補助の両方がマイナス表示(赤の目印付き)になる
   await expect(
     card.locator('.list-row-primary [data-negative="true"]'),
@@ -208,7 +208,7 @@ test('国内株式は月単位でまとめ、日ごとの見出しは出さな�
   const monthHeading = table.locator('tbody tr').filter({ hasText: '2024年2月' });
   await expect(monthHeading.first()).toBeVisible();
   await expect(monthHeading.first().locator('td:not([colspan])')).toHaveText([
-    '+¥15,000', '-¥3,045', '+¥11,955',
+    '+¥15,000', '−¥3,045', '+¥11,955',
   ]);
 });
 

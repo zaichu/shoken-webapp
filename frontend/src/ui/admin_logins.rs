@@ -45,3 +45,10 @@ pub fn AdminListMoreError(
         </div>
     }
 }
+
+/// 表の上の凡例の1行。設定の SettingsNote と同じ文字の見た目にする
+/// (管理者は設定の部品を使わず、この画面の部品に寄せる)
+#[component]
+pub fn AdminTableNote(children: Children) -> impl IntoView {
+    view! { <p class="pb-3 text-cell text-text-muted">{children()}</p> }
+}

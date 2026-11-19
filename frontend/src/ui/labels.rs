@@ -443,6 +443,16 @@ pub const LOGIN_RESULT_NEW_DEVICE: &str = "新しい端末";
 pub const LOGIN_RESULT_LOCATION_CHANGED: &str = "場所の変化";
 /// ログイン履歴: 結果「失敗」
 pub const LOGIN_RESULT_FAILURE: &str = "失敗";
+/// ログイン履歴: 列見出し「注意」(成功のうち確認してほしい記録)
+pub const LOGIN_HISTORY_COL_ATTENTION: &str = "注意";
+/// ログイン履歴: 注意「新しい端末」の短い補足(初めて使う端末)
+pub const LOGIN_ATTENTION_NEW_DEVICE_NOTE: &str = "初めて使う端末";
+/// ログイン履歴: 注意「場所の変化」の短い補足(前回と違う場所)
+pub const LOGIN_ATTENTION_LOCATION_CHANGED_NOTE: &str = "前回と違う場所";
+/// ログイン履歴: 成否と注意の凡例(色だけに頼らず文字で区別する1行)
+pub const LOGIN_HISTORY_LEGEND: &str = "「成功」「失敗」はログインの成否、「新しい端末」「場所の変化」は成功のうち確認してほしい記録です(赤の失敗以外はログイン自体は成功しています)";
+/// ログイン履歴: 生の User-Agent を丸めたときの端末名
+pub const LOGIN_UNKNOWN_BROWSER: &str = "不明なブラウザ";
 /// ログイン通知: トグルの文言
 pub const LOGIN_NOTIFY_TITLE: &str = "新しい端末からログインしたときに通知する";
 /// ログイン通知: トグルの補足
