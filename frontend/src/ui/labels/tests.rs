@@ -359,7 +359,7 @@ fn glossary_builds_counts_and_placeholders() {
     assert_eq!(count(1_000_000), "1000000件");
     assert_eq!(search_placeholder("銘柄名・コード"), "銘柄名・コードで検索");
     assert_eq!(group_count("2026年10月", 3), "2026年10月 · 3件");
-    assert_eq!(price_as_of("2026-10-21"), "価格基準日 10/21");
+    assert_eq!(price_as_of_with_role("2026-10-21"), "10/21 時点の株価");
     assert_eq!(composition_others(3), "ほか3件");
     assert_eq!(composition_others(67), "ほか67件");
 }
@@ -390,8 +390,7 @@ fn account_notes_cover_all_badges() {
 #[test]
 fn date_role_notes_keep_headings() {
     let price = price_as_of_with_role("2026-10-20");
-    assert!(price.contains("価格基準日 10/20"));
-    assert!(price.contains("この日の価格"));
+    assert_eq!(price, "10/20 時点の株価");
     let import = home_import_with_role("2026/1/1");
     assert!(import.contains("取り込み"));
     assert!(import.contains("最終"));

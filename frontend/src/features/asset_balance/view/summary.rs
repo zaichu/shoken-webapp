@@ -103,11 +103,11 @@ pub(crate) fn date_notes(
     };
     let mut price_note = price_iso.map_or_else(String::new, labels::price_as_of_with_role);
     if price_stale && !price_note.is_empty() {
-        price_note.push_str(labels::DATE_STALE_MARK);
+        price_note.push_str(labels::PRICE_STALE_MARK);
     }
     let mut import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
     if import_stale && !import_note.is_empty() {
-        import_note.push_str(labels::DATE_STALE_MARK);
+        import_note.push_str(labels::IMPORT_STALE_MARK);
     }
     (price_note, price_stale, import_note, import_stale)
 }

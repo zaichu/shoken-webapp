@@ -338,11 +338,6 @@ pub fn group_count(label: &str, total: usize) -> String {
     format!("{label} · {}", count(total))
 }
 
-/// 基準日の書き方(「価格基準日 10/21」)
-pub fn price_as_of(date: &str) -> String {
-    format!("{PRICE_AS_OF} {}", format::format_price_date(date))
-}
-
 /// 絞り込み中の件数(「絞り込み中(4件 / 77件)」)
 pub fn filtering_count(filtered: usize, total: usize) -> String {
     format!("{FILTERING}({} / {})", count(filtered), count(total))
@@ -1199,10 +1194,10 @@ pub fn account_note(account: &str) -> &str {
     }
 }
 
-/// 価格基準日の役割注記。見出しの語は残し、この日の価格で評価額を出すことを添える
-/// 帯の1項目に収まる短さにする(PC 1280 の縦線・並びを崩さないため)
+/// 価格基準日の役割注記。「10/20 時点の株価」のように短く書く
+/// (帯の1項目に収まる短さにするため。PC 1280 の縦線・並びを崩さない)
 pub fn price_as_of_with_role(date: &str) -> String {
-    format!("{}・この日の価格", price_as_of(date))
+    format!("{} 時点の株価", format::format_price_date(date))
 }
 
 /// 取込日の役割注記。最終取り込みであることを添える
@@ -1210,8 +1205,10 @@ pub fn home_import_with_role(label: &str) -> String {
     format!("最終取り込み {label}")
 }
 
-/// 古い方の日付に付ける印。色だけに頼らず文字でも示す
-pub const DATE_STALE_MARK: &str = "（古い方）";
+/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
+pub const PRICE_STALE_MARK: &str = "（取込の日付より古い）";
+/// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
+pub const IMPORT_STALE_MARK: &str = "（株価の日付より古い）";
 
 /// 取込日の役割注記。最終取り込みであることを添える
 pub fn import_as_of_note(ymd: &str) -> String {

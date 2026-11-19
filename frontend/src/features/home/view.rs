@@ -110,7 +110,7 @@ pub fn HomePage() -> impl IntoView {
                         format!(
                             "{}{}",
                             labels::home_import_with_role(&label),
-                            labels::DATE_STALE_MARK
+                            labels::IMPORT_STALE_MARK
                         )
                     } else {
                         labels::home_import_with_role(&label)

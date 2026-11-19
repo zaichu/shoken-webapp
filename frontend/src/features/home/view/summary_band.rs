@@ -88,7 +88,7 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                     let mut as_of = model::oldest_home_as_of(stock_rows, fund_rows)
                         .unwrap_or_default();
                     if price_stale && !as_of.is_empty() {
-                        as_of.push_str(labels::DATE_STALE_MARK);
+                        as_of.push_str(labels::PRICE_STALE_MARK);
                     }
                     (merged, daily, as_of, pending, price_stale)
                 };
