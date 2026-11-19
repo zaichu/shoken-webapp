@@ -242,8 +242,8 @@ fn StockContent(
                                 as_of=as_of
                                 show_pending=pending
                                 as_of_stale=stale
-                                status=import_status
-                                status_stale=import_stale
+                                import_note=import_status
+                                import_stale=import_stale
                             />
                         </SkeletonSummary>
                         <SkeletonNote filtered=filtered_count />
@@ -379,8 +379,8 @@ fn FundContent(
                     as_of=as_of
                     show_pending=pending
                     as_of_stale=stale
-                    status=import_status
-                    status_stale=import_stale
+                    import_note=import_status
+                    import_stale=import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
@@ -579,8 +579,8 @@ fn AllContent(
                     as_of=as_of
                     show_pending=pending
                     as_of_stale=all_stale
-                    status=all_import_status
-                    status_stale=all_import_stale
+                    import_note=all_import_status
+                    import_stale=all_import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />

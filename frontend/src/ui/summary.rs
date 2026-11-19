@@ -75,15 +75,19 @@ pub fn SummaryItem(
     /// 数字の横に小さく出す補足(読み込み中など)
     #[prop(optional)]
     status: String,
-    /// 数字の横の補足が古い日付のときの強調。色と文字の両方で示す
-    #[prop(optional)]
-    status_stale: bool,
     /// ラベルの横に小さく出す補足(基準日・更新待ちなど)。空なら出さない
     #[prop(optional, into)]
     label_note: String,
     /// ラベルの補足が古い日付のときの強調。色と文字の両方で示す
     #[prop(optional)]
     label_note_stale: bool,
+    /// ラベルの横に小さく出す2つ目の補足(取込の状態など)。入りきらないときは
+    /// 1つ目の注記と分けて次の行に送る。空なら出さない
+    #[prop(optional, into)]
+    label_note2: String,
+    /// 2つ目の補足が古い日付のときの強調。色と文字の両方で示す
+    #[prop(optional)]
+    label_note2_stale: bool,
     #[prop(optional)] tone: SummaryTone,
     /// 項目ごとに付けたいクラス
     #[prop(optional, into)]
@@ -106,6 +110,14 @@ pub fn SummaryItem(
                             "summary-label-note"
                         }>{label_note.clone()}</span>
                     })}
+                {(!label_note2.is_empty())
+                    .then(|| view! {
+                        <span class=if label_note2_stale {
+                            "summary-label-note text-warn-ink"
+                        } else {
+                            "summary-label-note"
+                        }>{label_note2.clone()}</span>
+                    })}
             </dt>
             <dd class=format!("summary-value {size_class}")>
                 <Amount text=value kind=kind negative=negative positive=positive />
@@ -116,13 +128,7 @@ pub fn SummaryItem(
                         </span>
                     })}
                 {(!status.is_empty())
-                    .then(|| view! {
-                        <span class=if status_stale {
-                            "summary-status text-warn-ink"
-                        } else {
-                            "summary-status"
-                        }>{status.clone()}</span>
-                    })}
+                    .then(|| view! { <span class="summary-status">{status.clone()}</span> })}
             </dd>
         </div>
     }
@@ -187,12 +193,13 @@ pub fn SummaryBand(
     /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
     as_of_stale: bool,
-    /// 主の数字の横に小さく出す取込の状態(空なら出さない)
+    /// 主ラベルの横に小さく出す2つ目の補足(取込の状態など)。入りきらないときは
+    /// 1つ目の注記と分けて次の行に送る。空なら出さない
     #[prop(optional, into)]
-    primary_status: String,
-    /// 取込が基準日より古いときの強調。色と「(古い方)」の文字で示す
+    primary_note2: String,
+    /// 2つ目の補足が古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
-    primary_status_stale: bool,
+    primary_note2_stale: bool,
     #[prop(optional)] testid_band: Option<&'static str>,
 ) -> impl IntoView {
     let has_aux = !aux_label.is_empty();
@@ -225,8 +232,8 @@ pub fn SummaryBand(
                         size=SummarySize::Primary
                         label_note=label_note.clone()
                         label_note_stale=as_of_stale
-                        status=primary_status.clone()
-                        status_stale=primary_status_stale
+                        label_note2=primary_note2.clone()
+                        label_note2_stale=primary_note2_stale
                         tone=primary_tone
                     />
                     {has_aux.then(|| view! {
@@ -263,8 +270,8 @@ pub fn SummaryBand(
                     size=SummarySize::Primary
                     label_note=label_note
                     label_note_stale=as_of_stale
-                    status=primary_status
-                    status_stale=primary_status_stale
+                    label_note2=primary_note2
+                    label_note2_stale=primary_note2_stale
                     tone=primary_tone
                 />
                 {has_aux.then(|| view! {

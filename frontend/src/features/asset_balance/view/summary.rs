@@ -226,12 +226,13 @@ pub(crate) fn AssetSummaryBand(
     /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
     as_of_stale: bool,
-    /// 数字の横に小さく出す取込の状態(空なら出さない)
+    /// ラベルの横に小さく出す取込の状態。入りきらないときは価格の注記と
+    /// 分けて次の行に送る。空なら出さない
     #[prop(optional, into)]
-    status: String,
+    import_note: String,
     /// 取込が基準日より古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
-    status_stale: bool,
+    import_stale: bool,
 ) -> impl IntoView {
     let market_text = balance_format::format_valuation_amount(market);
     let profit_text = balance_format::format_signed_valuation_amount(profit);
@@ -340,8 +341,8 @@ pub(crate) fn AssetSummaryBand(
                 primary_as_of=as_of
                 show_pending=show_pending
                 as_of_stale=as_of_stale
-                primary_status=status
-                primary_status_stale=status_stale
+                primary_note2=import_note
+                primary_note2_stale=import_stale
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text
