@@ -3,15 +3,14 @@ use super::super::store::{self, HomeOverviewData};
 use super::stocks_of;
 use crate::features::asset_balance;
 use crate::session;
-use crate::ui::amount::Amount;
+use crate::ui::cumulative_chart::CumulativeChart;
 use crate::ui::format;
 use crate::ui::home::{
-    HomeCardError, HomeCardHead, HomeCardSkeleton, HomeChartLegend, HomeChartSection,
-    HomeDetailCard, HomeDividendHead, HomeDividendNote, HomeDividendTooltip,
+    HomeCardError, HomeCardHead, HomeCardSkeleton, HomeChartSection, HomeDetailCard,
+    HomeDividendHead, HomeDividendNote,
 };
 use crate::ui::labels;
 use leptos::prelude::*;
-use rust_decimal::Decimal;
 
 #[component]
 pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
@@ -138,6 +137,7 @@ fn DividendCardBody(
             year=year
             previous_year=previous_year
             current_month=current_month
+            has_previous=model.previous_remaining.is_some()
         />
     }
 }
@@ -148,118 +148,28 @@ fn DividendMonthlyChart(
     year: u32,
     previous_year: u32,
     current_month: u32,
+    has_previous: bool,
 ) -> impl IntoView {
-    let max = monthly
-        .iter()
-        .flat_map(|pair| [pair.current, pair.previous])
-        .max()
-        .unwrap_or_default();
-    let months: Vec<u32> = monthly.iter().map(|pair| pair.month).collect();
-    let cells = monthly
-        .into_iter()
-        .map(|pair| {
-            view! {
-                <DividendMonthCell
-                    pair=pair
-                    max=max
-                    year=year
-                    previous_year=previous_year
-                    current_month=current_month
-                />
-            }
-        })
-        .collect_view();
-    view! {
-        <HomeChartSection label=labels::home_monthly_aria(year, previous_year)>
-            <p class="home-chart-max"><Amount text=asset_balance::format_valuation_amount(Some(asset_balance::dec_to_f64(&max))) /></p>
-            <div class="home-chart-plot">
-                <div class="home-chart-grid" aria-hidden="true">
-                    <span class="home-chart-grid-line" data-level="top"></span>
-                    <span class="home-chart-grid-line" data-level="mid"></span>
-                    <span class="home-chart-grid-line" data-level="base"></span>
-                </div>
-                <div class="home-chart-months">{cells}</div>
-            </div>
-            <div class="home-chart-month-labels" aria-hidden="true">
-                {months
-                    .iter()
-                    .map(|month| {
-                        let current = *month == current_month;
-                        view! {
-                            <span
-                                class="home-chart-month-label"
-                                data-current=current.to_string()
-                            >
-                                {labels::receipt_month_label(*month)}
-                            </span>
-                        }
-                    })
-                    .collect_view()}
-            </div>
-        </HomeChartSection>
-        <HomeChartLegend year=year previous_year=previous_year />
+    // 前年の取得に失敗したときは前年の線と差を出さない(0 を実績として見せない)
+    let mut current = vec![0.0; 12];
+    let mut previous_totals = vec![0.0; 12];
+    for pair in &monthly {
+        if (1..=12).contains(&pair.month) {
+            current[(pair.month - 1) as usize] = asset_balance::dec_to_f64(&pair.current);
+            previous_totals[(pair.month - 1) as usize] = asset_balance::dec_to_f64(&pair.previous);
+        }
     }
-}
-
-#[component]
-fn DividendMonthCell(
-    pair: model::MonthlyDividends,
-    max: Decimal,
-    year: u32,
-    previous_year: u32,
-    current_month: u32,
-) -> impl IntoView {
-    let cur = model::bar_height(pair.current, max);
-    let prev = model::bar_height(pair.previous, max);
-    let cur_text = format::format_currency(asset_balance::dec_to_f64(&pair.current));
-    let prev_text = format::format_currency(asset_balance::dec_to_f64(&pair.previous));
-    let diff_value = asset_balance::dec_to_f64(&(pair.current - pair.previous));
-    let diff_text = asset_balance::format_signed_valuation_amount(Some(diff_value));
-    let current_note = if pair.month == current_month {
-        labels::HOME_CURRENT_MONTH
-    } else {
-        ""
-    };
-    let month_aria = labels::home_month_aria(
-        pair.month,
-        current_note,
-        year,
-        &cur_text,
-        previous_year,
-        &prev_text,
-        &diff_text,
-    );
+    let previous: Option<Vec<f64>> = has_previous.then_some(previous_totals);
     view! {
-        <div
-            class="home-chart-month"
-            tabindex="0"
-            role="group"
-            aria-label=month_aria
-        >
-            <div class="home-chart-bars">
-                <span
-                    class="home-month-bar home-chart-previous"
-                    style:height=format!("{prev}%")
-                />
-                <span
-                    class="home-month-bar bg-chart-1"
-                    style:height=format!("{cur}%")
-                />
-            </div>
-            <div class="home-chart-tip" aria-hidden="true">
-                <p class="font-bold text-text">
-                    {labels::receipt_month_label(pair.month)}
-                </p>
-                <HomeDividendTooltip
-                    year=year
-                    previous_year=previous_year
-                    cur_text=cur_text
-                    prev_text=prev_text
-                    diff_text=diff_text
-                    diff_negative=asset_balance::is_negative_valuation(Some(diff_value))
-                    diff_positive=asset_balance::is_positive_valuation(Some(diff_value))
-                />
-            </div>
-        </div>
+        <HomeChartSection label=labels::home_cumulative_aria(year, previous_year)>
+            <CumulativeChart
+                current=current
+                previous=previous
+                current_year=year
+                previous_year=previous_year
+                aria_label=labels::home_cumulative_aria(year, previous_year)
+                current_month=current_month
+            />
+        </HomeChartSection>
     }
 }

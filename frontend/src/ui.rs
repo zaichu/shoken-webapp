@@ -8,6 +8,7 @@ pub(crate) mod card;
 pub(crate) mod confirm_modal;
 pub(crate) mod csv_page;
 pub(crate) mod csv_sync;
+pub(crate) mod cumulative_chart;
 pub(crate) mod detail_dialog;
 pub(crate) mod dialog;
 pub(crate) mod disclosure;

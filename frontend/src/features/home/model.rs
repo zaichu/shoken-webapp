@@ -277,14 +277,6 @@ pub(crate) fn remaining_label(remaining: Option<f64>) -> (&'static str, String, 
     }
 }
 
-/// 月別グラフの棒の高さ(%)。0 より大きい値は潰れないよう最小 3% にする
-pub(crate) fn bar_height(value: Decimal, max: Decimal) -> f64 {
-    if value.is_zero() || max.is_zero() {
-        return 0.0;
-    }
-    (asset_balance::dec_to_f64(&value) / asset_balance::dec_to_f64(&max) * 100.0).max(3.0)
-}
-
 /// 内訳チャートの1区分
 pub(crate) struct CompositionSlice {
     pub(crate) label: String,

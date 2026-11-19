@@ -1689,25 +1689,30 @@
     @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm;
   }
 
-  /* 前年の凡例は当年と同じ青のため、斜線だけでなく形でも区別する。
-     中抜きの四角にし、年表記(「2025年」)と組で示す。棒側の .home-month-bar には触れない */
-  .home-swatch.home-chart-previous {
-    background-color: transparent;
-    background-image: none;
-    border-width: 2px;
-    border-style: solid;
-    border-color: var(--color-chart-1);
-    border-radius: 2px;
+  /* 受取の累計の折れ線。今年=実線の青、前年=点線の灰。凡例は線と同じ見た目で上に置く */
+  .home-cum-legend {
+    @apply mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-cell text-text-muted;
   }
 
-  /* 月別配当の棒グラフ。棒は月の枠の 66%(2本+2px の隙間)、上端だけ 4px 丸める。
-     目盛りは 0・50・100% の3本で、最大値のラベルを上に置く */
-  .home-chart-max {
-    @apply text-right text-eyebrow tabular-nums text-text-muted;
+  .home-cum-legend-item {
+    @apply flex items-center gap-1.5;
+  }
+
+  .home-cum-key {
+    @apply inline-block h-0 w-6 shrink-0 border-t-[3px];
+  }
+
+  .home-cum-key-solid {
+    border-color: var(--color-chart-1);
+  }
+
+  .home-cum-key-dash {
+    border-top-style: dashed;
+    border-color: var(--color-text-muted);
   }
 
   .home-chart-plot {
-    @apply relative mt-1 h-32 max-sm:h-28;
+    @apply relative mt-1 h-55 max-sm:h-28;
   }
 
   .home-chart-grid {
@@ -1718,38 +1723,103 @@
     @apply absolute inset-x-0 border-t border-border;
   }
 
-  .home-chart-grid-line[data-level="top"] {
-    top: 0;
+  .home-chart {
+    @apply flex gap-1.5;
   }
 
-  .home-chart-grid-line[data-level="mid"] {
-    top: 50%;
+  .home-cum-main {
+    @apply min-w-0 flex-1;
   }
 
-  .home-chart-grid-line[data-level="base"] {
-    bottom: 0;
-    border-color: var(--color-border-strong);
+  .home-cum-axis {
+    @apply relative h-55 w-12 shrink-0 max-sm:h-28;
   }
 
-  .home-chart-months {
-    @apply relative z-10 flex h-full items-end;
+  .home-cum-tick {
+    @apply absolute right-0 -translate-y-1/2 text-eyebrow tabular-nums text-text-muted;
   }
 
-  .home-chart-month {
-    @apply relative flex h-full min-w-0 flex-1 items-end justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  .home-cum-lines {
+    @apply pointer-events-none absolute inset-0 h-full w-full;
   }
 
-  .home-chart-bars {
-    @apply flex h-full items-end justify-center gap-0.5;
-    width: 66%;
+  .home-cum-line-current {
+    fill: none;
+    stroke: var(--color-chart-1);
+    stroke-width: 2.5;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+    stroke-linecap: round;
   }
 
-  .home-month-bar {
-    @apply block min-w-px flex-1 rounded-t;
+  .home-cum-line-previous {
+    fill: none;
+    stroke: var(--color-text-muted);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 6 4;
   }
 
-  .home-month-bar.home-chart-previous {
-    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
+  /* 月ごとの押せる柱。重ね・押下・キーボードでその月までの累計を出す。
+     高さは描画域いっぱい(44px 以上を満たす) */
+  .home-cum-cols {
+    @apply absolute inset-0 flex;
+  }
+
+  .home-cum-col {
+    @apply relative flex h-full min-w-0 flex-1 items-stretch justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .home-cum-dot {
+    @apply absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full;
+  }
+
+  .home-cum-dot-current {
+    background-color: var(--color-chart-1);
+  }
+
+  .home-cum-dot-previous {
+    background-color: var(--color-text-muted);
+  }
+
+  .home-cum-col[data-selected="true"] .home-cum-dot-current {
+    @apply outline-2 outline-offset-2 outline-accent-text;
+  }
+
+  .home-cum-tip {
+    @apply pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max -translate-x-1/2 rounded-lg border border-border bg-surface px-2.5 py-2 text-cell text-text shadow-elevation-2;
+  }
+
+  .home-cum-tip dt {
+    @apply inline-block;
+  }
+
+  .home-cum-col:hover .home-cum-tip,
+  .home-cum-col:focus-visible .home-cum-tip,
+  .home-cum-col[data-selected="true"] .home-cum-tip {
+    @apply block;
+  }
+
+  /* 端の月は吹き出しを内側に寄せる(中央の月は点の真上) */
+  .home-cum-col[data-edge="left"] .home-cum-tip {
+    left: 0;
+    translate: none;
+  }
+
+  .home-cum-col[data-edge="right"] .home-cum-tip {
+    right: 0;
+    left: auto;
+    translate: none;
+  }
+
+  /* 右端の点の前年同期比。線の近くの右端に置く */
+  .home-cum-yoy {
+    @apply mt-1.5 text-right text-cell text-text-muted;
+  }
+
+  /* 読み上げ用の表。幅を 1px に固定し、狭い画面で横スクロールを出さない */
+  .home-cum-table {
+    @apply table-fixed;
   }
 
   .home-chart-month-labels {
@@ -1760,6 +1830,10 @@
     @apply block min-w-0 flex-1 text-center text-eyebrow text-text-muted;
   }
 
+  .home-chart-month-unit {
+    @apply max-sm:hidden;
+  }
+
   .home-chart-month-label[data-current="true"] {
     @apply font-bold text-text;
   }
@@ -1767,30 +1841,6 @@
   .home-chart-month-label[data-current="true"]::after {
     @apply mx-auto mt-0.5 block h-1 w-1 rounded-full bg-chart-1;
     content: "";
-  }
-
-  .home-chart-tip {
-    @apply pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max -translate-x-1/2 rounded-lg border border-border bg-surface px-2.5 py-2 text-cell text-text shadow-elevation-2;
-  }
-
-  .home-chart-tip dt {
-    @apply inline-block;
-  }
-
-  .home-chart-month:hover .home-chart-tip,
-  .home-chart-month:focus-visible .home-chart-tip {
-    @apply block;
-  }
-
-  .home-chart-month:first-child .home-chart-tip {
-    left: 0;
-    translate: none;
-  }
-
-  .home-chart-month:last-child .home-chart-tip {
-    right: 0;
-    left: auto;
-    translate: none;
   }
 
   .home-progress {
@@ -1817,9 +1867,9 @@
     @apply border-b-0;
   }
 
-  .home-chart-previous {
-    background-color: var(--color-chart-previous);
-    background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-page) 3px 5px);
+  /* 内訳の一覧の行頭の色の印。横棒と同じ色・同じ並びにする */
+  .home-composition-name {
+    @apply flex min-w-0 flex-1 items-center gap-2;
   }
 
   /* 系列の境目は面の色の隙間にする(gap の下を面と同じ色で透かす) */
