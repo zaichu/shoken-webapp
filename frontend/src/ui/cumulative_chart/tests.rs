@@ -135,3 +135,22 @@ fn table_current_text_hides_future_months() {
     );
     assert_eq!(table_current_text(0, 12, &sums), None);
 }
+
+#[test]
+fn table_monthly_text_hides_future_months() {
+    let monthly = [
+        0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 3_000.0, 0.0, 0.0, 0.0, 0.0,
+    ];
+    // 6月時点: その月の受取だけ出し、7月以降は出さない
+    assert_eq!(
+        table_monthly_text(3, 6, &monthly),
+        Some(format::format_currency(5_000.0))
+    );
+    assert_eq!(
+        table_monthly_text(6, 6, &monthly),
+        Some(format::format_currency(0.0))
+    );
+    assert_eq!(table_monthly_text(8, 6, &monthly), None);
+    assert_eq!(table_monthly_text(12, 6, &monthly), None);
+    assert_eq!(table_monthly_text(0, 6, &monthly), None);
+}

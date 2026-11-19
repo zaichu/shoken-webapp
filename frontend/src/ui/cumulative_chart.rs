@@ -69,6 +69,16 @@ pub fn table_current_text(month: u32, current_month: u32, cumulative: &[f64]) ->
         .map(|value| format::format_currency(*value))
 }
 
+/// 読み上げ表の月の受取の欄。未来の月はまだ受取がないため None(「—」で出す)
+pub fn table_monthly_text(month: u32, current_month: u32, monthly: &[f64]) -> Option<String> {
+    if month == 0 || month > current_month {
+        return None;
+    }
+    monthly
+        .get(month as usize - 1)
+        .map(|value| format::format_currency(*value))
+}
+
 fn x_percent(month: u32) -> f64 {
     f64::from(month.saturating_sub(1)) / 11.0 * 100.0
 }
@@ -216,6 +226,10 @@ pub fn CumulativeChart(
                                 .into_any();
                         }
                         let current_value = current_cum.get(month as usize - 1).copied().unwrap_or(0.0);
+                        let monthly_text = format::format_currency(
+                            current.get(month as usize - 1).copied().unwrap_or(0.0),
+                        );
+                        let receipt_label = labels::cumulative_month_receipt_label(month);
                         let previous_value = previous_cum
                             .as_ref()
                             .and_then(|sums| sums.get(month as usize - 1).copied());
@@ -225,6 +239,7 @@ pub fn CumulativeChart(
                             month,
                             if month == current_month { labels::HOME_CURRENT_MONTH } else { "" },
                             current_year,
+                            &monthly_text,
                             &current_text,
                             previous_value.map(|_| previous_year),
                             previous_text.as_deref(),
@@ -278,6 +293,10 @@ pub fn CumulativeChart(
                                 <div class="home-cum-tip" aria-hidden="true">
                                     <p class="font-bold text-text">{month_label}</p>
                                     <dl class="mt-1 space-y-0.5">
+                                        <div class="flex items-center gap-1.5">
+                                            <dt class="text-text-muted">{receipt_label}</dt>
+                                            <dd><Amount text=monthly_text /></dd>
+                                        </div>
                                         <div class="flex items-center gap-1.5">
                                             <dt class="home-cum-key home-cum-key-solid"></dt>
                                             <dd>{current_cell}<Amount text=current_text /></dd>
@@ -334,6 +353,7 @@ pub fn CumulativeChart(
             <thead>
                 <tr>
                     <th scope="col">{labels::MONTH}</th>
+                    <th scope="col">{labels::CUMULATIVE_MONTHLY_RECEIPT}</th>
                     <th scope="col">{current_label}</th>
                     {previous_cum.is_some().then(|| view! {
                         <th scope="col">{previous_label.clone()}</th>
@@ -343,6 +363,8 @@ pub fn CumulativeChart(
             <tbody>
                 {(1..=12u32)
                     .map(|month| {
+                        let monthly_text = table_monthly_text(month, current_month, &current)
+                            .unwrap_or_else(|| labels::MISSING.to_string());
                         let current_text = table_current_text(month, current_month, &current_cum)
                             .unwrap_or_else(|| labels::MISSING.to_string());
                         let previous_text = previous_cum
@@ -352,6 +374,7 @@ pub fn CumulativeChart(
                         view! {
                             <tr>
                                 <th scope="row">{labels::receipt_month_label(month)}</th>
+                                <td>{monthly_text}</td>
                                 <td>{current_text}</td>
                                 {previous_text
                                     .map(|text| view! { <td>{text}</td> })}

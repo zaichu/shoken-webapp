@@ -214,9 +214,13 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   // 今年の線の右端に前年同期比が出る
   await expect(dividend.locator('.home-cum-yoy')).toContainText('前年同期比');
 
-  // 点を押すとその月までの今年と前年の累計が出る
+  // 点を押すとその月の受取とその月までの今年と前年の累計が出る
   const currentMonth = new Date().getMonth() + 1;
   const monthOf = (date: string) => Number(date.slice(5, 7));
+  const currentMonthly = CURRENT_DIVIDENDS.filter((row) => monthOf(row.settlement_date) === currentMonth).reduce(
+    (sum, row) => sum + row.net_amount_received,
+    0,
+  );
   const currentCum = CURRENT_DIVIDENDS.filter((row) => monthOf(row.settlement_date) <= currentMonth).reduce(
     (sum, row) => sum + row.net_amount_received,
     0,
@@ -229,6 +233,8 @@ test('配当グラフは受取の累計の折れ線で、点からその月ま�
   await point.click();
   const tip = point.locator('.home-cum-tip');
   await expect(tip).toBeVisible();
+  await expect(tip).toContainText(`${currentMonth}月の受取`);
+  await expect(tip).toContainText(`¥${currentMonthly.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${currentCum.toLocaleString('en-US')}`);
   await expect(tip).toContainText(`¥${previousCum.toLocaleString('en-US')}`);
 

@@ -943,25 +943,36 @@ pub fn cumulative_year_label(year: u32) -> String {
     format!("{year}年(累計)")
 }
 
+/// ホーム: 累計グラフの月の受取の見出し(「6月の受取」)
+pub fn cumulative_month_receipt_label(month: u32) -> String {
+    format!("{month}月の受取")
+}
+
+/// ホーム: 累計グラフの読み上げ表の月の受取の列名(「月の受取」)
+pub const CUMULATIVE_MONTHLY_RECEIPT: &str = "月の受取";
+
 /// ホーム: 累計グラフの領域名(「受取の累計(2026年と2025年)」)
 pub fn home_cumulative_aria(year: u32, previous_year: u32) -> String {
     format!("受取の累計({year}年と{previous_year}年)")
 }
 
-/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の累計だけ出す
+/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の受取と累計だけ出す
 pub fn home_cumulative_month_aria(
     month: u32,
     current_note: &str,
     year: u32,
+    monthly_text: &str,
     cur_text: &str,
     previous_year: Option<u32>,
     prev_text: Option<&str>,
 ) -> String {
     match (previous_year, prev_text) {
         (Some(previous_year), Some(prev_text)) => format!(
-            "{month}月{current_note}: {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
+            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
         ),
-        _ => format!("{month}月{current_note}: {year}年 累計 {cur_text}"),
+        _ => format!(
+            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text}"
+        ),
     }
 }
 
