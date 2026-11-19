@@ -10,8 +10,8 @@ pub const MARKET_VALUE: &str = "評価額";
 pub const VALUATION_PROFIT_LOSS: &str = "評価損益";
 /// 前日比(前営業日との差。集計帯では保有全体の合計)
 pub const DAY_CHANGE: &str = "前日比";
-/// 前日比(1株あたり)。国内株式の表の行に出す
-pub const DAY_CHANGE_PER_SHARE: &str = "前日比(1株あたり)";
+/// 1株あたりの単位注記。国内株式の表の見出しで改行して添える
+pub const PER_SHARE_UNIT: &str = "(1株あたり)";
 /// 前日比(騰落率%)。株と投信が混ざる「すべて」タブの行に出す
 pub const DAY_CHANGE_RATE: &str = "前日比(%)";
 /// 取得総額
