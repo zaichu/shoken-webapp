@@ -187,11 +187,18 @@ pub fn SearchCount(
     filtered: impl Fn() -> usize + Copy + 'static + Send + Sync,
     total: impl Fn() -> usize + Copy + 'static + Send + Sync,
     #[prop(optional)] testid: Option<&'static str>,
+    /// 件数の右に添える補足(同じ文字の大きさ・色)。空なら出さない
+    #[prop(optional)]
+    note: &'static str,
 ) -> impl IntoView {
     view! {
         <span class="receipts-search-count" data-testid=move || testid.unwrap_or("")>
             <b>{move || labels::count(filtered())}</b>
             {move || format!(" / {}", labels::count(total()))}
+            {(!note.is_empty()).then(|| view! {
+                {labels::HOME_COMPOSITION_DETAIL_SEPARATOR}
+                {note}
+            })}
         </span>
     }
 }

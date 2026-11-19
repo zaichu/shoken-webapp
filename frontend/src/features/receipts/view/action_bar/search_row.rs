@@ -75,6 +75,9 @@ pub(crate) fn SecuritiesInput(search: RwSignal<ReceiptSearch>) -> impl IntoView 
 pub(crate) fn ReceiptSearchCount(
     store: ReceiptsStore,
     #[prop(into)] tab: Signal<ReceiptsTab>,
+    /// 件数の右に金額の税区分を添える(スマホの配当タブの一覧用。PC は変えない)
+    #[prop(optional)]
+    tax_note: bool,
 ) -> impl IntoView {
     let count = Memo::new(move |_| match store.tab_state(tab.get()) {
         TabState::Ready(data) => {
@@ -89,8 +92,14 @@ pub(crate) fn ReceiptSearchCount(
     });
     move || {
         count.get().map(|(filtered, total)| {
+            // 配当タブだけ金額の税区分を件数の右に添える(行ごとの接尾辞の代わり)
+            let note = if tax_note && tab.get() == ReceiptsTab::Dividend {
+                labels::RECEIPT_LIST_AMOUNT_NOTE
+            } else {
+                ""
+            };
             view! {
-                <SearchCount filtered=move || filtered total=move || total />
+                <SearchCount filtered=move || filtered total=move || total note=note />
             }
         })
     }

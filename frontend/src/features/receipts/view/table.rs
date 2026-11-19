@@ -440,13 +440,6 @@ pub fn ReceiptTable(
                     </div>
                 </div>
                 <div class=mobile_class data-testid="receipt-card-list">
-                    // 配当タブの2行表示は金額に税区分を付けない代わり、
-                    // 一覧の上に「金額は税引後」と1回だけ出す
-                    {(tab == ReceiptsTab::Dividend && compact_mobile).then(|| view! {
-                        <p class="text-cell text-text-muted">
-                            {labels::RECEIPT_LIST_AMOUNT_NOTE}
-                        </p>
-                    })}
                     {if compact_mobile {
                         view! {
                             <div>
