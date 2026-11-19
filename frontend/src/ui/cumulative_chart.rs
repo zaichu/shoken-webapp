@@ -483,7 +483,7 @@ pub fn CumulativeChart(
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
                         // 端の月は吹き出しを内側に寄せ、点より上にあるときは
-                        // 凡例に被せないよう点の下に出す
+                        // 直接ラベルに被せないよう点の下に出す
                         let edge = if month == 1 {
                             "left"
                         } else if month >= 10 {

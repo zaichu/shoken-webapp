@@ -331,18 +331,18 @@ fn annual_forecast_uses_per_share_and_shares() {
 }
 
 #[test]
-fn progress_display_caps_bar_and_flags_over() {
-    // 予想なしは「—」、バーは 0、超え扱いにしない
+fn progress_display_caps_bar_and_preserves_actual_percentage() {
+    // 予想なしは「—」、バーは 0
     let none = progress_display(None);
     assert_eq!(none.text, labels::MISSING);
     assert_eq!(none.bar_pct, 0.0);
     // 0% はそのまま
     let zero = progress_display(Some(0.0));
     assert_eq!(zero.bar_pct, 0.0);
-    // 100% ちょうどは超え扱いにしない
+    // 100% はそのまま
     let full = progress_display(Some(1.0));
     assert_eq!(full.bar_pct, 100.0);
-    // 超えたらバーは満タンで止め、超えの印を立てる(計算は受取÷予想のまま)
+    // 100%を超えても数値を維持し、バー幅だけ100%に止める
     let over = progress_display(Some(16.11));
     assert_eq!(over.bar_pct, 100.0);
     assert_eq!(over.text, format::format_integer_percent(1611.0));
