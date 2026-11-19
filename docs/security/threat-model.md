@@ -32,7 +32,8 @@ flowchart LR
   subgraph Data[Supabase Postgres]
     AW[app_worker 接続]
     AR[app_restricted 利用者Tx]
-    EX[限定関数 executor]
+    AU[認証関数 移行ロール所有]
+    EX[限定関数 executor所有]
     UT[(利用者表 RLS)]
     ST[(共有表)]
   end
@@ -43,10 +44,11 @@ flowchart LR
   AW -->|app_enterで切替| AR
   AR -->|user_id一致のみ| UT
   AW -->|SELECTのみ| ST
+  AR -->|EXECUTEのみ| AU
   AW -->|EXECUTEのみ| EX
 ```
 
-境界: (1)ブラウザ-Workers 間は Cookie+Origin、(2)Workers-Google 間は tokeninfo 信頼、(3)Workers-DB 間は app_worker(NOBYPASSRLS・表の所有者ロールに所属しない)で接続し、利用者の要求では Tx 内で app_enter により app_restricted に切り替えて RLS(user_id = app.current_user_id)を効かせる。共有表は SELECT のみ、利用者 ID が定まる前の認証・利用者をまたぐ処理・共有表の書き込みは引数と戻りを絞った限定関数(executor ロールの SECURITY DEFINER)に閉じ込め EXECUTE のみを与える。FORCE ROW LEVEL SECURITY は付けない(docs/security/db-rls-plan.md §28)。本番の接続確認は #2017(11/18 の cron の DB access ログ)。構成の正本は docs/security/db-rls-plan.md §25・§28、backend/migrations/README.md「ビューと新しい表の RLS の決まり」。
+境界: (1)ブラウザ-Workers 間は Cookie+Origin、(2)Workers-Google 間は tokeninfo 信頼、(3)Workers-DB 間は app_worker(NOBYPASSRLS・表の所有者ロールに所属しない)で接続し、利用者の要求では Tx 内で app_enter により app_restricted に切り替えて RLS(user_id = app.current_user_id)を効かせる。共有表は SELECT のみ、利用者 ID が定まる前の認証・通知 token の照合は移行ロール所有の auth 系関数を app_restricted から呼び、利用者をまたぐ管理者検索・cron・共有表の書き込みは専用の executor ロール所有の限定関数を app_worker から呼ぶ。いずれも SECURITY DEFINER で引数と戻りを絞り EXECUTE のみを与える。FORCE ROW LEVEL SECURITY は付けない(docs/security/db-rls-plan.md §28)。本番の接続確認は #2017(11/18 の cron の DB access ログ)。構成の正本は docs/security/db-rls-plan.md §25・§28、backend/migrations/README.md「ビューと新しい表の RLS の決まり」。
 
 ## ログインの流れ
 
