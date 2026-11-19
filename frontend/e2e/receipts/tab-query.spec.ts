@@ -170,4 +170,31 @@ test.describe('取引明細のタブと URL(スマホ)', () => {
     );
     await expect(page).toHaveURL('/receipts?tab=stock');
   });
+
+  test('タブ指定なしで戻ると設定の初期タブに戻り再読み込みでも同じ', async ({
+    page,
+  }) => {
+    await setupMocks(page);
+    await page.goto('/receipts?tab=fund');
+    await expect(page.locator('#tab-mutualfund-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // 下部ナビの取引明細リンク(bare)で戻ると設定の初期タブに戻る
+    await page
+      .getByRole('navigation', { name: 'メインナビゲーション' })
+      .getByRole('link', { name: '取引明細' })
+      .click();
+    await expect(page.locator('#tab-dividend-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page).toHaveURL('/receipts');
+    await page.reload();
+    await expect(page.locator('#tab-dividend-mobile')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
 });

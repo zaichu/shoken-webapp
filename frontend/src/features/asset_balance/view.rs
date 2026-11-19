@@ -263,9 +263,21 @@ pub fn AssetBalancePage() -> impl IntoView {
     let busy_session = session;
     let rail_session = session;
     let state = use_asset_balance_state(session);
-    // URL の `?tab=` が有効なら既定(すべて)より優先する(再読み込み・共有・戻る/進む用)
+    // URL の `?tab=` が有効なら既定(すべて)より優先する(再読み込み・共有・戻る/進む用)。
+    // URL 指定でタブが変わるときは通常の切替と同じく選択条件だけ消す
     if let Some(kind) = fund::AssetKind::url_kind() {
+        if state.kind.get_untracked() != kind {
+            state
+                .search
+                .update(|search| *search = fund::text_only_search(search));
+        }
         state.kind.set(kind);
+    } else if state.kind.get_untracked() != AssetKind::All {
+        // URL にタブが無いときは既定(すべて)に戻し、表示と URL を一致させる
+        state
+            .search
+            .update(|search| *search = fund::text_only_search(search));
+        state.kind.set(AssetKind::All);
     }
     let balances = state.balances;
     let funds = state.funds;
