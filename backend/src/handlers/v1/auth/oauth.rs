@@ -100,11 +100,68 @@ fn oauth_state_equal(a: &str, b: &str) -> bool {
 }
 
 pub fn get_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError> {
+    parse_session_id_from_jar(jar)
+}
+
+fn parse_session_id_from_jar(jar: &CookieJar) -> Result<SessionToken, ApiError> {
     jar.get(auth_service::SESSION_COOKIE_NAME)
+        .or_else(|| jar.get(auth_service::LEGACY_SESSION_COOKIE_NAME))
         .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?
         .value()
         .parse()
         .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))
+}
+
+pub fn session_cookie_needs_migration(jar: &CookieJar) -> Option<SessionToken> {
+    if jar.get(auth_service::SESSION_COOKIE_NAME).is_some() {
+        return None;
+    }
+    jar.get(auth_service::LEGACY_SESSION_COOKIE_NAME)
+        .and_then(|cookie| cookie.value().parse().ok())
+}
+
+fn clear_legacy_session_cookie(secure: bool) -> Cookie<'static> {
+    clear_cookie(auth_service::LEGACY_SESSION_COOKIE_NAME, secure)
+}
+
+fn set_cookie_header(cookie: &Cookie<'static>) -> Result<axum::http::HeaderValue, ApiError> {
+    axum::http::HeaderValue::from_str(&cookie.encoded().to_string())
+        .map_err(|_| ApiError::Internal("Cookieの設定に失敗しました"))
+}
+
+pub fn migrate_session_cookie(
+    response: &mut Response,
+    jar: &CookieJar,
+    secure: bool,
+) -> Result<(), ApiError> {
+    let Some(token) = session_cookie_needs_migration(jar) else {
+        return Ok(());
+    };
+    let new_cookie = build_session_cookie(token, secure);
+    response.headers_mut().append(
+        axum::http::header::SET_COOKIE,
+        set_cookie_header(&new_cookie)?,
+    );
+    let mut legacy = clear_legacy_session_cookie(secure);
+    legacy.make_removal();
+    response
+        .headers_mut()
+        .append(axum::http::header::SET_COOKIE, set_cookie_header(&legacy)?);
+    Ok(())
+}
+
+pub fn clear_all_session_cookies(response: &mut Response, secure: bool) -> Result<(), ApiError> {
+    for cookie in [
+        clear_session_cookie(secure),
+        clear_legacy_session_cookie(secure),
+    ] {
+        let mut cookie = cookie;
+        cookie.make_removal();
+        response
+            .headers_mut()
+            .append(axum::http::header::SET_COOKIE, set_cookie_header(&cookie)?);
+    }
+    Ok(())
 }
 
 pub fn get_device_token_from_jar(jar: &CookieJar) -> auth_service::DeviceToken {
@@ -234,6 +291,7 @@ pub async fn google_callback(
     // Cookieを送受信するには SameSite=None + Secure が必要
     let cookie = build_session_cookie(session_token, is_secure);
     let jar = jar
+        .remove(clear_legacy_session_cookie(is_secure))
         .add(cookie)
         .add(build_device_cookie(device_token, is_secure));
 
@@ -435,20 +493,88 @@ mod tests {
     #[test]
     fn test_jar_helpers() {
         use crate::services::auth;
-        assert!(get_session_id_from_jar(&CookieJar::new()).is_err());
+        assert!(parse_session_id_from_jar(&CookieJar::new()).is_err());
         assert!(
-            get_session_id_from_jar(
+            parse_session_id_from_jar(
                 &CookieJar::new().add(Cookie::new(auth::SESSION_COOKIE_NAME, "invalid-uuid"))
             )
             .is_err()
         );
         let token = SessionToken::new();
-        assert_eq!(
-            get_session_id_from_jar(
-                &CookieJar::new().add(Cookie::new(auth::SESSION_COOKIE_NAME, token.to_string()))
-            )
-            .unwrap(),
-            token
+        let jar = CookieJar::new().add(Cookie::new(auth::SESSION_COOKIE_NAME, token.to_string()));
+        assert_eq!(parse_session_id_from_jar(&jar).unwrap(), token);
+        assert_eq!(get_session_id_from_jar(&jar).unwrap(), token);
+    }
+
+    #[test]
+    fn test_session_cookie_migration_prefers_new_cookie_and_accepts_old_cookie() {
+        use crate::services::auth;
+
+        let old_token = SessionToken::new();
+        let new_token = SessionToken::new();
+        let old_jar = CookieJar::new().add(Cookie::new(
+            auth::LEGACY_SESSION_COOKIE_NAME,
+            old_token.to_string(),
+        ));
+        assert_eq!(parse_session_id_from_jar(&old_jar).unwrap(), old_token);
+        assert_eq!(session_cookie_needs_migration(&old_jar), Some(old_token));
+
+        let both_jar = old_jar.add(Cookie::new(
+            auth::SESSION_COOKIE_NAME,
+            new_token.to_string(),
+        ));
+        assert_eq!(parse_session_id_from_jar(&both_jar).unwrap(), new_token);
+        assert_eq!(session_cookie_needs_migration(&both_jar), None);
+    }
+
+    #[test]
+    fn test_new_session_cookie_uses_host_prefix_requirements() {
+        use crate::services::auth;
+
+        let token = SessionToken::new();
+        let cookie = build_session_cookie(token, true);
+
+        assert_eq!(cookie.name(), auth::SESSION_COOKIE_NAME);
+        assert_eq!(cookie.path(), Some("/"));
+        assert_eq!(cookie.domain(), None);
+        assert_eq!(cookie.secure(), Some(true));
+        assert_eq!(cookie.http_only(), Some(true));
+        assert_eq!(cookie.same_site(), Some(SameSite::None));
+        assert_eq!(cookie.partitioned(), None);
+        assert_eq!(cookie.max_age(), Some(time::Duration::days(7)));
+    }
+
+    #[test]
+    fn test_migrating_old_cookie_reissues_new_and_clears_old() {
+        use crate::services::auth;
+
+        let token = SessionToken::new();
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            format!("{}={token}", auth::LEGACY_SESSION_COOKIE_NAME)
+                .parse()
+                .unwrap(),
+        );
+        let jar = CookieJar::from_headers(&headers);
+        let mut response = Response::new(axum::body::Body::empty());
+        migrate_session_cookie(&mut response, &jar, true).unwrap();
+        let set_cookies = response
+            .headers()
+            .get_all(axum::http::header::SET_COOKIE)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .collect::<Vec<_>>();
+        assert!(
+            set_cookies
+                .iter()
+                .any(|value| value.starts_with("__Host-session_token=")
+                    && value.contains(&token.to_string()))
+        );
+        assert!(
+            set_cookies.iter().any(|value| {
+                value.starts_with("session_token=") && value.contains("Max-Age=0")
+            })
         );
     }
 

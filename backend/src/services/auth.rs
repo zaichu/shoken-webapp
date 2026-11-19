@@ -55,7 +55,8 @@ impl FromStr for SessionToken {
     }
 }
 
-pub const SESSION_COOKIE_NAME: &str = "session_token";
+pub const SESSION_COOKIE_NAME: &str = "__Host-session_token";
+pub const LEGACY_SESSION_COOKIE_NAME: &str = "session_token";
 pub const DEVICE_COOKIE_NAME: &str = "device_id";
 pub const OAUTH_STATE_COOKIE_NAME: &str = "oauth_state";
 pub const OAUTH_PKCE_VERIFIER_COOKIE_NAME: &str = "oauth_pkce_verifier";

@@ -5,7 +5,7 @@ use crate::extractors::auth::AuthenticatedUser;
 use crate::handlers::v1::auth::oauth as auth_oauth;
 use crate::models::common::MessageResponse;
 use crate::models::user::UserResponse;
-use crate::services::auth::{self as auth_service, SessionToken};
+use crate::services::auth as auth_service;
 use crate::state::AppState;
 use axum::{
     extract::State,
@@ -103,7 +103,7 @@ fn clear_account_delete_confirmation_cookie(secure: bool) -> Cookie<'static> {
 pub async fn get_session(
     State(state): State<AppState>,
     jar: CookieJar,
-) -> Result<Json<SessionResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let token = auth_oauth::get_session_id_from_jar(&jar)?;
 
     // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
@@ -112,10 +112,13 @@ pub async fn get_session(
         .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;
 
     let is_admin = state.config.is_admin_email(&user.email);
-    Ok(Json(SessionResponse {
+    let mut response = Json(SessionResponse {
         user: user.into(),
         is_admin,
-    }))
+    })
+    .into_response();
+    auth_oauth::migrate_session_cookie(&mut response, &jar, state.config.secure_cookie)?;
+    Ok(response)
 }
 
 /// セッションを削除してログアウト（v1）
@@ -129,21 +132,17 @@ pub async fn get_session(
     security(("cookieAuth" = []))
 )]
 pub async fn delete_session(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {
-    if let Some(token) = jar
-        .get(auth_service::SESSION_COOKIE_NAME)
-        .and_then(|c| c.value().parse::<SessionToken>().ok())
-    {
+    if let Ok(token) = auth_oauth::get_session_id_from_jar(&jar) {
         let _ = auth_service::delete_session(&state.pool, token).await;
     }
 
-    let cookie = auth_oauth::clear_session_cookie(state.config.secure_cookie);
-
-    let jar = jar.remove(cookie);
-
-    (
-        jar,
-        Json(serde_json::json!({"message": "ログアウトしました"})),
-    )
+    let mut response = Json(serde_json::json!({"message": "ログアウトしました"})).into_response();
+    if let Err(error) =
+        auth_oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)
+    {
+        return error.into_response();
+    }
+    response
 }
 
 /// アカウントを削除（v1）
@@ -185,18 +184,18 @@ pub async fn delete_account(
     auth_service::delete_account(&state.pool, user_id).await?;
 
     let is_secure = state.config.secure_cookie;
-    let jar = jar
-        .remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
-            is_secure,
-        ))
-        .remove(clear_account_delete_confirmation_cookie(is_secure));
-
-    Ok((
-        jar,
-        Json(MessageResponse {
-            message: "アカウントを削除しました".to_string(),
-        }),
-    ))
+    let mut response = Json(MessageResponse {
+        message: "アカウントを削除しました".to_string(),
+    })
+    .into_response();
+    auth_oauth::clear_all_session_cookies(&mut response, is_secure)?;
+    let cookie = clear_account_delete_confirmation_cookie(is_secure);
+    response.headers_mut().append(
+        axum::http::header::SET_COOKIE,
+        axum::http::HeaderValue::from_str(&cookie.encoded().to_string())
+            .map_err(|_| ApiError::Internal("Cookieの削除に失敗しました"))?,
+    );
+    Ok(response)
 }
 
 /// アカウント削除確認を開始（v1）
@@ -319,7 +318,13 @@ mod tests {
                         .method(method.clone())
                         .uri("/api/v1/session");
                     if let Some(token) = token {
-                        request = request.header("cookie", format!("session_token={token}"));
+                        let name = if token == "invalid-uuid" {
+                            auth_service::SESSION_COOKIE_NAME
+                        } else {
+                            auth_service::LEGACY_SESSION_COOKIE_NAME
+                        };
+                        let cookie = format!("{name}={token}");
+                        request = request.header("cookie", cookie);
                     }
                     let response = app
                         .clone()
@@ -329,15 +334,27 @@ mod tests {
                     if method == Method::DELETE {
                         assert_eq!(response.status(), StatusCode::OK);
                         if token.is_some() {
-                            let cookie =
-                                Cookie::parse(response.headers()[SET_COOKIE].to_str().unwrap())
-                                    .unwrap();
-                            assert_eq!(cookie.name(), auth_service::SESSION_COOKIE_NAME);
-                            assert_eq!(cookie.path(), Some("/"));
-                            assert_eq!(cookie.http_only(), Some(true));
-                            assert_eq!(cookie.secure().unwrap_or(false), secure);
-                            assert_eq!(cookie.same_site(), Some(auth_oauth::same_site(secure)));
-                            assert_eq!(cookie.max_age(), Some(time::Duration::ZERO));
+                            let cookies = response
+                                .headers()
+                                .get_all(SET_COOKIE)
+                                .iter()
+                                .filter_map(|value| value.to_str().ok())
+                                .filter_map(|value| Cookie::parse(value).ok())
+                                .collect::<Vec<_>>();
+                            let expected = [
+                                auth_service::SESSION_COOKIE_NAME,
+                                auth_service::LEGACY_SESSION_COOKIE_NAME,
+                            ];
+                            for name in expected {
+                                let cookie =
+                                    cookies.iter().find(|cookie| cookie.name() == name).unwrap();
+                                assert_eq!(cookie.path(), Some("/"));
+                                assert_eq!(cookie.http_only(), Some(true));
+                                assert_eq!(cookie.secure().unwrap_or(false), secure);
+                                assert_eq!(cookie.same_site(), Some(auth_oauth::same_site(secure)));
+                                assert_eq!(cookie.max_age(), Some(time::Duration::ZERO));
+                                assert!(cookie.expires().is_some() || cookie.max_age().is_some());
+                            }
                         }
                         let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
                         assert_eq!(
@@ -355,7 +372,79 @@ mod tests {
                     }
                 }
             }
+
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/v1/session")
+                        .header(
+                            "cookie",
+                            format!(
+                                "{}=550e8400-e29b-41d4-a716-446655440000",
+                                auth_service::LEGACY_SESSION_COOKIE_NAME
+                            ),
+                        )
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         }
+    }
+
+    #[tokio::test]
+    async fn logout_clears_both_current_and_legacy_session_cookies() {
+        use axum::{
+            body::Body,
+            http::{Method, Request, header::SET_COOKIE},
+        };
+        use tower::ServiceExt;
+
+        let mut state = make_test_state();
+        state.config = Arc::new(crate::config::Config {
+            runtime_env: crate::config::RuntimeEnv::Development,
+            secure_cookie: true,
+            ..crate::config::Config::default()
+        });
+        state.pool.close().await;
+        let response = crate::handlers::v1::auth_routes()
+            .with_state(state)
+            .oneshot(
+                Request::builder()
+                    .method(Method::DELETE)
+                    .uri("/api/v1/session")
+                    .header(
+                        "cookie",
+                        format!(
+                            "session_token={}; __Host-session_token={}",
+                            auth_service::SessionToken::new(),
+                            auth_service::SessionToken::new()
+                        ),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let cookies = response
+            .headers()
+            .get_all(SET_COOKIE)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .collect::<Vec<_>>();
+        assert!(
+            cookies
+                .iter()
+                .any(|value| value.starts_with("__Host-session_token=")
+                    && value.contains("Max-Age=0"))
+        );
+        assert!(
+            cookies
+                .iter()
+                .any(|value| value.starts_with("session_token=") && value.contains("Max-Age=0"))
+        );
     }
 
     #[test]
