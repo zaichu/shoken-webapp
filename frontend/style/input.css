@@ -1770,14 +1770,18 @@
     stroke-dasharray: 6 4;
   }
 
-  /* 月ごとの押せる柱。重ね・押下・キーボードでその月までの累計を出す。
-     高さは描画域いっぱい(44px 以上を満たす) */
+  /* 描画域全体が1つのスライダー。押した位置に最も近い月を選び、
+     矢印キーで月を移動する。12等分の帯は見た目の配置だけに使う */
+  .home-chart-plot:focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
   .home-cum-cols {
-    @apply absolute inset-0 flex;
+    @apply pointer-events-none absolute inset-0 flex;
   }
 
   .home-cum-col {
-    @apply relative flex h-full min-w-0 flex-1 items-stretch justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+    @apply relative flex h-full min-w-0 flex-1 items-stretch justify-center;
   }
 
   /* 丸の横位置は帯の中心。帯(押せる範囲・目盛りの文字)と同じ12等分で、
@@ -1822,16 +1826,8 @@
     @apply inline-block;
   }
 
-  .home-cum-col:hover .home-cum-tip,
-  .home-cum-col:focus-visible .home-cum-tip,
   .home-cum-col[data-selected="true"] .home-cum-tip {
     @apply block;
-  }
-
-  /* scroll・Escape で閉じた月は hover・focus が残っても出さない。
-     押下・Enter・入り直しで外れたらまた出す */
-  .home-cum-col[data-suppressed="true"] .home-cum-tip {
-    display: none;
   }
 
   /* 端の月は吹き出しを内側に寄せる(中央の月は点の真上) */

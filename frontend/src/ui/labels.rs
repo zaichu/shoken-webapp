@@ -931,8 +931,6 @@ pub const HOME_LOSS_GROUP: &str = "含み損";
 /// ホーム: 商品別内訳の図の読み上げ名
 /// ホーム: 口座別内訳の見出し
 pub const HOME_ACCOUNT_FUND_LABEL: &str = "口座別(投資信託)";
-/// ホーム: 当月を示す印
-pub const HOME_CURRENT_MONTH: &str = "(今月)";
 /// ホーム: 受取額の頭に付ける文言(後ろに空白あり)
 pub const HOME_RECEIVED_LABEL: &str = "受取 ";
 /// ホーム: 予想の取得待ち(帯の内訳)
@@ -1011,24 +1009,22 @@ pub fn home_cumulative_aria(year: u32, previous_year: u32) -> String {
     format!("受取の累計({year}年と{previous_year}年)")
 }
 
-/// ホーム: 累計グラフの点の読み上げ文。前年なしのときは今年の受取と累計だけ出す
-pub fn home_cumulative_month_aria(
+/// ホーム: 累計グラフの操作域(スライダー)の現在値の読み上げ文。
+/// 例: 「6月 受取 ¥34,200 / 累計 ¥120,000」。前年ありは「 / 前年累計 ¥…」を足す
+pub fn cumulative_slider_valuetext(
     month: u32,
-    current_note: &str,
-    year: u32,
     monthly_text: &str,
-    cur_text: &str,
-    previous_year: Option<u32>,
-    prev_text: Option<&str>,
+    cumulative_text: &str,
+    previous_text: Option<&str>,
 ) -> String {
-    match (previous_year, prev_text) {
-        (Some(previous_year), Some(prev_text)) => format!(
-            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text} / {previous_year}年 累計 {prev_text}"
-        ),
-        _ => format!(
-            "{month}月{current_note}: {year}年 受取 {monthly_text} / {year}年 累計 {cur_text}"
-        ),
-    }
+    previous_text.map_or_else(
+        || format!("{month}月 受取 {monthly_text} / 累計 {cumulative_text}"),
+        |previous_text| {
+            format!(
+                "{month}月 受取 {monthly_text} / 累計 {cumulative_text} / 前年累計 {previous_text}"
+            )
+        },
+    )
 }
 
 /// 銘柄検索: 不正なコード指定の警告
