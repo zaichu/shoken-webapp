@@ -317,6 +317,11 @@ pub fn count(count: usize) -> String {
     format!("{count}件")
 }
 
+/// まとめた行の件数(「×5」)
+pub fn grouped_times(count: usize) -> String {
+    format!("×{count}")
+}
+
 /// 検索欄の入力欄に出す文言。対象名だけを引数にして画面ごとに使い回す
 pub fn search_placeholder(target: &str) -> String {
     format!("{target}で検索")

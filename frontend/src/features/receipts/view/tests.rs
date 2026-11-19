@@ -1545,3 +1545,126 @@ fn date_tag_text_splits_range_ends_into_parts() {
     assert!(date_tag_text("2024").contains("2024"));
     assert_eq!(date_tag_text(""), "");
 }
+
+#[test]
+fn same_day_cards_merge_into_one_with_total_and_count() {
+    let ReceiptItem::DomesticStock(stock) = receipts::domestic().remove(0) else {
+        unreachable!()
+    };
+    let cards = (0..3)
+        .map(|_| {
+            card_for(
+                ReceiptsTab::DomesticStock,
+                ReceiptItem::DomesticStock(stock.clone()),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut other = stock.clone();
+    other.account = shared::value::Account::from_raw("一般".to_string());
+    let other_card = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(other),
+    );
+    let mut cards_with_other = cards;
+    cards_with_other.push(other_card);
+    let entries = merge_same_day_cards(ReceiptsTab::DomesticStock, cards_with_other);
+    assert_eq!(entries.len(), 2);
+    let ReceiptCardEntry::Grouped(grouped) = &entries[0] else {
+        panic!("同じ日・銘柄・口座はまとまる");
+    };
+    assert_eq!(grouped.count, 3);
+    assert_eq!(grouped.sum_text, "+¥336");
+    assert!(!grouped.sum_negative);
+    assert!(grouped.sum_positive);
+    assert_eq!(grouped.members.len(), 3);
+    assert!(matches!(entries[1], ReceiptCardEntry::Single(_)));
+}
+
+#[test]
+fn unreadable_amount_cards_stay_single() {
+    let ReceiptItem::DomesticStock(stock) = receipts::domestic().remove(0) else {
+        unreachable!()
+    };
+    let mut broken = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock.clone()),
+    );
+    let position = broken
+        .details
+        .iter()
+        .position(|detail| detail.label == labels::AFTER_TAX)
+        .expect("税引後がある");
+    broken.details[position].value = CardDetailValue::Text {
+        text: "—".to_string(),
+        negative: false,
+        positive: false,
+        is_profit: true,
+    };
+    let intact = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock),
+    );
+    let entries = merge_same_day_cards(ReceiptsTab::DomesticStock, vec![broken, intact]);
+    assert_eq!(entries.len(), 2);
+    assert!(
+        entries
+            .iter()
+            .all(|entry| matches!(entry, ReceiptCardEntry::Single(_)))
+    );
+}
+
+#[test]
+fn profit_rate_uses_acquisition_cost() {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
+        unreachable!()
+    };
+    stock.shares = dec!(10);
+    stock.purchase_price = dec!(5000);
+    stock.realized_profit_and_loss = dec!(10000);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock),
+    );
+    let rate = profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("損益率がある");
+    assert_eq!(rate.text, "+20.0%");
+    assert!(!rate.negative);
+    assert!(rate.positive);
+
+    let ReceiptItem::MutualFund(fund) = receipts::funds().remove(0) else {
+        unreachable!()
+    };
+    let fund_card = card_for(ReceiptsTab::MutualFund, ReceiptItem::MutualFund(fund));
+    let fund_rate =
+        profit_rate_sub(ReceiptsTab::MutualFund, &fund_card.details).expect("投信の損益率がある");
+    assert_eq!(fund_rate.text, "+90000.0%");
+    assert!(fund_rate.positive);
+}
+
+#[test]
+fn profit_rate_loss_is_negative_and_unavailable_cases_are_none() {
+    let ReceiptItem::DomesticStock(mut stock) = receipts::domestic().remove(0) else {
+        unreachable!()
+    };
+    stock.shares = dec!(10);
+    stock.purchase_price = dec!(5000);
+    stock.realized_profit_and_loss = dec!(-5000);
+    let card = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock.clone()),
+    );
+    let rate =
+        profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("損失の損益率がある");
+    assert_eq!(rate.text, "-10.0%");
+    assert!(rate.negative);
+    assert!(!rate.positive);
+
+    stock.purchase_price = Decimal::ZERO;
+    let zero_cost = card_for(
+        ReceiptsTab::DomesticStock,
+        ReceiptItem::DomesticStock(stock),
+    );
+    assert!(profit_rate_sub(ReceiptsTab::DomesticStock, &zero_cost.details).is_none());
+
+    let dividend = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
+    assert!(profit_rate_sub(ReceiptsTab::Dividend, &dividend.details).is_none());
+}

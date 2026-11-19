@@ -20,7 +20,8 @@ use crate::ui::security_link;
 use crate::ui::security_link::SecurityCodeLink;
 use crate::ui::stat_row::StatRow;
 use leptos::prelude::*;
-use std::collections::HashSet;
+use rust_decimal::Decimal;
+use std::collections::{HashMap, HashSet};
 
 // 税引前(配当金・実現損益・ダイアログの税引前)と税引後はお金の出入りとして Delta。
 pub(crate) fn is_profit_label(_tab: ReceiptsTab, label: &str) -> bool {
@@ -318,6 +319,161 @@ pub(crate) fn before_tax_subtext(
     (!value.is_empty()).then_some((value, negative, positive))
 }
 
+/// 表示文字列から数値を取り出す(¥・桁区切り・株/口などの単位を除く)
+fn parse_decimal_text(value: &str) -> Option<Decimal> {
+    let normalized: String = value
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == '+')
+        .collect();
+    normalized.parse().ok()
+}
+
+fn detail_decimal(details: &[CardDetail], label: &str) -> Option<Decimal> {
+    details
+        .iter()
+        .find(|detail| detail.label == label)
+        .and_then(|detail| match &detail.value {
+            CardDetailValue::Text { text, .. } => parse_decimal_text(text),
+            CardDetailValue::CopyName { .. } => None,
+        })
+}
+
+/// 案Eの損益率。取得額に対する実現損益の率を小数1桁で出す。
+/// 取得額0の行と配当金タブは出さない(割れない・取得の概念がないため)。
+pub(crate) fn profit_rate_sub(
+    tab: ReceiptsTab,
+    details: &[CardDetail],
+) -> Option<ReceiptBeforeTax> {
+    if tab == ReceiptsTab::Dividend {
+        return None;
+    }
+    let quantity = detail_decimal(details, labels::QUANTITY)?;
+    let unit = detail_decimal(details, labels::ACQUISITION_PRICE)?;
+    let pnl = detail_decimal(details, labels::REALIZED_PROFIT_LOSS)?;
+    let mut cost = quantity * unit;
+    if tab == ReceiptsTab::MutualFund {
+        cost /= Decimal::new(10000, 0);
+    }
+    if cost.is_zero() {
+        return None;
+    }
+    let rate = (pnl / cost * Decimal::new(100, 0))
+        .to_string()
+        .parse::<f64>()
+        .ok()?;
+    if !rate.is_finite() {
+        return None;
+    }
+    let text = format::format_fixed_percent(rate, 1);
+    let text = if rate > 0.0 { format!("+{text}") } else { text };
+    Some(ReceiptBeforeTax {
+        text,
+        negative: rate < 0.0,
+        positive: rate > 0.0,
+    })
+}
+
+/// 案Dのまとめ先。同じ日・同じ銘柄・同じ口座の行を1行にし、金額は合計する。
+#[derive(Clone)]
+pub(crate) struct GroupedCardRow {
+    pub(crate) name: CardDetailValue,
+    pub(crate) code: Option<String>,
+    pub(crate) date: String,
+    pub(crate) account: String,
+    pub(crate) sum_text: String,
+    pub(crate) sum_negative: bool,
+    pub(crate) sum_positive: bool,
+    pub(crate) count: usize,
+    pub(crate) members: Vec<CardRowData>,
+}
+
+pub(crate) enum ReceiptCardEntry {
+    Single(CardRowData),
+    Grouped(GroupedCardRow),
+}
+
+fn group_key(card: &CardRowData) -> Option<(String, String, String)> {
+    let name_key = match &card.name {
+        CardDetailValue::CopyName { display, .. } => display.clone(),
+        CardDetailValue::Text { text, .. } => text.clone(),
+    };
+    if name_key.trim().is_empty() {
+        return None;
+    }
+    let code_key = card
+        .code
+        .clone()
+        .filter(|code| !code.trim().is_empty())
+        .unwrap_or_else(|| name_key.clone());
+    Some((card.date.clone(), code_key, card.account.clone()))
+}
+
+/// 案Dのまとめ。同じ日・同じ銘柄・同じ口座の行を1行にし、金額は合計する。
+/// 合計できない行(金額が読めない)はまとめず単独のまま残す。並び順は保つ。
+pub(crate) fn merge_same_day_cards(
+    tab: ReceiptsTab,
+    cards: Vec<CardRowData>,
+) -> Vec<ReceiptCardEntry> {
+    type Key = (String, String, String);
+    let mut members_of: HashMap<Key, Vec<CardRowData>> = HashMap::new();
+    for card in &cards {
+        if let Some(key) = group_key(card) {
+            members_of.entry(key).or_default().push(card.clone());
+        }
+    }
+    let mut emitted: HashSet<Key> = HashSet::new();
+    let mut entries: Vec<ReceiptCardEntry> = Vec::new();
+    for card in cards {
+        let Some(key) = group_key(&card) else {
+            entries.push(ReceiptCardEntry::Single(card));
+            continue;
+        };
+        let members = members_of.get(&key).cloned().unwrap_or_default();
+        if members.len() < 2 {
+            entries.push(ReceiptCardEntry::Single(card));
+            continue;
+        }
+        if !emitted.insert(key) {
+            continue;
+        }
+        match summed_hero(tab, &members) {
+            Some((sum_text, sum_negative, sum_positive)) => {
+                let first = &members[0];
+                entries.push(ReceiptCardEntry::Grouped(GroupedCardRow {
+                    name: first.name.clone(),
+                    code: first.code.clone(),
+                    date: first.date.clone(),
+                    account: first.account.clone(),
+                    sum_text,
+                    sum_negative,
+                    sum_positive,
+                    count: members.len(),
+                    members,
+                }));
+            }
+            None => {
+                for member in members {
+                    entries.push(ReceiptCardEntry::Single(member));
+                }
+            }
+        }
+    }
+    entries
+}
+
+fn summed_hero(tab: ReceiptsTab, members: &[CardRowData]) -> Option<(String, bool, bool)> {
+    let mut sum = Decimal::ZERO;
+    for member in members {
+        let (text, _, _) = compact_value(&member.details, labels::AFTER_TAX);
+        sum += parse_decimal_text(&text)?;
+    }
+    let text = shared::format::format_currency(sum);
+    let signed = signed_text_for_profit(tab, labels::AFTER_TAX, &text);
+    let negative = is_negative_labeled_value(tab, labels::AFTER_TAX, &text);
+    let positive = is_positive_labeled_value(tab, labels::AFTER_TAX, &text);
+    Some((signed, negative, positive))
+}
+
 fn detail_text(details: &[CardDetail], label: &str) -> (String, bool, bool, bool) {
     details
         .iter()
@@ -450,7 +606,11 @@ pub(crate) fn receipt_detail_cells(
 }
 
 #[component]
-fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
+fn CompactReceiptRow(
+    tab: ReceiptsTab,
+    card: CardRowData,
+    #[prop(optional)] nested: bool,
+) -> impl IntoView {
     let CardRowData {
         name,
         code,
@@ -459,6 +619,12 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         details,
         ..
     } = card;
+    // 案Dの内訳行は案Aの形で出す(入れ子でまとめ直しはしない)
+    let proposal = if nested {
+        1
+    } else {
+        receipts::RECEIPT_CARD_PROPOSAL
+    };
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, labels::AFTER_TAX);
     let before_tax_sub = before_tax_subtext(tab, &details);
     let sub_tax = before_tax_sub.map(|(text, negative, positive)| ReceiptBeforeTax {
@@ -466,16 +632,20 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         negative,
         positive,
     });
-    // 撮影用の案切り替え。1〜3は金額下の小字を出さず、2はメタに回す。
-    let primary_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
-        1..=3 => None,
-        _ => sub_tax.clone(),
+    // 1〜6は金額下の税引前小字を出さず、2はメタに、5は損益率に置き換える。
+    let primary_before_tax = match proposal {
+        0 => sub_tax.clone(),
+        _ => None,
     };
-    let meta_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
+    let meta_before_tax = match proposal {
         2 => sub_tax,
         _ => None,
     };
-    let low_row = receipts::RECEIPT_CARD_PROPOSAL == 3;
+    let rate_sub = match proposal {
+        5 => profit_rate_sub(tab, &details),
+        _ => None,
+    };
+    let low_row = proposal == 3;
     let hero_is_profit = is_profit_label(tab, labels::AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
@@ -507,32 +677,83 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     let dialog_name = sheet_title.clone();
     let dialog_code = code_for_meta.clone();
     let dialog_account = account_for_meta.clone();
+    // 案Fは銀行明細風(左に日付の列、真ん中に銘柄・口座、右に金額)にする。
+    // コードは行から外し、詳細ダイアログで見せる。
+    let date_row = proposal == 6;
+    let row_name_f = row_name.clone();
+    let short_date_f = short_date_for_meta.clone();
+    let code_f = code_for_meta.clone();
+    let account_f = account_for_meta.clone();
+    let hero_value_f = hero_value.clone();
 
     view! {
         <li class="list-row-item" data-testid="receipt-card">
-            <ListRowButtonWithoutSecondary
-                testid="receipt-row-button"
-                low=low_row
-                on_click=move |_| sheet_open.set(true)
-                name=move || row_name.clone()
-                primary=move || view! {
-                    <ReceiptCompactPrimary
-                        kind=hero_kind
-                        hero=hero_value.clone()
-                        hero_negative=hero_negative
-                        hero_positive=hero_positive
-                        before_tax=primary_before_tax.clone()
+            {if date_row {
+                view! {
+                    <Button
+                        variant=ButtonVariant::DateRow
+                        testid="receipt-row-button"
+                        aria_haspopup="dialog"
+                        on_click=move |_| sheet_open.set(true)
+                    >
+                        <span class="receipt-date-col">{short_date_f}</span>
+                        <span class="receipt-date-main">
+                            <span class="list-row-name">{row_name_f}</span>
+                            <span class="receipt-date-meta">
+                                {code_f
+                                    .and_then(|code| {
+                                        let trimmed = code.trim().to_string();
+                                        (!trimmed.is_empty()).then_some(trimmed)
+                                    })
+                                    .map(|trimmed| {
+                                        view! {
+                                            <span class="receipt-compact-code">{trimmed}</span>
+                                            {" · "}
+                                        }
+                                    })}
+                                <AccountBadge label=account_f />
+                            </span>
+                        </span>
+                        <span class="receipt-date-amount">
+                            <Amount
+                                kind=hero_kind
+                                text=hero_value_f
+                                negative=hero_negative
+                                positive=hero_positive
+                            />
+                        </span>
+                    </Button>
+                }
+                    .into_any()
+            } else {
+                view! {
+                    <ListRowButtonWithoutSecondary
+                        testid="receipt-row-button"
+                        low=low_row
+                        on_click=move |_| sheet_open.set(true)
+                        name=move || row_name.clone()
+                        primary=move || view! {
+                            <ReceiptCompactPrimary
+                                kind=hero_kind
+                                hero=hero_value.clone()
+                                hero_negative=hero_negative
+                                hero_positive=hero_positive
+                                before_tax=primary_before_tax.clone()
+                                rate=rate_sub.clone()
+                            />
+                        }
+                        meta=move || view! {
+                            <ReceiptCompactMeta
+                                date=short_date_for_meta.clone()
+                                code=code_for_meta.clone()
+                                account=account_for_meta.clone()
+                                before_tax=meta_before_tax.clone()
+                            />
+                        }
                     />
                 }
-                meta=move || view! {
-                    <ReceiptCompactMeta
-                        date=short_date_for_meta.clone()
-                        code=code_for_meta.clone()
-                        account=account_for_meta.clone()
-                        before_tax=meta_before_tax.clone()
-                    />
-                }
-            />
+                    .into_any()
+            }}
             <Show when=move || dialog_open.get()>
                 <DetailDialog
                     name=dialog_name.clone()
@@ -603,6 +824,90 @@ pub(crate) fn group_headline_summary(
     })
 }
 
+/// 案Dのまとめた行。押すと内訳の行が開く。内訳は案Aの形で出す。
+/// 銘柄名は行全体がボタンのためコピー釦にせず文字列で出す(内訳・詳細で写せる)。
+#[component]
+fn GroupedReceiptRow(tab: ReceiptsTab, grouped: GroupedCardRow) -> impl IntoView {
+    let GroupedCardRow {
+        name,
+        code,
+        date,
+        account,
+        sum_text,
+        sum_negative,
+        sum_positive,
+        count,
+        members,
+    } = grouped;
+    let name_text = match &name {
+        CardDetailValue::Text { text, .. } => text.clone(),
+        CardDetailValue::CopyName { display, .. } => display.clone(),
+    };
+    let short_date = format::format_short_date(&date.replace('/', "-"));
+    let expanded = RwSignal::new(false);
+    let times = labels::grouped_times(count);
+    let member_rows = RwSignal::new(members);
+    let expanded_state = Signal::derive(move || expanded.get());
+    view! {
+        <li class="list-row-item" data-testid="receipt-card">
+            <Button
+                variant=ButtonVariant::RowButton
+                testid="receipt-row-button"
+                aria_expanded=expanded_state
+                on_click=move |_| expanded.update(|open| *open = !*open)
+            >
+                <span class="list-row">
+                    <span class="list-row-main">
+                        <span class="list-row-name">{name_text}</span>
+                        <span class="list-row-primary">
+                            <span class="receipt-grouped-hero">
+                                <Amount
+                                    kind=AmountKind::Delta
+                                    text=sum_text
+                                    negative=sum_negative
+                                    positive=sum_positive
+                                />
+                                <span class="receipt-grouped-count">{times}</span>
+                            </span>
+                        </span>
+                    </span>
+                    <span class="list-row-sub">
+                        <span class="list-row-meta">
+                            {short_date}
+                            {code
+                                .and_then(|code| {
+                                    let trimmed = code.trim().to_string();
+                                    (!trimmed.is_empty()).then_some(trimmed)
+                                })
+                                .map(|trimmed| {
+                                    view! {
+                                        {" · "}
+                                        <span class="receipt-compact-code">{trimmed}</span>
+                                    }
+                                })}
+                            {" · "}
+                            <AccountBadge label=account />
+                        </span>
+                    </span>
+                </span>
+            </Button>
+            <Show when=move || expanded.get()>
+                <ul class="receipt-grouped-members">
+                    {move || {
+                        member_rows
+                            .get()
+                            .into_iter()
+                            .map(|card| view! {
+                                <CompactReceiptRow tab=tab card=card nested=true />
+                            })
+                            .collect_view()
+                    }}
+                </ul>
+            </Show>
+        </li>
+    }
+}
+
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
@@ -622,17 +927,47 @@ pub(crate) fn CompactReceiptGroup(
         summary
     };
     let headline = group_headline_summary(tab, &summary);
+    // 案Dは同じ日・同じ銘柄・同じ口座の行を1行にまとめる
+    let entries: Option<Vec<ReceiptCardEntry>> =
+        (receipts::RECEIPT_CARD_PROPOSAL == 4).then(|| merge_same_day_cards(tab, cards.clone()));
     view! {
         <section data-testid="receipt-card-group">
             <ListGroupHeader label=labels::group_count(&label, count) summary=headline />
-            <ul class="receipt-compact-list">
-                {cards
-                    .into_iter()
-                    .map(|card| view! {
-                        <CompactReceiptRow tab=tab card=card />
-                    })
-                    .collect_view()}
-            </ul>
+            {entries.map_or_else(
+                || {
+                    view! {
+                        <ul class="receipt-compact-list">
+                            {cards
+                                .into_iter()
+                                .map(|card| view! {
+                                    <CompactReceiptRow tab=tab card=card />
+                                })
+                                .collect_view()}
+                        </ul>
+                    }
+                        .into_any()
+                },
+                |entries| {
+                    view! {
+                        <ul class="receipt-compact-list">
+                            {entries
+                                .into_iter()
+                                .map(|entry| match entry {
+                                    ReceiptCardEntry::Single(card) => {
+                                        view! { <CompactReceiptRow tab=tab card=card /> }
+                                            .into_any()
+                                    }
+                                    ReceiptCardEntry::Grouped(grouped) => {
+                                        view! { <GroupedReceiptRow tab=tab grouped=grouped /> }
+                                            .into_any()
+                                    }
+                                })
+                                .collect_view()}
+                        </ul>
+                    }
+                        .into_any()
+                },
+            )}
         </section>
     }
 }

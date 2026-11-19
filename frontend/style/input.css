@@ -1082,8 +1082,54 @@
     @apply text-xs font-normal text-text-soft;
   }
 
+  .receipt-rate-sub {
+    @apply text-xs font-normal text-text-soft;
+  }
+
   .receipt-compact-meta-tax {
     @apply text-text-soft;
+  }
+
+  .receipt-grouped-hero {
+    @apply flex items-baseline justify-end gap-1;
+  }
+
+  .receipt-grouped-count {
+    @apply text-cell font-normal text-text-muted;
+  }
+
+  .receipt-grouped-members {
+    @apply border-t border-border-subtle;
+  }
+
+  /* 撮影用の案Fの銀行明細風の行。左に日付の列、真ん中に銘柄・口座、右に金額 */
+  .receipt-date-row {
+    @apply flex w-full items-baseline gap-3 px-4 py-2 text-left;
+  }
+
+  .receipt-date-row:hover,
+  .receipt-date-row:active {
+    @apply bg-surface-sunken;
+  }
+
+  .receipt-date-row:focus-visible {
+    @apply outline-2 -outline-offset-2 outline-ink;
+  }
+
+  .receipt-date-col {
+    @apply w-11 shrink-0 tabular-nums text-cell text-text-muted;
+  }
+
+  .receipt-date-main {
+    @apply min-w-0 flex-1;
+  }
+
+  .receipt-date-meta {
+    @apply mt-0.5 flex items-center gap-2 text-cell text-text-muted;
+  }
+
+  .receipt-date-amount {
+    @apply shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums;
   }
 
   /* 撮影用の案Cの低いカード。スマホの行はすでに py-2 のため、

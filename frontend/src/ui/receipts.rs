@@ -330,7 +330,8 @@ pub fn ReceiptMobileCardList(children: Children) -> impl IntoView {
     view! { <div class="space-y-3 p-2">{children()}</div> }
 }
 
-/// 撮影用の案切り替え(0=現状、1=案A、2=案B、3=案C)。本実装では選ばれた案だけ残す。
+/// 撮影用の案切り替え(0=現状、1=案A、2=案B、3=案C、4=案D、5=案E、6=案F)。
+/// 本実装では選ばれた案だけ残す。
 pub const RECEIPT_CARD_PROPOSAL: u8 = 0;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -348,6 +349,7 @@ pub fn ReceiptCompactPrimary(
     hero_negative: bool,
     hero_positive: bool,
     before_tax: Option<ReceiptBeforeTax>,
+    rate: Option<ReceiptBeforeTax>,
 ) -> impl IntoView {
     view! {
         <span class="receipt-compact-value">
@@ -360,6 +362,16 @@ pub fn ReceiptCompactPrimary(
             {before_tax.map(|sub| view! {
                 <span class="receipt-before-tax-sub">
                     {labels::BEFORE_TAX}" "
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=sub.text
+                        negative=sub.negative
+                        positive=sub.positive
+                    />
+                </span>
+            })}
+            {rate.map(|sub| view! {
+                <span class="receipt-rate-sub">
                     <Amount
                         kind=AmountKind::Delta
                         text=sub.text

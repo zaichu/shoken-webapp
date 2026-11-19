@@ -48,6 +48,8 @@ pub enum ButtonVariant {
     MenuItemDanger,
     /// 取引明細・ホームの配当入金の行全体ボタン(2行の ListRow を包む)
     RowButton,
+    /// 取引明細の撮影用の案Fの行全体ボタン(左の日付列・真ん中・右の金額)
+    DateRow,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,6 +114,9 @@ impl ButtonVariant {
             }
             Self::RowButton => {
                 "list-row-action border-0 bg-transparent cursor-pointer text-left".to_string()
+            }
+            Self::DateRow => {
+                "receipt-date-row border-0 bg-transparent cursor-pointer text-left".to_string()
             }
         }
     }
