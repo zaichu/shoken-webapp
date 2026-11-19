@@ -166,7 +166,7 @@ pub fn CumulativeChart(
                 )
                 .is_some_and(|(chart, target)| chart.contains(Some(&target)));
             if !inside {
-                selected.set(None);
+                dismiss();
             }
         }) as Box<dyn FnMut(_)>);
         let _ = document.add_event_listener_with_callback_and_bool(
