@@ -32,14 +32,14 @@ export function rowStatus(page: Page, kind: CsvKindParam): Locator {
   return csvRow(page, kind).locator('span[data-status]');
 }
 
-/** ⋯ メニューを開く */
+/** 操作メニューを開く */
 export async function openCsvMenu(page: Page, kind: CsvKindParam): Promise<void> {
   await csvRow(page, kind).getByRole('button', { name: 'メニュー' }).click();
   await expect(page.getByRole('button', { name: '楽天証券から再取得' })).toBeVisible();
 }
 
 /**
- * ⋯ メニューからファイル取り込みで OS の選択を開き、ファイルを渡す。
+ * 操作メニューからファイル取り込みで OS の選択を開き、ファイルを渡す。
  * 新しい流れはプレビューなしでそのまま保存し、結果は行の状態に出る。
  */
 export async function importCsvFile(
@@ -53,7 +53,7 @@ export async function importCsvFile(
   await (await chooser).setFiles(filePath);
 }
 
-/** ⋯ メニューから削除確認を開く */
+/** 操作メニューから削除確認を開く */
 export async function openCsvDelete(page: Page, kind: CsvKindParam): Promise<void> {
   await openCsvMenu(page, kind);
   await page.getByRole('button', { name: '削除', exact: true }).click();

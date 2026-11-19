@@ -146,7 +146,7 @@ test('設定ページの危険な操作からアカウント削除確認ダイ�
   });
   await page.goto('/settings');
 
-  // アカウント削除ボタンは aria-label "アカウントを削除" を持つ
+  // アカウント削除ボタンは aria-label "アカウントを削除する（確認あり）" を持つ
   await page.getByRole('button', { name: 'アカウントを削除' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'アカウント削除の確認' });
@@ -485,7 +485,7 @@ test('設定ページにアカウント・表示・データ・セキュリテ�
   await expect(page.getByText('アカウントを削除')).toBeVisible();
 
   // 削除リンクは CSV 管理の一覧へ進むことを確認
-  // aria-label で特定する（表示テキストは「削除…」だが aria-label は「配当金データを削除」等）
+  // aria-label で特定する（表示テキストは「削除する（確認あり）」だが aria-label は「配当金データを削除」等）
   await expect(page.getByRole('link', { name: '配当金データを削除' })).toHaveAttribute('href', '/csv');
   await expect(page.getByRole('link', { name: '国内株式データを削除' })).toHaveAttribute('href', '/csv');
   await expect(page.getByRole('link', { name: '投資信託データを削除' })).toHaveAttribute('href', '/csv');

@@ -80,7 +80,7 @@ test('テーマ設定を変えると localStorage に保存され html の data-
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
-test('端末に合わせるテーマでは OS の配色設定に従う', async ({ page }) => {
+test('OS の設定に合わせるテーマでは OS の配色設定に従う', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/settings');
@@ -109,7 +109,7 @@ test('localStorage の値が壊れているとき設定は既定値に戻る', a
     page.getByTestId('setting-idle-minutes').getByRole('button', { name: '30分' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    page.getByTestId('setting-theme').getByRole('button', { name: '端末に合わせる' }),
+    page.getByTestId('setting-theme').getByRole('button', { name: 'OS の設定に合わせる' }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
 

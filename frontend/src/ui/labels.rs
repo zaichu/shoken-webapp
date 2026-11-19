@@ -364,12 +364,15 @@ pub const CSV_MANAGE_FETCH_BUTTON: &str = "すべて取得";
 pub const CSV_MANAGE_FETCH_RUNNING: &str = "取得中…";
 /// CSV管理: 表ヘッダー「データの種類」
 pub const CSV_MANAGE_COL_KIND: &str = "データの種類";
-/// CSV管理: 表ヘッダー「保存済み」
-pub const CSV_MANAGE_COL_COUNT: &str = "保存済み";
+/// CSV管理: 表ヘッダー「保存済み（行数)」。件数は5表の COUNT(*) で、
+/// 資産管理は銘柄×口座ごと1件、取引明細は明細1件ごと1件の行数
+/// (backend/src/services/csv/stats.rs の STATS_SQL)
+pub const CSV_MANAGE_COL_COUNT: &str = "保存済み（行数）";
 /// CSV管理: 表ヘッダー「状態」
 pub const CSV_MANAGE_COL_STATUS: &str = "状態";
-/// CSV管理: 表ヘッダー「メニュー」
-pub const CSV_MANAGE_COL_MENU: &str = "⋯";
+/// CSV管理: 表ヘッダーと行のボタンの表示「操作」。押すと再取得・取り込み・
+/// 削除の操作が出ることが見える文字で分かるようにする
+pub const CSV_MANAGE_COL_MENU: &str = "操作";
 /// CSV管理: 状態「今日 HH:MM に更新」(緑)
 pub fn csv_manage_status_updated_today(time: &str) -> String {
     format!("今日 {time} に更新")
@@ -378,19 +381,26 @@ pub fn csv_manage_status_updated_today(time: &str) -> String {
 pub fn csv_manage_status_updated_days_ago(days: i64, date: &str, time: &str) -> String {
     format!("{days}日前({date} {time})に更新")
 }
-/// CSV管理: 状態「要更新 N日前(M/D HH:MM)」(黄。動詞を省いて短くする)
+/// CSV管理: 状態「要更新（最終更新 M/D HH:MM・N日前)」(黄)。
+/// 状態と最終更新日時を分け、N日前が最終更新からの経過と分かる書き方にする
 pub fn csv_manage_status_stale(days: i64, date: &str, time: &str) -> String {
-    format!("{CSV_MANAGE_STATUS_UPDATE_REQUIRED} {days}日前({date} {time})")
+    format!("{CSV_MANAGE_STATUS_UPDATE_REQUIRED}（最終更新 {date} {time}・{days}日前）")
 }
 pub const CSV_MANAGE_STATUS_UPDATE_REQUIRED: &str = "要更新";
+/// CSV管理: 表の下に出す更新目安の注記。残高は当日だけ新しく、
+/// 明細は7日以内が新しい (frontend/src/features/csv_page.rs の CsvKind::is_fresh)
+pub const CSV_MANAGE_FRESHNESS_NOTE: &str = "目安：残高は毎日、明細は7日以内に更新";
 /// CSV管理: 状態「取得できず・楽天証券のタブを再読み込みしてください」(赤)
 pub const CSV_MANAGE_STATUS_FAILED: &str = "取得できず・楽天証券のタブを再読み込みしてください";
 /// CSV管理: 状態「取り込まなかった(理由)」(薄い色)
 pub fn csv_manage_status_skipped(reason: &str) -> String {
     format!("取り込まなかった({reason})")
 }
-/// CSV管理: 状態「まだ取得していません」(薄い色)
-pub const CSV_MANAGE_STATUS_NEVER: &str = "まだ取得していません";
+/// CSV管理: 状態「保存データがありません」(薄い色)。
+/// 0件(未取得・保有なし・削除済み)のときに出す。未取得と削除済みの区別は
+/// API が返さない (backend/src/services/csv/stats.rs の resolve_latest は
+/// 件数0で日時なしにする) ため理由までは書かない
+pub const CSV_MANAGE_STATUS_NEVER: &str = "保存データがありません";
 /// CSV管理: 取得失敗の詳細ラベル
 pub const CSV_MANAGE_FAILED_DETAIL_LABEL: &str = "詳細";
 /// CSV管理: メニュー項目「楽天証券から再取得」
@@ -639,8 +649,8 @@ pub const SETTINGS_DANGER_SECTION: &str = "危険な操作";
 pub const SETTINGS_GOOGLE_LOGIN: &str = "Google でログイン中";
 /// 設定: テーマの行名
 pub const SETTINGS_THEME: &str = "テーマ";
-/// 設定: テーマの選択肢(端末に合わせる)
-pub const SETTINGS_THEME_SYSTEM: &str = "端末に合わせる";
+/// 設定: テーマの選択肢(OS の表示設定に合わせる)
+pub const SETTINGS_THEME_SYSTEM: &str = "OS の設定に合わせる";
 /// 設定: テーマの選択肢(ライト)
 pub const SETTINGS_THEME_LIGHT: &str = "ライト";
 /// 設定: テーマの選択肢(ダーク)
@@ -653,6 +663,10 @@ pub const SETTINGS_ASSET_SORT_INITIAL: &str = "資産管理の初期の並び順
 pub const SETTINGS_RECEIPTS_TAB: &str = "取引明細の初期タブ";
 /// 設定: 金額の表示単位の行名
 pub const SETTINGS_AMOUNT_UNIT: &str = "金額の表示単位";
+/// 設定: 金額の表示単位の補足1行。集計だけに効き明細の行と単価は円のまま
+/// (frontend/src/settings.rs の AmountUnit)、千円・万円は単位で割って
+/// 小数第1位まで四捨五入 (frontend/src/settings.rs の format_amount)
+pub const SETTINGS_AMOUNT_UNIT_NOTE: &str = "集計だけに適用され、明細の行と単価は円のままです。千円・万円は小数第1位まで表示します（四捨五入）。";
 /// 設定: CSV エクスポートの行名
 pub const SETTINGS_EXPORT_CSV: &str = "CSVでエクスポート";
 /// 設定: CSV の取り込み・保存済みデータの削除の行名
@@ -669,36 +683,45 @@ pub const SETTINGS_IDLE_15: &str = "15分";
 pub const SETTINGS_IDLE_30: &str = "30分";
 /// 設定: 自動ログアウトの選択肢(60分)
 pub const SETTINGS_IDLE_60: &str = "60分";
-/// 設定: 削除操作のボタン名
-pub const SETTINGS_DELETE: &str = "削除…";
+/// 設定: 削除操作のボタン名。押すと確認画面が出ることが分かる書き方にする
+pub const SETTINGS_DELETE: &str = "削除する（確認あり）";
 /// 設定: 取引明細(配当金)の削除の行名
 pub const SETTINGS_DELETE_DIVIDEND: &str = "取引明細：配当金を削除";
 /// 設定: 取引明細(配当金)の削除の説明
 pub const SETTINGS_DELETE_DIVIDEND_NOTE: &str =
     "取り込んだ配当金データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(配当金)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_DIVIDEND_ACTION: &str = "配当金データを削除";
+/// 設定: 取引明細(配当金)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_DIVIDEND_ACTION: &str = "配当金データを削除する（確認あり）";
 /// 設定: 取引明細(国内株式)の削除の行名
 pub const SETTINGS_DELETE_STOCK: &str = "取引明細：国内株式を削除";
 /// 設定: 取引明細(国内株式)の削除の説明
 pub const SETTINGS_DELETE_STOCK_NOTE: &str =
     "取り込んだ国内株式売買データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(国内株式)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_STOCK_ACTION: &str = "国内株式データを削除";
+/// 設定: 取引明細(国内株式)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_STOCK_ACTION: &str = "国内株式データを削除する（確認あり）";
 /// 設定: 取引明細(投資信託)の削除の行名
 pub const SETTINGS_DELETE_FUND: &str = "取引明細：投資信託を削除";
 /// 設定: 取引明細(投資信託)の削除の説明
 pub const SETTINGS_DELETE_FUND_NOTE: &str =
     "取り込んだ投資信託売買データ。アカウントは残ります。取り消せません";
-/// 設定: 取引明細(投資信託)の削除リンクの読み上げ名
-pub const SETTINGS_DELETE_FUND_ACTION: &str = "投資信託データを削除";
+/// 設定: 取引明細(投資信託)の削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_FUND_ACTION: &str = "投資信託データを削除する（確認あり）";
 /// 設定: 資産管理データの削除の行名
 pub const SETTINGS_DELETE_ASSETS: &str = "資産管理データを削除";
+/// 設定: 資産管理データの削除リンクの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_ASSETS_ACTION: &str = "資産管理データを削除する（確認あり）";
 /// 設定: 資産管理データの削除の説明
 pub const SETTINGS_DELETE_ASSETS_NOTE: &str =
     "保存済みの保有銘柄データ。アカウントは残ります。取り消せません";
 /// 設定: アカウント削除の行名
 pub const SETTINGS_DELETE_ACCOUNT: &str = "アカウントを削除";
+/// 設定: アカウント削除ボタンの読み上げ名。
+/// ボタンの可視文言「削除する（確認あり）」を含む
+pub const SETTINGS_DELETE_ACCOUNT_ACTION: &str = "アカウントを削除する（確認あり）";
 /// 設定: アカウント削除の説明
 pub const SETTINGS_DELETE_ACCOUNT_NOTE: &str = "データもすべて消えます。取り消せません";
 /// CSV エクスポート: 種類名(資産管理)
@@ -1072,8 +1095,9 @@ pub const CSV_FILE_SELECT: &str = "CSVファイルを選択";
 pub const CSV_STATUS_IMPORTING: &str = "取り込み中…";
 /// CSV管理: 行の状態「確認待ち」
 pub const CSV_STATUS_CONFIRMING: &str = "確認待ち";
-/// 開閉メニューの読み上げ名
-pub const MENU: &str = "メニュー";
+/// CSV管理: 行の操作ボタンの読み上げ名。可視の「操作」を含めて
+/// 音声操作でも見える名前で呼べるようにする
+pub const CSV_MANAGE_MENU_BUTTON_LABEL: &str = "操作メニュー";
 
 /// 開閉の表示(閉じているときに開く操作)
 pub const DISCLOSURE_OPEN: &str = "開く";

@@ -10,7 +10,7 @@ import {
 import * as path from 'path';
 
 /**
- * 行の「⋯」→「ファイルから取り込み」は OS の選択を直接開き、
+ * 行の「操作」→「ファイルから取り込み」は OS の選択を直接開き、
  * 選んだらプレビューなしでそのまま保存する。結果は行の状態に出る。
  * 安全装置は最新取得と同じ(preview → 有効0件・行エラーで止める → 激減確認 → upload)。
  */
@@ -189,7 +189,7 @@ test('ファイル選択のキャンセルは何も出さない', async ({ page 
   await mockSessionAndLists(page, { dividend: 0 });
 
   await page.goto('/csv');
-  await expect(csvRow(page, 'dividend')).toContainText('まだ取得していません');
+  await expect(csvRow(page, 'dividend')).toContainText('保存データがありません');
 
   await csvRow(page, 'dividend').getByRole('button', { name: 'メニュー' }).click();
   const chooser = page.waitForEvent('filechooser');
@@ -197,5 +197,5 @@ test('ファイル選択のキャンセルは何も出さない', async ({ page 
   await (await chooser).setFiles([]);
 
   await expect(savedCount(page, 'dividend')).toContainText('0件');
-  await expect(csvRow(page, 'dividend')).toContainText('まだ取得していません');
+  await expect(csvRow(page, 'dividend')).toContainText('保存データがありません');
 });

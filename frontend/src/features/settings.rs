@@ -161,6 +161,7 @@ fn SectionDisplay() -> impl IntoView {
                         />
                     </settings_ui::SettingRow>
                 </div>
+                <settings_ui::SettingsNote after=true>{labels::SETTINGS_AMOUNT_UNIT_NOTE}</settings_ui::SettingsNote>
             </settings_ui::SettingsPanel>
         </settings_ui::SettingsSection>
     }
@@ -539,7 +540,7 @@ fn SectionDanger() -> impl IntoView {
                             variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             href="/csv"
                             class="no-print"
-                            aria_label=labels::SETTINGS_DELETE_ASSETS
+                            aria_label=labels::SETTINGS_DELETE_ASSETS_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </LinkButton>
@@ -548,7 +549,7 @@ fn SectionDanger() -> impl IntoView {
                         <Button
                             variant=ButtonVariant::SecondaryDanger(ButtonSize::Sm)
                             on_click=move |_| delete_confirm_open.set(true)
-                            aria_label=labels::SETTINGS_DELETE_ACCOUNT
+                            aria_label=labels::SETTINGS_DELETE_ACCOUNT_ACTION
                         >
                             {labels::SETTINGS_DELETE}
                         </Button>

@@ -66,14 +66,14 @@ test('5種類の行が出て、状態が最終取込時刻で変わる', async (
   await expect(savedCount(page, 'assetbalance')).toContainText('12件');
   await expect(csvRow(page, 'assetbalance')).toContainText('今日 12:00 に更新');
   await expect(csvRow(page, 'fundbalance')).toContainText(
-    /要更新 3日前\(\d{1,2}\/\d{1,2} 09:15\)/,
+    /要更新（最終更新 \d{1,2}\/\d{1,2} 09:15・3日前）/,
   );
-  await expect(csvRow(page, 'dividend')).toContainText('まだ取得していません');
-  await expect(csvRow(page, 'domesticstock')).toContainText('まだ取得していません');
-  await expect(csvRow(page, 'mutualfund')).toContainText('まだ取得していません');
+  await expect(csvRow(page, 'dividend')).toContainText('保存データがありません');
+  await expect(csvRow(page, 'domesticstock')).toContainText('保存データがありません');
+  await expect(csvRow(page, 'mutualfund')).toContainText('保存データがありません');
 });
 
-test('⋯ のメニューは3項目で、件数が0件の削除だけ選べない', async ({ page }) => {
+test('操作 のメニューは3項目で、件数が0件の削除だけ選べない', async ({ page }) => {
   await mockLists(page);
   await mockCsvKindStats(page, {
     counts: () => ({ assetbalance: 12, fundbalance: 5 }),
@@ -121,7 +121,7 @@ test('残高は当日だけ新しく、明細は7日以内が新しい', async (
   await expect(statusOf('mutualfund')).toHaveAttribute('data-status', 'never');
 });
 
-test('⋯ のメニューは外側を押す・Esc・項目選択で閉じる', async ({ page }) => {
+test('操作 のメニューは外側を押す・Esc・項目選択で閉じる', async ({ page }) => {
   await mockLists(page);
   await mockCsvKindStats(page, {
     counts: () => ({ assetbalance: 12 }),
@@ -141,7 +141,7 @@ test('⋯ のメニューは外側を押す・Esc・項目選択で閉じる', a
   await page.getByText('楽天証券から最新のデータを取得').click();
   await expect(refetch).toHaveCount(0);
 
-  // Esc で閉じてフォーカスが ⋯ に戻る
+  // Esc で閉じてフォーカスが操作ボタンに戻る
   await menuButton.click();
   await expect(refetch).toBeVisible();
   await page.keyboard.press('Escape');
@@ -235,7 +235,7 @@ for (const width of [1280, 390]) {
 test.describe('390px', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('行の文字は折り返さず、⋯ は各行に1つだけ出る', async ({ page }) => {
+  test('行の文字は折り返さず、操作 は各行に1つだけ出る', async ({ page }) => {
     await mockLists(page);
     await mockCsvKindStats(page, {
       counts: () => ({ assetbalance: 12 }),
