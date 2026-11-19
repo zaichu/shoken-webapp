@@ -1724,7 +1724,7 @@
   }
 
   .home-cum-axis {
-    @apply relative h-55 w-12 shrink-0 max-sm:h-28;
+    @apply relative mt-1 h-55 w-12 shrink-0 max-sm:h-28;
   }
 
   .home-cum-tick {

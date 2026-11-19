@@ -376,6 +376,7 @@ pub fn CumulativeChart(
                 <div class="home-chart-grid" aria-hidden="true">
                     {ticks
                         .iter()
+                        .rev()
                         .map(|tick| {
                             let position = if top > 0.0 {
                                 (1.0 - tick / top) * 100.0
