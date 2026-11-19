@@ -9,6 +9,8 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 /// 縦軸の目盛り(0 を含むきりのよい 3〜4 本)。上限が最大値を覆う最小の段になる
 pub fn axis_ticks(max: f64) -> Vec<f64> {
@@ -130,6 +132,56 @@ pub fn CumulativeChart(
     let ticks = axis_ticks(max);
     let top = ticks.last().copied().unwrap_or(0.0);
     let selected = RwSignal::new(None::<u32>);
+    let chart_ref = NodeRef::<leptos::html::Div>::new();
+    // 吹き出しが開いている間だけ、ページ全体に1つずつ検知を付ける。
+    // 別の月は容器の内側なので閉じずに押した月の切替えに任せ、閉じたら外す
+    Effect::new(move |_| {
+        if selected.get().is_none() {
+            return;
+        }
+        let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+            return;
+        };
+        let on_outside = Closure::wrap(Box::new(move |event: web_sys::PointerEvent| {
+            let inside = chart_ref
+                .get_untracked()
+                .zip(
+                    event
+                        .target()
+                        .and_then(|target| target.dyn_into::<web_sys::Node>().ok()),
+                )
+                .is_some_and(|(chart, target)| chart.contains(Some(&target)));
+            if !inside {
+                selected.set(None);
+            }
+        }) as Box<dyn FnMut(_)>);
+        let _ = document.add_event_listener_with_callback_and_bool(
+            "pointerdown",
+            on_outside.as_ref().unchecked_ref(),
+            true,
+        );
+        // scroll はバブルしないため document のキャプチャ段で拾う
+        let on_scroll = Closure::wrap(Box::new(move || selected.set(None)) as Box<dyn FnMut()>);
+        let _ = document.add_event_listener_with_callback_and_bool(
+            "scroll",
+            on_scroll.as_ref().unchecked_ref(),
+            true,
+        );
+        let handles = send_wrapper::SendWrapper::new((document, on_outside, on_scroll));
+        on_cleanup(move || {
+            let (document, on_outside, on_scroll) = &*handles;
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                "pointerdown",
+                on_outside.as_ref().unchecked_ref(),
+                true,
+            );
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                "scroll",
+                on_scroll.as_ref().unchecked_ref(),
+                true,
+            );
+        });
+    });
     let current_label = labels::cumulative_year_label(current_year);
     let previous_label = labels::cumulative_year_label(previous_year);
     let current_line = line_points(
@@ -169,7 +221,7 @@ pub fn CumulativeChart(
                 </span>
             })}
         </div>
-        <div class="home-chart">
+        <div class="home-chart" node_ref=chart_ref>
             <div class="home-cum-axis" aria-hidden="true">
                 {ticks
                     .iter()
@@ -220,9 +272,24 @@ pub fn CumulativeChart(
                         let month = *month;
                         if month > current_month {
                             // 未来の月も同じ幅の枠だけ置く。線の12か月座標と
-                            // 点・押せる範囲・月ラベルをずらさないため
+                            // 点・押せる範囲・月ラベルをずらさないため。
+                            // 前年の丸だけは置く(前年の線は12か月あるため)
+                            let previous_dot = previous_cum
+                                .as_ref()
+                                .and_then(|sums| sums.get(month as usize - 1).copied())
+                                .map(|value| {
+                                    let top_pos = y_percent(value, top);
+                                    let left_pos = x_percent(month);
+                                    view! {
+                                        <span
+                                            class="home-cum-dot home-cum-dot-previous"
+                                            style:top=format!("{top_pos}%")
+                                            style:left=format!("{left_pos}%")
+                                        />
+                                    }
+                                });
                             return view! {
-                                <div class="home-cum-col" aria-hidden="true"></div>
+                                <div class="home-cum-col" aria-hidden="true">{previous_dot}</div>
                             }
                                 .into_any();
                         }
@@ -260,6 +327,7 @@ pub fn CumulativeChart(
                             ""
                         };
                         let tip_below = dot_top < 50.0;
+                        let is_current = month == current_month;
                         view! {
                             <div
                                 class="home-cum-col"
@@ -268,6 +336,7 @@ pub fn CumulativeChart(
                                 aria-expanded=move || (selected.get() == Some(month)).to_string()
                                 aria-label=month_aria
                                 data-selected=move || (selected.get() == Some(month)).to_string()
+                                data-current=is_current.to_string()
                                 data-edge=edge
                                 on:click=move |_| {
                                     selected.update(|state| {
@@ -285,29 +354,23 @@ pub fn CumulativeChart(
                                     }
                                 }
                             >
-                                {move || {
-                                    (selected.get() == Some(month) || month == current_month).then(|| {
+                                {previous_value
+                                    .map(|value| {
+                                        let top_pos = y_percent(value, top);
+                                        let left_pos = x_percent(month);
                                         view! {
-                                            {previous_value
-                                                .map(|value| {
-                                                    let top_pos = y_percent(value, top);
-                                                    let left_pos = x_percent(month);
-                                                    view! {
-                                                        <span
-                                                            class="home-cum-dot home-cum-dot-previous"
-                                                            style:top=format!("{top_pos}%")
-                                                            style:left=format!("{left_pos}%")
-                                                        />
-                                                    }
-                                                })}
                                             <span
-                                                class="home-cum-dot home-cum-dot-current"
-                                                style:top=format!("{dot_top}%")
-                                                style:left=format!("{dot_left}%")
+                                                class="home-cum-dot home-cum-dot-previous"
+                                                style:top=format!("{top_pos}%")
+                                                style:left=format!("{left_pos}%")
                                             />
                                         }
-                                    })
-                                }}
+                                    })}
+                                <span
+                                    class="home-cum-dot home-cum-dot-current"
+                                    style:top=format!("{dot_top}%")
+                                    style:left=format!("{dot_left}%")
+                                />
                                 <div
                                     class="home-cum-tip"
                                     aria-hidden="true"

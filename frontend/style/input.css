@@ -1742,15 +1742,30 @@
   }
 
   .home-cum-dot {
-    @apply absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full;
+    @apply absolute -translate-x-1/2 -translate-y-1/2 rounded-full;
   }
 
+  /* 今年の丸は塗りの小さな丸(直径 6px)。線と同じ x/y の関数で置く */
   .home-cum-dot-current {
+    width: 6px;
+    height: 6px;
     background-color: var(--color-chart-1);
   }
 
+  /* 前年の丸は白抜きの小さな丸(直径 5px)。面の色で抜き、枠は線と同じ灰 */
   .home-cum-dot-previous {
-    background-color: var(--color-text-muted);
+    width: 5px;
+    height: 5px;
+    background-color: var(--color-surface);
+    border-width: var(--border-width-1);
+    border-style: solid;
+    border-color: var(--color-text-muted);
+  }
+
+  /* 今月の丸だけ今の大きい丸のまま(直径 10px) */
+  .home-cum-col[data-current="true"] .home-cum-dot-current {
+    width: 10px;
+    height: 10px;
   }
 
   .home-cum-col[data-selected="true"] .home-cum-dot-current {
