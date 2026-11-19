@@ -463,7 +463,7 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
             crate::features::asset_balance::holdings::format_dividend_annual,
         );
         right.push(DetailCell::plain(
-            labels::ANNUAL_DIVIDEND.to_string(),
+            labels::ANNUAL_DIVIDEND_FORECAST.to_string(),
             annual,
         ));
     }
@@ -474,7 +474,8 @@ pub(crate) fn unified_detail_cells(row: &UnifiedRow) -> (Vec<DetailCell>, Vec<De
 #[component]
 pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
     view! {
-        <ul class="asset-compact-list" data-testid="asset-merged-list">
+        <>
+            <ul class="asset-compact-list" data-testid="asset-merged-list">
             {rows
                 .into_iter()
                 .map(|row| {
@@ -570,7 +571,10 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     }
                 })
                 .collect_view()}
-        </ul>
+            </ul>
+            // 算出条件は一覧の下に1行で添える(表と同じ文言)
+            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
+        </>
     }
 }
 

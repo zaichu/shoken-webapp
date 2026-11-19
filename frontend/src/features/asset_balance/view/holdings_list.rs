@@ -91,7 +91,7 @@ pub(crate) fn holding_detail_cells(
         DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
         DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
         market_cell,
-        DetailCell::plain(labels::ANNUAL_DIVIDEND.to_string(), annual),
+        DetailCell::plain(labels::ANNUAL_DIVIDEND_FORECAST.to_string(), annual),
         DetailCell::plain(labels::PRICE_AS_OF.to_string(), as_of),
     ];
     (left, right)
@@ -255,7 +255,7 @@ mod tests {
                 labels::QUANTITY,
                 labels::TOTAL_ACQUISITION,
                 labels::MARKET_VALUE,
-                labels::ANNUAL_DIVIDEND,
+                labels::ANNUAL_DIVIDEND_FORECAST,
                 labels::PRICE_AS_OF
             ]
         );

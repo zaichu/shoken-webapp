@@ -16,9 +16,7 @@ pub const PER_SHARE_UNIT: &str = "(1株あたり)";
 pub const DAY_CHANGE_RATE: &str = "前日比(%)";
 /// 取得総額
 pub const TOTAL_ACQUISITION: &str = "取得総額";
-/// 年間配当(会社予想×保有数。資産管理の一覧・詳細・銘柄検索で共通)
-pub const ANNUAL_DIVIDEND: &str = "年間配当(予想)";
-/// 年間配当(会社予想×保有数。資産管理の集計帯)
+/// 年間配当(会社予想×保有数。資産管理の一覧・詳細・集計帯・銘柄検索で共通)
 pub const ANNUAL_DIVIDEND_FORECAST: &str = "年間配当(予想)";
 /// 年間予想配当(税引前)(ホームの集計帯)
 pub const ANNUAL_EXPECTED_DIVIDEND: &str = "年間予想配当(税引前)";
@@ -31,7 +29,7 @@ pub const ANNUAL_DIVIDEND_HEAD_SUB: &str = "(予想)";
 /// 年間配当・取得額利回りの算出条件(表の下の注記用。1行で添える)
 pub fn dividend_formula_note() -> String {
     format!(
-        "{ANNUAL_DIVIDEND}: {ANNUAL_DIVIDEND_NOTE} / {ACQUISITION_YIELD}: {ACQUISITION_YIELD_NOTE}"
+        "{ANNUAL_DIVIDEND_FORECAST}: {ANNUAL_DIVIDEND_NOTE} / {ACQUISITION_YIELD}: {ACQUISITION_YIELD_NOTE}"
     )
 }
 /// 取得額利回り(予想年間配当÷取得額。資産管理・銘柄検索で共通)

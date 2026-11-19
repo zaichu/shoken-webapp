@@ -32,7 +32,7 @@ impl SortKey {
         match self {
             Self::MarketValue => labels::MARKET_VALUE,
             Self::ProfitLoss => labels::VALUATION_PROFIT_LOSS,
-            Self::Dividend => labels::ANNUAL_DIVIDEND,
+            Self::Dividend => labels::ANNUAL_DIVIDEND_FORECAST,
             Self::Yield => labels::ACQUISITION_YIELD,
         }
     }

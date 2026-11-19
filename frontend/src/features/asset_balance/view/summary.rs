@@ -260,8 +260,6 @@ pub(crate) fn AssetSummaryBand(
             rate_positive: false,
         });
     }
-    // 算出条件は表の下の注記に添える(帯・行内に入れると基準線・parity がずれるため)。
-    // 帯・表とも見出しと値は変えない
     view! {
         <section
             id="assetbalance-summary"
