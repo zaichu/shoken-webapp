@@ -9,11 +9,12 @@ use crate::ui::disclosure::{ChevronIcon, DisclosureStyle, DisclosureToggle};
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::{GroupSummary, ListGroupHeader, ListRowButtonWithoutSecondary};
+use crate::ui::receipts;
 use crate::ui::receipts::{
-    ReceiptGroupBreakdown, ReceiptGroupCount, ReceiptGroupDetails, ReceiptGroupHeadLabel,
-    ReceiptGroupLabel, ReceiptGroupSummaryMeta, ReceiptGroupSummaryValue, ReceiptItemDetails,
-    ReceiptItemHead, ReceiptItemMeta, ReceiptItemTitleName, ReceiptItemTitleRow,
-    ReceiptMobileGroupList,
+    ReceiptBeforeTax, ReceiptCompactMeta, ReceiptCompactPrimary, ReceiptGroupBreakdown,
+    ReceiptGroupCount, ReceiptGroupDetails, ReceiptGroupHeadLabel, ReceiptGroupLabel,
+    ReceiptGroupSummaryMeta, ReceiptGroupSummaryValue, ReceiptItemDetails, ReceiptItemHead,
+    ReceiptItemMeta, ReceiptItemTitleName, ReceiptItemTitleRow, ReceiptMobileGroupList,
 };
 use crate::ui::security_link;
 use crate::ui::security_link::SecurityCodeLink;
@@ -460,6 +461,21 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
     } = card;
     let (hero_value, hero_negative, hero_positive) = compact_value(&details, labels::AFTER_TAX);
     let before_tax_sub = before_tax_subtext(tab, &details);
+    let sub_tax = before_tax_sub.map(|(text, negative, positive)| ReceiptBeforeTax {
+        text,
+        negative,
+        positive,
+    });
+    // 撮影用の案切り替え。1・3は税引前の小字を出さず、2はメタに回す。
+    let primary_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
+        1 | 3 => None,
+        _ => sub_tax.clone(),
+    };
+    let meta_before_tax = match receipts::RECEIPT_CARD_PROPOSAL {
+        2 => sub_tax,
+        _ => None,
+    };
+    let low_row = receipts::RECEIPT_CARD_PROPOSAL == 3;
     let hero_is_profit = is_profit_label(tab, labels::AFTER_TAX);
     let hero_kind = if hero_is_profit {
         AmountKind::Delta
@@ -496,42 +512,25 @@ fn CompactReceiptRow(tab: ReceiptsTab, card: CardRowData) -> impl IntoView {
         <li class="list-row-item" data-testid="receipt-card">
             <ListRowButtonWithoutSecondary
                 testid="receipt-row-button"
+                low=low_row
                 on_click=move |_| sheet_open.set(true)
                 name=move || row_name.clone()
                 primary=move || view! {
-                    <span class="receipt-compact-value">
-                        <Amount
-                            kind=hero_kind
-                            text=hero_value.clone()
-                            negative=hero_negative
-                            positive=hero_positive
-                        />
-                        {before_tax_sub.clone().map(|(text, negative, positive)| view! {
-                            <span class="receipt-before-tax-sub">
-                                {labels::BEFORE_TAX}" "
-                                <Amount
-                                    kind=AmountKind::Delta
-                                    text=text
-                                    negative=negative
-                                    positive=positive
-                                />
-                            </span>
-                        })}
-                    </span>
+                    <ReceiptCompactPrimary
+                        kind=hero_kind
+                        hero=hero_value.clone()
+                        hero_negative=hero_negative
+                        hero_positive=hero_positive
+                        before_tax=primary_before_tax.clone()
+                    />
                 }
                 meta=move || view! {
-                    {short_date_for_meta.clone()}
-                    {code_for_meta
-                        .clone()
-                        .and_then(|code| {
-                            let trimmed = code.trim().to_string();
-                            (!trimmed.is_empty()).then_some(trimmed)
-                        })
-                        .map(|trimmed| {
-                            view! { {" · "} <span class="receipt-compact-code">{trimmed}</span> }
-                        })}
-                    {" · "}
-                    <AccountBadge label=account_for_meta.clone() />
+                    <ReceiptCompactMeta
+                        date=short_date_for_meta.clone()
+                        code=code_for_meta.clone()
+                        account=account_for_meta.clone()
+                        before_tax=meta_before_tax.clone()
+                    />
                 }
             />
             <Show when=move || dialog_open.get()>

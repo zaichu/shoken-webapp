@@ -1,5 +1,7 @@
 use crate::ui::amount::{Amount, AmountKind};
+use crate::ui::badge::AccountBadge;
 use crate::ui::card::{Card, CardVariant};
+use crate::ui::labels;
 use leptos::prelude::*;
 
 #[component]
@@ -326,4 +328,81 @@ pub fn ReceiptTableGroupCount(#[prop(into)] text: String) -> impl IntoView {
 #[component]
 pub fn ReceiptMobileCardList(children: Children) -> impl IntoView {
     view! { <div class="space-y-3 p-2">{children()}</div> }
+}
+
+/// 撮影用の案切り替え(0=現状、1=案A、2=案B、3=案C)。本実装では選ばれた案だけ残す。
+pub const RECEIPT_CARD_PROPOSAL: u8 = 0;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReceiptBeforeTax {
+    pub text: String,
+    pub negative: bool,
+    pub positive: bool,
+}
+
+/// スマホ行の金額欄。主役の税引後と案に応じた税引前の出し分けはここで決める。
+#[component]
+pub fn ReceiptCompactPrimary(
+    kind: AmountKind,
+    #[prop(into)] hero: String,
+    hero_negative: bool,
+    hero_positive: bool,
+    before_tax: Option<ReceiptBeforeTax>,
+) -> impl IntoView {
+    view! {
+        <span class="receipt-compact-value">
+            <Amount
+                kind=kind
+                text=hero
+                negative=hero_negative
+                positive=hero_positive
+            />
+            {before_tax.map(|sub| view! {
+                <span class="receipt-before-tax-sub">
+                    {labels::BEFORE_TAX}" "
+                    <Amount
+                        kind=AmountKind::Delta
+                        text=sub.text
+                        negative=sub.negative
+                        positive=sub.positive
+                    />
+                </span>
+            })}
+        </span>
+    }
+}
+
+/// スマホ行の2行目。日付・コード・口座に、案Bでは税引前を添える。
+#[component]
+pub fn ReceiptCompactMeta(
+    #[prop(into)] date: String,
+    code: Option<String>,
+    #[prop(into)] account: String,
+    before_tax: Option<ReceiptBeforeTax>,
+) -> impl IntoView {
+    view! {
+        {date}
+        {code
+            .and_then(|code| {
+                let trimmed = code.trim().to_string();
+                (!trimmed.is_empty()).then_some(trimmed)
+            })
+            .map(|trimmed| {
+                view! { {" · "} <span class="receipt-compact-code">{trimmed}</span> }
+            })}
+        {" · "}
+        <AccountBadge label=account />
+        {before_tax.map(|sub| view! {
+            {" · "}
+            <span class="receipt-compact-meta-tax">
+                {labels::BEFORE_TAX}" "
+                <Amount
+                    kind=AmountKind::Delta
+                    text=sub.text
+                    negative=sub.negative
+                    positive=sub.positive
+                />
+            </span>
+        })}
+    }
 }

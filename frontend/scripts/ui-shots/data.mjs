@@ -231,7 +231,70 @@ export function fundBalances() {
 
 // 配当。ホームの前年同期比較があるため年を指定して取り分ける
 export function dividends(year = 2026) {
-  const rows = STOCK_NAMES.map((security_name, index) => {
+  // 端データ: 同じ日の同じ銘柄が複数・NISAの非課税・小額・長い銘柄名を先頭に置く
+  const edge = [
+    {
+      id: `dividend-${year}-edge-sameday-1`,
+      settlement_date: `${year}-12-08`,
+      product: '国内株式',
+      account: '特定',
+      security_code: '9935',
+      security_name: '架空グローバル先端素材ソリューションホールディングス',
+      unit_price: 32.5,
+      shares: 400,
+      dividends_before_tax: 13000,
+      taxes: 2640,
+      net_amount_received: 10360,
+      created_at: `${year}-01-01T00:00:00Z`,
+      updated_at: `${year}-01-01T00:00:00Z`,
+    },
+    {
+      id: `dividend-${year}-edge-sameday-2`,
+      settlement_date: `${year}-12-08`,
+      product: '特別利益分配金',
+      account: '特定',
+      security_code: '9935',
+      security_name: '架空グローバル先端素材ソリューションホールディングス',
+      unit_price: 32.5,
+      shares: 200,
+      dividends_before_tax: 6500,
+      taxes: 1320,
+      net_amount_received: 5180,
+      created_at: `${year}-01-01T00:00:00Z`,
+      updated_at: `${year}-01-01T00:00:00Z`,
+    },
+    {
+      id: `dividend-${year}-edge-nisa`,
+      settlement_date: `${year}-11-20`,
+      product: '国内株式',
+      account: 'NISA成長投資枠',
+      security_code: '9907',
+      security_name: '架空銀行',
+      unit_price: 20,
+      shares: 100,
+      dividends_before_tax: 2000,
+      taxes: 0,
+      net_amount_received: 2000,
+      created_at: `${year}-01-01T00:00:00Z`,
+      updated_at: `${year}-01-01T00:00:00Z`,
+    },
+    {
+      id: `dividend-${year}-edge-tiny`,
+      settlement_date: `${year}-10-05`,
+      product: '中間分配金',
+      account: '特定',
+      security_code: '9914',
+      security_name: '架空鉄道',
+      unit_price: 1.5,
+      shares: 100,
+      dividends_before_tax: 150,
+      taxes: 30,
+      net_amount_received: 120,
+      created_at: `${year}-01-01T00:00:00Z`,
+      updated_at: `${year}-01-01T00:00:00Z`,
+    },
+  ];
+  const rows = [...edge, ...STOCK_NAMES.map((security_name, index) => {
     const unit_price = decimal(index >= 34 ? 1500 : 20, index * 1.5);
     const shares = stockShares(index);
     const dividends_before_tax = Number((unit_price * shares).toFixed(2));
@@ -251,7 +314,7 @@ export function dividends(year = 2026) {
       created_at: `${year}-01-01T00:00:00Z`,
       updated_at: `${year}-01-01T00:00:00Z`,
     };
-  });
+  })];
   const sum = (key) => Number(rows.reduce((total, row) => total + row[key], 0).toFixed(2));
   return {
     rows,
@@ -264,7 +327,78 @@ export function dividends(year = 2026) {
 }
 
 export function domesticStockTransactions() {
-  const rows = STOCK_NAMES.map((security_name, index) => {
+  // 端データ: 同じ日の同じ銘柄が複数・損失・0円・長い銘柄名を先頭に置く
+  const edge = [
+    {
+      id: 'domestic-stock-edge-sameday-1',
+      trade_date: '2026-12-08',
+      settlement_date: '2026-12-10',
+      security_code: '9935',
+      security_name: '架空グローバル先端素材ソリューションホールディングス',
+      account: '特定',
+      shares: 10,
+      asked_price: 6100,
+      proceeds: 61000,
+      purchase_price: 5000,
+      realized_profit_and_loss: 11000,
+      taxes: 2234,
+      realized_profit_and_loss_after_tax: 8766,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'domestic-stock-edge-sameday-2',
+      trade_date: '2026-12-08',
+      settlement_date: '2026-12-10',
+      security_code: '9935',
+      security_name: '架空グローバル先端素材ソリューションホールディングス',
+      account: '特定',
+      shares: 20,
+      asked_price: 5600,
+      proceeds: 112000,
+      purchase_price: 5000,
+      realized_profit_and_loss: 12000,
+      taxes: 2437,
+      realized_profit_and_loss_after_tax: 9563,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'domestic-stock-edge-loss',
+      trade_date: '2026-11-20',
+      settlement_date: '2026-11-22',
+      security_code: '9936',
+      security_name: '架空先端産業技術研究開発機構',
+      account: '特定',
+      shares: 10,
+      asked_price: 4500,
+      proceeds: 45000,
+      purchase_price: 5000,
+      realized_profit_and_loss: -5000,
+      taxes: 0,
+      realized_profit_and_loss_after_tax: -5000,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'domestic-stock-edge-zero',
+      trade_date: '2026-10-05',
+      settlement_date: '2026-10-07',
+      security_code: '9907',
+      security_name: '架空銀行',
+      account: 'NISA成長投資枠',
+      shares: 10,
+      asked_price: 3000,
+      proceeds: 30000,
+      purchase_price: 3000,
+      realized_profit_and_loss: 0,
+      taxes: 0,
+      realized_profit_and_loss_after_tax: 0,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+  ];
+  const rows = [...edge, ...STOCK_NAMES.map((security_name, index) => {
     const shares = stockShares(index);
     const asked_price = index === 0 ? decimal(1400, 0) : decimal(1750, index * 19);
     const purchase_price = decimal(1500, index * 18);
@@ -289,7 +423,7 @@ export function domesticStockTransactions() {
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     };
-  });
+  })];
   const sum = (key) => Number(rows.reduce((total, row) => total + row[key], 0).toFixed(2));
   return {
     rows,
@@ -302,7 +436,82 @@ export function domesticStockTransactions() {
 }
 
 export function mutualFundTransactions() {
-  const rows = FUND_NAMES.map((fund_name, index) => {
+  // 端データ: 同じ日の同じ投信が複数・損失・0円・長い投信名を先頭に置く
+  const edge = [
+    {
+      id: 'mutual-fund-edge-sameday-1',
+      trade_date: '2026-12-08',
+      settlement_date: '2026-12-10',
+      fund_name: '架空・世界革新テクノロジー株式インデックスファンド＜購入・換金手数料なし＞',
+      dividends: '受取型',
+      account: '特定',
+      shares: 50000,
+      exchange_rate: 1,
+      cancellation_unit_price_yen: 9800,
+      cancellation_amount_yen: 49000,
+      average_acquisition_price_yen: 9000,
+      realized_profit_and_loss: 4000,
+      taxes: 812,
+      realized_profit_and_loss_after_tax: 3188,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'mutual-fund-edge-sameday-2',
+      trade_date: '2026-12-08',
+      settlement_date: '2026-12-10',
+      fund_name: '架空・世界革新テクノロジー株式インデックスファンド＜購入・換金手数料なし＞',
+      dividends: '再投資型',
+      account: '特定',
+      shares: 30000,
+      exchange_rate: 1,
+      cancellation_unit_price_yen: 9800,
+      cancellation_amount_yen: 29400,
+      average_acquisition_price_yen: 9000,
+      realized_profit_and_loss: 2400,
+      taxes: 487,
+      realized_profit_and_loss_after_tax: 1913,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'mutual-fund-edge-loss',
+      trade_date: '2026-11-20',
+      settlement_date: '2026-11-22',
+      fund_name: '架空先端産業技術研究開発機構テーマファンド',
+      dividends: '受取型',
+      account: '特定',
+      shares: 30000,
+      exchange_rate: 1,
+      cancellation_unit_price_yen: 8500,
+      cancellation_amount_yen: 25500,
+      average_acquisition_price_yen: 9500,
+      realized_profit_and_loss: -3000,
+      taxes: 0,
+      realized_profit_and_loss_after_tax: -3000,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'mutual-fund-edge-zero',
+      trade_date: '2026-10-05',
+      settlement_date: '2026-10-07',
+      fund_name: '架空バランスファンドA号',
+      dividends: '再投資型',
+      account: 'NISA成長投資枠',
+      shares: 30000,
+      exchange_rate: 1,
+      cancellation_unit_price_yen: 9000,
+      cancellation_amount_yen: 27000,
+      average_acquisition_price_yen: 9000,
+      realized_profit_and_loss: 0,
+      taxes: 0,
+      realized_profit_and_loss_after_tax: 0,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+  ];
+  const rows = [...edge, ...FUND_NAMES.map((fund_name, index) => {
     const shares = fundShares(index);
     const cancellation_unit_price_yen = decimal(9500, index * 105);
     const cancellation_amount_yen = Number(((shares * cancellation_unit_price_yen) / 10000).toFixed(2));
@@ -329,7 +538,7 @@ export function mutualFundTransactions() {
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     };
-  });
+  })];
   const sum = (key) => Number(rows.reduce((total, row) => total + row[key], 0).toFixed(2));
   return {
     rows,

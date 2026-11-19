@@ -62,11 +62,15 @@ pub fn ListRowButtonWithoutSecondary(
     primary: impl IntoView + 'static,
     meta: impl IntoView + 'static,
     #[prop(optional)] testid: Option<&'static str>,
+    /// 行を低く詰める(撮影用の案C)。値は ui の CSS で決める。
+    #[prop(optional)]
+    low: bool,
     on_click: impl Fn(leptos::ev::MouseEvent) + 'static,
 ) -> impl IntoView {
     view! {
         <Button
             variant=ButtonVariant::RowButton
+            class=if low { "receipt-compact-low" } else { "" }
             testid=testid.unwrap_or("list-row-button")
             aria_haspopup="dialog"
             on_click=on_click

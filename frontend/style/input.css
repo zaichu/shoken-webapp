@@ -1082,6 +1082,15 @@
     @apply text-xs font-normal text-text-soft;
   }
 
+  .receipt-compact-meta-tax {
+    @apply text-text-soft;
+  }
+
+  /* 撮影用の案Cの低い行 */
+  .list-row-action.receipt-compact-low {
+    @apply py-2;
+  }
+
   /* シートの中の並べ替えは Select 部品で選ぶ。旧 `sort-option` 系の定義は使わない */
 
   /* type=date は未入力だと「年/月/日 ()」のような形式表示が出る。入力中は
