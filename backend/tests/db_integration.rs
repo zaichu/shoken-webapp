@@ -586,6 +586,199 @@ async fn create_test_user(pool: &Db) -> UserId {
 }
 
 #[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn session_cookie_legacy_migration_preserves_valid_sessions_and_rejects_expired_sessions() {
+    use axum::{
+        Router,
+        body::Body,
+        http::{Request, StatusCode, header::SET_COOKIE},
+        routing::get,
+    };
+    use backend::{
+        config::Config,
+        handlers::v1::auth,
+        models::user::GoogleUserInfo,
+        services::login_event::ClientInfo,
+        state::{AppState, Secrets},
+    };
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    let (pool, _node) = start_test_pool().await;
+    let (valid_token, _, _) = auth_svc::upsert_user_rotate_session_with_login_event(
+        &pool,
+        &GoogleUserInfo {
+            sub: "cookie-migration-valid".to_string(),
+            email: "cookie-migration@example.com".to_string(),
+            name: Some("移行テスト".to_string()),
+            picture_url: None,
+        },
+        vec![1; 32],
+        &ClientInfo::default(),
+    )
+    .await
+    .unwrap();
+    let state = AppState {
+        pool: pool.clone(),
+        secrets: Arc::new(Secrets {
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "https://shoken-webapp.pages.dev".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
+        }),
+        config: Arc::new(Config::default()),
+        google_oauth: None,
+        jquants_client: None,
+    };
+    let app = Router::new()
+        .route("/api/v1/session", get(auth::get_session))
+        .with_state(state);
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/session")
+                .header("cookie", format!("session_token={valid_token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let cookies = response
+        .headers()
+        .get_all(SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .collect::<Vec<_>>();
+    assert!(
+        cookies
+            .iter()
+            .any(|value| value.starts_with("__Host-session_token="))
+    );
+    assert!(
+        cookies
+            .iter()
+            .any(|value| value.starts_with("session_token=") && value.contains("Expires="))
+    );
+
+    db::query(
+        "UPDATE sessions SET expires_at = NOW() - INTERVAL '1 second' WHERE token_hash = $1",
+        vec![Bind::Bytes(valid_token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let expired = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/session")
+                .header("cookie", format!("session_token={valid_token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(expired.status(), StatusCode::UNAUTHORIZED);
+    assert!(expired.headers().get(SET_COOKIE).is_none());
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn deleting_current_device_clears_both_session_cookie_names() {
+    use axum::{
+        Router,
+        body::Body,
+        http::{Method, Request, StatusCode, header::SET_COOKIE},
+        routing::delete,
+    };
+    use backend::{
+        config::Config,
+        handlers::v1::login_history,
+        models::user::GoogleUserInfo,
+        services::{auth::DeviceToken, login_event::ClientInfo},
+        state::{AppState, Secrets},
+    };
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    let (pool, _node) = start_test_pool().await;
+    let (session_token, user, _) = auth_svc::upsert_user_rotate_session_with_login_event(
+        &pool,
+        &GoogleUserInfo {
+            sub: "delete-current-device".to_string(),
+            email: "delete-current-device@example.com".to_string(),
+            name: Some("端末解除テスト".to_string()),
+            picture_url: None,
+        },
+        vec![4; 32],
+        &ClientInfo::default(),
+    )
+    .await
+    .unwrap();
+    let device_token = DeviceToken::new();
+    db::query(
+        "UPDATE sessions SET device_hash = $1 WHERE token_hash = $2",
+        vec![
+            Bind::Bytes(device_token.hash()),
+            Bind::Bytes(session_token.hash()),
+        ],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let id = backend::services::login_event::device_opaque_id(&user.id, &device_token.hash());
+    let state = AppState {
+        pool: pool.clone(),
+        secrets: Arc::new(Secrets {
+            jquants_api_key: None,
+            google_client_id: None,
+            google_client_secret: None,
+            frontend_url: "https://shoken-webapp.pages.dev".to_string(),
+            gmail_user: None,
+            gmail_app_password: None,
+        }),
+        config: Arc::new(Config::default()),
+        google_oauth: None,
+        jquants_client: None,
+    };
+    let app = Router::new()
+        .route("/api/v1/devices/{id}", delete(login_history::delete_device))
+        .with_state(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri(format!("/api/v1/devices/{id}"))
+                .header(
+                    "cookie",
+                    format!("device_id={device_token}; session_token={session_token}"),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let cookies = response
+        .headers()
+        .get_all(SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .collect::<Vec<_>>();
+    assert!(cookies.iter().any(|value| {
+        value.starts_with("__Host-session_token=") && value.contains("Max-Age=0")
+    }));
+    assert!(
+        cookies
+            .iter()
+            .any(|value| { value.starts_with("session_token=") && value.contains("Max-Age=0") })
+    );
+}
+
+#[tokio::test]
 async fn service_coverage_all_domains() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
