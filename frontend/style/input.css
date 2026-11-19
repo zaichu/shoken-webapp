@@ -1718,7 +1718,7 @@
   }
 
   .home-cum-end-label {
-    @apply absolute right-0 -translate-y-1/2 rounded-sm bg-surface/80 px-1 text-eyebrow leading-tight text-text;
+    @apply absolute -translate-y-1/2 rounded-sm bg-surface/80 px-1 text-eyebrow leading-tight text-text;
     font-variant-numeric: tabular-nums;
   }
 

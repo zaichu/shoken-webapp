@@ -7,6 +7,7 @@
 use crate::ui::amount::Amount;
 use crate::ui::format;
 use crate::ui::labels;
+use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
@@ -58,38 +59,56 @@ pub fn cumulative_sums(monthly: &[f64]) -> Vec<f64> {
 struct EndLabelPositions {
     current: f64,
     previous: Option<f64>,
-    left: Option<f64>,
-    right: Option<f64>,
 }
 
-fn end_label_horizontal(month: u32) -> (Option<f64>, Option<f64>) {
-    if month <= 2 {
-        (Some(x_percent(month.clamp(1, 12)) + 1.5), None)
+#[derive(Debug, PartialEq)]
+enum EndLabelSide {
+    Left(f64),
+    Right(f64),
+    Inside(f64),
+}
+
+fn end_label_horizontal(month: u32, label_width: f64, plot_width: f64) -> EndLabelSide {
+    let point_x = plot_width * x_percent(month.clamp(1, 12)) / 100.0;
+    let gap = 6.0;
+    if point_x >= label_width + gap {
+        EndLabelSide::Left(100.0 - x_percent(month.clamp(1, 12)) + gap / plot_width * 100.0)
+    } else if plot_width - point_x >= label_width + gap {
+        EndLabelSide::Right(x_percent(month.clamp(1, 12)) + gap / plot_width * 100.0)
     } else {
-        (
-            None,
-            Some((100.0 - x_percent(month.clamp(1, 12)) + 1.5).max(0.0)),
+        EndLabelSide::Inside(
+            ((plot_width - label_width) / 2.0 / plot_width * 100.0).clamp(0.0, 100.0),
         )
     }
 }
 
-fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLabelPositions {
+fn estimated_label_width(text: &str) -> f64 {
+    text.chars()
+        .map(|character| if character.is_ascii() { 7.0 } else { 12.0 })
+        .sum::<f64>()
+        + 16.0
+}
+
+const fn end_label_horizontal_style(side: &EndLabelSide) -> (Option<f64>, Option<f64>) {
+    match side {
+        EndLabelSide::Left(offset) => (None, Some(*offset)),
+        EndLabelSide::Right(offset) => (Some(*offset), None),
+        EndLabelSide::Inside(left) => (Some(*left), None),
+    }
+}
+
+fn end_label_positions(current: f64, previous: Option<f64>) -> EndLabelPositions {
     let current = current.clamp(0.0, 100.0);
-    let (left, right) = end_label_horizontal(month);
     let Some(previous) = previous.map(|value| value.clamp(0.0, 100.0)) else {
         return EndLabelPositions {
             current,
             previous: None,
-            left,
-            right,
         };
     };
     if (current - previous).abs() >= 12.0 {
         return EndLabelPositions {
             current,
             previous: Some(previous),
-            left,
-            right,
         };
     }
     let middle = (current + previous) / 2.0;
@@ -101,8 +120,6 @@ fn end_label_positions(current: f64, previous: Option<f64>, month: u32) -> EndLa
         } else {
             current_position + 12.0
         }),
-        left,
-        right,
     }
 }
 
@@ -221,6 +238,7 @@ pub fn CumulativeChart(
     let selected = RwSignal::new(None::<u32>);
     let chart_ref = NodeRef::<leptos::html::Div>::new();
     let plot_ref = NodeRef::<leptos::html::Div>::new();
+    let plot_width = RwSignal::new(304.0);
     let dismiss = move || {
         if selected.get_untracked().is_some() {
             selected.set(None);
@@ -285,14 +303,41 @@ pub fn CumulativeChart(
     let previous_end = previous_cum
         .as_ref()
         .and_then(|sums| sums.get(current_month as usize - 1).copied());
-    let label_positions = end_label_positions(
-        y_percent(current_end, top),
-        previous_end.map(|value| y_percent(value, top)),
-        current_month,
-    );
     let current_end_text = format::format_currency(current_end);
     let previous_end_text = previous_end.map(format::format_currency);
     let previous_end_label = labels::cumulative_previous_label(current_month);
+    let current_label_text = format!("{} {current_end_text}", labels::CUMULATIVE_THIS_YEAR);
+    let previous_label_text = previous_end_text
+        .as_ref()
+        .map(|text| format!("{previous_end_label} {text}"));
+    let current_label_width = estimated_label_width(&current_label_text);
+    let previous_label_width = previous_label_text
+        .as_ref()
+        .map_or(0.0, |text| estimated_label_width(text));
+    let update_plot_width = move || {
+        let Some(plot) = plot_ref.get_untracked() else {
+            return;
+        };
+        let width = plot.get_bounding_client_rect().width();
+        plot_width.set(width);
+    };
+    Effect::new(move |_| update_plot_width());
+    let on_resize = window_event_listener(ev::resize, move |_| update_plot_width());
+    on_cleanup(move || on_resize.remove());
+    let current_side = move || {
+        end_label_horizontal_style(&end_label_horizontal(
+            current_month,
+            current_label_width,
+            plot_width.get(),
+        ))
+    };
+    let previous_side = move || {
+        end_label_horizontal_style(&end_label_horizontal(
+            current_month,
+            previous_label_width,
+            plot_width.get(),
+        ))
+    };
     // スライダーの読み上げ文(「6月 配当金 ¥… / 累計 ¥…」)の材料。月ごとに先に作り、
     // 選んだ月で引く。未来月は選べないため今月まで
     let slider_texts: Vec<(String, String, Option<String>)> = (1..=current_month)
@@ -418,18 +463,18 @@ pub fn CumulativeChart(
                 <div class="home-cum-end-labels" aria-hidden="true">
                     <span
                         class="home-cum-end-label home-cum-end-label-current"
-                        style:top=format!("{}%", label_positions.current)
-                        style:left=label_positions.left.map_or_else(|| "auto".to_string(), |left| format!("calc({left}% + 6px)"))
-                        style:right=label_positions.right.map_or_else(|| "auto".to_string(), |right| format!("calc({right}% + 6px)"))
+                        style:top=format!("{}%", end_label_positions(y_percent(current_end, top), previous_end.map(|value| y_percent(value, top))).current)
+                        style:left=move || current_side().0.map_or_else(String::new, |left| format!("{left}%"))
+                        style:right=move || current_side().1.map_or_else(String::new, |right| format!("{right}%"))
                     >
                         {labels::CUMULATIVE_THIS_YEAR}{" "}<Amount text=current_end_text />
                     </span>
                     {previous_end_text.map(|text| view! {
                         <span
                             class="home-cum-end-label home-cum-end-label-previous"
-                            style:top=format!("{}%", label_positions.previous.unwrap_or(0.0))
-                            style:left=label_positions.left.map_or_else(|| "auto".to_string(), |left| format!("calc({left}% + 6px)"))
-                            style:right=label_positions.right.map_or_else(|| "auto".to_string(), |right| format!("calc({right}% + 6px)"))
+                            style:top=format!("{}%", end_label_positions(y_percent(current_end, top), previous_end.map(|value| y_percent(value, top))).previous.unwrap_or(0.0))
+                            style:left=move || previous_side().0.map_or_else(String::new, |left| format!("{left}%"))
+                            style:right=move || previous_side().1.map_or_else(String::new, |right| format!("{right}%"))
                         >
                             {previous_end_label}{" "}<Amount text=text />
                         </span>

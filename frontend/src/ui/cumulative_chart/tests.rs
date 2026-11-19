@@ -57,25 +57,50 @@ fn small_max_stays_in_ten_thousands() {
 
 #[test]
 fn end_label_positions_keep_labels_apart_and_inside_the_plot() {
-    let separated = end_label_positions(24.0, Some(40.0), 12);
+    let separated = end_label_positions(24.0, Some(40.0));
     assert_eq!(separated.current, 24.0);
     assert_eq!(separated.previous, Some(40.0));
 
-    let overlapping = end_label_positions(40.0, Some(42.0), 12);
+    let overlapping = end_label_positions(40.0, Some(42.0));
     assert_eq!(overlapping.current, 47.0);
     assert_eq!(overlapping.previous, Some(35.0));
 
-    let near_top = end_label_positions(2.0, Some(1.0), 12);
+    let near_top = end_label_positions(2.0, Some(1.0));
     assert_eq!(near_top.current, 7.5);
     assert_eq!(near_top.previous, Some(19.5));
 }
 
 #[test]
-fn early_month_end_labels_move_right_of_the_first_points() {
-    assert_eq!(end_label_horizontal(1), (Some(x_percent(1) + 1.5), None));
-    assert_eq!(end_label_horizontal(2), (Some(x_percent(2) + 1.5), None));
-    assert_eq!(end_label_horizontal(3).0, None);
-    assert!(end_label_horizontal(3).1.unwrap() > 100.0 - x_percent(3));
+fn end_label_horizontal_fits_by_width_and_month() {
+    for month in [1, 3, 4, 6, 11, 12] {
+        let narrow = end_label_horizontal(month, 120.0, 304.0);
+        if month <= 2 {
+            assert!(
+                matches!(narrow, EndLabelSide::Right(_)),
+                "{month}: {narrow:?}"
+            );
+        } else if month == 3 || month == 4 {
+            assert!(
+                matches!(narrow, EndLabelSide::Right(_)),
+                "{month}: {narrow:?}"
+            );
+        } else {
+            assert!(
+                matches!(narrow, EndLabelSide::Left(_)),
+                "{month}: {narrow:?}"
+            );
+        }
+        let wide = end_label_horizontal(month, 120.0, 1194.0);
+        if month == 1 {
+            assert!(matches!(wide, EndLabelSide::Right(_)), "{month}: {wide:?}");
+        } else {
+            assert!(matches!(wide, EndLabelSide::Left(_)), "{month}: {wide:?}");
+        }
+    }
+    assert!(matches!(
+        end_label_horizontal(3, 280.0, 304.0),
+        EndLabelSide::Inside(_)
+    ));
 }
 
 #[test]
