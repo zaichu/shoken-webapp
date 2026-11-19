@@ -310,20 +310,64 @@ test('一部の取得が失敗しても、取れた集計で帯とカードを�
   await expect(composition).toContainText('国内株式');
 });
 
-test('取込が株価より古いときは印と読み上げ文で示し、かっこ書きは出さない', async ({
+test('取込が株価より古いときは帯と取込表示に印と読み上げ文を出し、かっこ書きは出さない', async ({
   page,
 }) => {
   await setupHomeMocks(page);
   await page.goto('/');
 
   // モックは価格 1/10 に対して取込 1/1 のため、取込が古い
-  const importNote = page.getByText('最終取り込み 2026/1/1');
-  await expect(importNote).toBeVisible();
+  const band = page.getByTestId('home-overview');
+  await expect(band.getByText('取り込み 1/1').first()).toBeVisible();
   // 画面にはかっこ書きを出さず、色と注意の印で示す
-  await expect(importNote).not.toContainText('（');
-  await expect(importNote.locator('svg[aria-hidden="true"]')).toBeVisible();
+  await expect(band).not.toContainText('（');
+  await expect(
+    band.locator('.summary-label-note2 svg[aria-hidden="true"]').first(),
+  ).toBeVisible();
   // 理由は画面外の文字で読み上げに残す
   await expect(
-    importNote.getByText('株価の日付より古い', { exact: true }),
-  ).toHaveCount(1);
+    band.getByText('株価の日付より古い', { exact: true }).first(),
+  ).toBeAttached();
+  // 評価額の補足は「M/D 時点」の1行
+  await expect(band).toContainText('1/10 時点');
+});
+
+test('取込が古くないときは取込の行を出さず、時点だけ出す', async ({ page }) => {
+  await mockSession(page);
+
+  const freshStocks = STOCKS.map((row) => ({
+    ...row,
+    updated_at: `${THIS_YEAR}-01-10T00:00:00Z`,
+  }));
+  const freshFunds = FUNDS.map((row) => ({
+    ...row,
+    updated_at: `${THIS_YEAR}-01-10T00:00:00Z`,
+  }));
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(freshStocks, { summary: STOCK_SUMMARY }))),
+  );
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(freshFunds, { summary: FUND_SUMMARY }))),
+  );
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+    const url = new URL(route.request().url());
+    const year = url.searchParams.get('year');
+    const perPage = Number(url.searchParams.get('per_page') ?? '0');
+    const rows =
+      year === String(THIS_YEAR)
+        ? CURRENT_DIVIDENDS
+        : year === String(LAST_YEAR)
+          ? PREVIOUS_DIVIDENDS
+          : RECENT_DIVIDENDS;
+    return route.fulfill(json(paginated(perPage > 0 ? rows.slice(0, perPage) : rows)));
+  });
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+    route.fulfill(json(ESTIMATES)),
+  );
+
+  await page.goto('/');
+
+  const band = page.getByTestId('home-overview');
+  await expect(band).toContainText('1/10 時点');
+  await expect(band).not.toContainText('取り込み');
 });

@@ -389,9 +389,9 @@ fn home_as_of_uses_oldest_priced_date() {
     let mut unpriced = stock("3333", "C", 100, 0, 10_000);
     unpriced.price_as_of = Some("2026-10-10".to_string());
     let fund = fund("F", "特定", 100_000, 5_000);
-    let as_of = oldest_home_as_of(&[newer, older, unpriced], &[fund]);
-    assert_eq!(as_of.as_deref(), Some("10/17 時点の株価"));
-    assert!(oldest_home_as_of(&[], &[]).is_none());
+    let as_of = oldest_home_as_of(&[newer, older, unpriced], &[fund], 2026);
+    assert_eq!(as_of.as_deref(), Some("10/17 時点"));
+    assert!(oldest_home_as_of(&[], &[], 2026).is_none());
 }
 
 #[test]

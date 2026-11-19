@@ -271,6 +271,24 @@ pub fn jst_date(iso: &str) -> Option<(i32, u32, u32)> {
     Some((year, month, day))
 }
 
+/// 日付("YYYY-MM-DD")を年を意識して短く書く。今年なら "M/D"、
+/// 今年でなければ "YYYY/M/D"。純粋な関数(今年を引数で受ける)。
+/// 日付として読めない値は None
+pub fn compact_iso_date(iso: &str, current_year: i32) -> Option<String> {
+    let (year, month, day) = date_parts(iso)?;
+    Some(if year == current_year {
+        format!("{month}/{day}")
+    } else {
+        format!("{year}/{month}/{day}")
+    })
+}
+
+/// 今日(JST)の年。時計を読むため純粋ではない。表示側が今年判定に使う。
+/// ネイティブでは None
+pub fn today_year_jst() -> Option<i32> {
+    today_jst().map(|(year, _, _)| year)
+}
+
 /// 日付("YYYY-MM-DD")を "M/D" にする(取込日など、桁を詰めて出す画面用)
 pub fn format_short_date(date: &str) -> String {
     match jst_date(date) {
@@ -289,14 +307,6 @@ pub fn format_jst_time(iso: &str) -> String {
         return "—".to_string();
     };
     format!("{:02}:{:02}", (hour + 9) % 24, minute)
-}
-
-/// 最新の取込日(JST)。"Y/M/D" で返す。有効な日時が無ければ None
-pub fn format_latest_import_date<'a>(timestamps: impl Iterator<Item = &'a str>) -> Option<String> {
-    timestamps
-        .filter_map(jst_date)
-        .max()
-        .map(|(year, month, day)| format!("{year}/{month}/{day}"))
 }
 
 /// 暦日(年・月・日)を「1970-01-01 からの日数」に直す。暦日の差を数えるためだけに使う

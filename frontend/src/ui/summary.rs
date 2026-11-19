@@ -134,12 +134,12 @@ pub fn SummaryItem(
                             "summary-label-note"
                         }>{label_note.clone()}</span>
                     })}
-                {(!label_note2.is_empty())
+                {(!label_note2.is_empty() && label_note2_stale)
                     .then(|| view! {
                         <span class=if label_note2_stale {
-                            "summary-label-note text-warn-ink"
+                            "summary-label-note summary-label-note2 text-warn-ink"
                         } else {
-                            "summary-label-note"
+                            "summary-label-note summary-label-note2"
                         }>
                             {label_note2_stale.then(|| view! { <StaleMark/> })}
                             {label_note2.clone()}

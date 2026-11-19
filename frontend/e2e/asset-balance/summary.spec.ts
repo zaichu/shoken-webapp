@@ -116,15 +116,52 @@ test('取込が株価より古いときは帯に印と読み上げ文を出し�
   await page.getByTestId('asset-kind-tab-stock').click();
 
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('最終取り込み 2026/1/1');
+  await expect(band).toContainText('取り込み 1/1');
   // 画面にはかっこ書きを出さず、色と注意の印で示す
   // (PC・スマホの両方の帯に出すため、最初の1つで確かめる)
   await expect(band).not.toContainText('（株価');
   await expect(
-    band.locator('.summary-label-note svg[aria-hidden="true"]').first(),
+    band.locator('.summary-label-note2 svg[aria-hidden="true"]').first(),
   ).toBeVisible();
   // 理由は画面外の文字で読み上げに残す
   await expect(
     band.getByText('株価の日付より古い', { exact: true }).first(),
   ).toBeAttached();
+});
+
+test('取込が古くないときは帯に取込の行を出さない', async ({ page }) => {
+  await mockSession(page);
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.abort();
+    }
+    return route.fulfill(
+      json({
+        // 価格と取込が同じ日のため、取込は古くない
+        data: [
+          {
+            ...SYN_AUTO,
+            price_as_of: '2026-01-10',
+            updated_at: '2026-01-10T00:00:00Z',
+          },
+        ],
+        total: 1,
+        page: 1,
+        per_page: 1000,
+      }),
+    );
+  });
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: [], total: 0, page: 1, per_page: 0 })),
+  );
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ items: [] })),
+  );
+
+  await page.goto('/assetbalance');
+  await page.getByTestId('asset-kind-tab-stock').click();
+
+  const band = page.getByTestId('asset-portfolio-summary');
+  await expect(band).toContainText('1/10 時点');
+  await expect(band).not.toContainText('取り込み');
 });

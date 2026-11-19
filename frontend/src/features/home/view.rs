@@ -87,7 +87,6 @@ pub fn HomePage() -> impl IntoView {
         if let Some(loaded) = store::current_summary(data.funds, generation).flatten() {
             stamps.extend(loaded.rows.iter().map(|row| row.updated_at.clone()));
         }
-        let label = format::format_latest_import_date(stamps.iter().map(String::as_str));
         let import_iso = model::latest_import_iso(&stamps);
         let price_iso = {
             let assets = store::current_summary(data.assets, generation).flatten();
@@ -96,20 +95,32 @@ pub fn HomePage() -> impl IntoView {
             let funds = funds.map_or_default(|loaded| loaded.rows.clone());
             model::oldest_home_price_iso(&stocks, &funds)
         };
-        let stale = match (price_iso, import_iso) {
+        let stale = match (price_iso.clone(), import_iso.clone()) {
             (Some(price), Some(import)) => labels::stale_sides(&price, &import).1,
             _ => false,
         };
-        label.map(|label| (label, stale))
+        let current_year = format::today_year_jst()
+            .or_else(|| {
+                price_iso
+                    .as_deref()
+                    .and_then(format::date_parts)
+                    .map(|(year, _, _)| year)
+            })
+            .or_else(|| {
+                import_iso
+                    .as_deref()
+                    .and_then(format::date_parts)
+                    .map(|(year, _, _)| year)
+            })
+            .unwrap_or(0);
+        import_iso.map(|import| (labels::stale_import_label(&import, current_year), stale))
     });
     let links: Children = Box::new(move || {
         view! {
             {move || {
                 import_label.get().map(|(label, stale)| {
                     view! {
-                        <HomeImportLabel stale=stale>
-                            {labels::home_import_with_role(&label)}
-                        </HomeImportLabel>
+                        <HomeImportLabel stale=stale>{label}</HomeImportLabel>
                     }
                 })
             }}
