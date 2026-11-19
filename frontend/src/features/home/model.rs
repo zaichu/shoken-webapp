@@ -90,14 +90,10 @@ pub(crate) fn merged_daily_change(
 
 /// ホーム帯の時点。株と投信を合わせ、最も古い日を出す(嘘の新しさを見せない)。
 /// 価格なし株は時点と結びつかないため除く
-pub(crate) fn oldest_home_as_of(
-    stocks: &[AssetBalance],
-    funds: &[FundBalance],
-    current_year: i32,
-) -> Option<String> {
+pub(crate) fn oldest_home_as_of(stocks: &[AssetBalance], funds: &[FundBalance]) -> Option<String> {
     oldest_home_price_iso(stocks, funds)
         .as_deref()
-        .map(|iso| labels::valuation_point_label(iso, current_year))
+        .map(labels::valuation_point_label)
         .filter(|label| !label.is_empty())
 }
 

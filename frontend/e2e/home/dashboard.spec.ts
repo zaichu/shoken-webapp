@@ -319,10 +319,10 @@ test('取込が株価より古いときは右上と帯に印と読み上げ文�
   // モックは価格 1/10 に対して取込 1/1 のため、取込が古い
   // PC は右上だけに出す。集計帯の評価額の数字はほかの列とそろったままにする
   const header = page.locator('.page-frame-head');
-  await expect(header.getByText('取り込み 1/1').first()).toBeVisible();
+  await expect(header.getByText(`取り込み ${THIS_YEAR}/01/01`).first()).toBeVisible();
   await expect(
     header
-      .getByText('取り込み 1/1')
+      .getByText(`取り込み ${THIS_YEAR}/01/01`)
       .first()
       .locator('svg[aria-hidden="true"]'),
   ).toBeVisible();
@@ -337,9 +337,9 @@ test('取込が株価より古いときは右上と帯に印と読み上げ文�
   // PC の集計帯には出さない
   await expect(band.locator('.summary-band-pc')).not.toContainText('取り込み');
   // スマホは帯の2行目に出す
-  await expect(band.locator('.summary-band-rows')).toContainText('取り込み 1/1');
+  await expect(band.locator('.summary-band-rows')).toContainText(`取り込み ${THIS_YEAR}/01/01`);
   // 評価額の補足は「M/D 時点」の1行
-  await expect(band).toContainText('1/10 時点');
+  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
 });
 
 test('取込が古くないときは取込の行を出さず、時点だけ出す', async ({ page }) => {
@@ -378,7 +378,7 @@ test('取込が古くないときは取込の行を出さず、時点だけ出�
   await page.goto('/');
 
   const band = page.getByTestId('home-overview');
-  await expect(band).toContainText('1/10 時点');
+  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
   await expect(band).not.toContainText('取り込み');
   await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });

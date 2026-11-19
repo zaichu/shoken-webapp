@@ -88,35 +88,18 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                     stamps.extend(fund_rows.iter().map(|row| row.updated_at.clone()));
                     let price_iso = model::oldest_home_price_iso(stock_rows, fund_rows);
                     let import_iso = model::latest_import_iso(&stamps);
-                    let (price_stale, import_stale) = match (
-                        price_iso.clone(),
-                        import_iso.clone(),
-                    ) {
-                        (Some(price), Some(import)) => labels::stale_sides(&price, &import),
+                    let (price_stale, import_stale) = match (&price_iso, &import_iso) {
+                        (Some(price), Some(import)) => labels::stale_sides(price, import),
                         _ => (false, false),
                     };
-                    let current_year = crate::ui::format::today_year_jst()
-                        .or_else(|| {
-                            price_iso
-                                .as_deref()
-                                .and_then(crate::ui::format::date_parts)
-                                .map(|(year, _, _)| year)
-                        })
-                        .or_else(|| {
-                            import_iso
-                                .as_deref()
-                                .and_then(crate::ui::format::date_parts)
-                                .map(|(year, _, _)| year)
-                        })
-                        .unwrap_or(0);
-                    let mut as_of = model::oldest_home_as_of(stock_rows, fund_rows, current_year)
+                    let mut as_of = model::oldest_home_as_of(stock_rows, fund_rows)
                         .unwrap_or_default();
                     if price_stale && !as_of.is_empty() {
                         as_of.push_str(labels::PRICE_STALE_MARK);
                     }
                     let import_note = import_iso
                         .as_deref()
-                        .map_or_default(|iso| labels::stale_import_label(iso, current_year));
+                        .map_or_default(labels::stale_import_label);
                     (
                         merged,
                         daily,

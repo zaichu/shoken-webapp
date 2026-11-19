@@ -18,7 +18,6 @@ use crate::api::dto::{AssetBalance, FundBalance};
 use crate::features::asset_balance;
 use crate::features::asset_balance::{LoadedAssetBalances, LoadedFundBalances};
 use crate::session;
-use crate::ui::format;
 use crate::ui::home::{
     HomeImportLabel, HomeLogin, HomeMain, HomePartialError, HomeStatusNote, HomeSummarySection,
 };
@@ -95,25 +94,11 @@ pub fn HomePage() -> impl IntoView {
             let funds = funds.map_or_default(|loaded| loaded.rows.clone());
             model::oldest_home_price_iso(&stocks, &funds)
         };
-        let stale = match (price_iso.clone(), import_iso.clone()) {
-            (Some(price), Some(import)) => labels::stale_sides(&price, &import).1,
+        let stale = match (&price_iso, &import_iso) {
+            (Some(price), Some(import)) => labels::stale_sides(price, import).1,
             _ => false,
         };
-        let current_year = format::today_year_jst()
-            .or_else(|| {
-                price_iso
-                    .as_deref()
-                    .and_then(format::date_parts)
-                    .map(|(year, _, _)| year)
-            })
-            .or_else(|| {
-                import_iso
-                    .as_deref()
-                    .and_then(format::date_parts)
-                    .map(|(year, _, _)| year)
-            })
-            .unwrap_or(0);
-        import_iso.map(|import| (labels::stale_import_label(&import, current_year), stale))
+        import_iso.map(|import| (labels::stale_import_label(&import), stale))
     });
     let links: Children = Box::new(move || {
         view! {

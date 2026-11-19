@@ -7,9 +7,9 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, date_notes, display_year, fund_has_pending, latest_import_iso,
-    oldest_combined_price_iso, oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag,
-    stock_pending_from_parts, stock_price_dates, stock_summary_values,
+    AssetSummaryBand, date_notes, fund_has_pending, latest_import_iso, oldest_combined_price_iso,
+    oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag, stock_pending_from_parts,
+    stock_price_dates, stock_summary_values,
 };
 use crate::api::dto::{AssetBalanceSummary, FundBalanceSummary};
 use crate::features::asset_balance;
@@ -81,10 +81,9 @@ pub(crate) fn tab_header_import(
     if !stale {
         return None;
     }
-    let year = display_year(price_iso.as_deref(), import_iso.as_deref());
     let label = import_iso
         .as_deref()
-        .map_or_default(|iso| labels::stale_import_label(iso, year));
+        .map_or_default(labels::stale_import_label);
     if label.is_empty() {
         None
     } else {
@@ -278,7 +277,6 @@ fn StockContent(
                     let (as_of, stale, import_status, import_stale) = date_notes(
                         price_iso.as_deref(),
                         import_iso.as_deref(),
-                        display_year(price_iso.as_deref(), import_iso.as_deref()),
                     );
                     let pending = asset_balance::valuation_has_pending(
                         stock_pending_from_parts(&rows, fallback_totals.as_ref()),
@@ -408,11 +406,8 @@ fn FundContent(
     let empty = total_count == 0;
     let price_iso = oldest_fund_price_iso(&resolved);
     let import_iso = latest_import_iso(resolved.rows.iter().map(|row| row.updated_at.as_str()));
-    let (as_of, stale, import_status, import_stale) = date_notes(
-        price_iso.as_deref(),
-        import_iso.as_deref(),
-        display_year(price_iso.as_deref(), import_iso.as_deref()),
-    );
+    let (as_of, stale, import_status, import_stale) =
+        date_notes(price_iso.as_deref(), import_iso.as_deref());
     let pending = asset_balance::valuation_has_pending(false, fund_has_pending(&resolved));
     view! {
         {empty.then(|| view! { <AssetEmptyPanel /> }.into_any())}
@@ -597,11 +592,8 @@ fn AllContent(
         .collect();
     import_stamps.extend(fund_resolved.rows.iter().map(|row| row.updated_at.clone()));
     let import_iso = latest_import_iso(import_stamps.iter().map(String::as_str));
-    let (as_of, all_stale, all_import_status, all_import_stale) = date_notes(
-        price_iso.as_deref(),
-        import_iso.as_deref(),
-        display_year(price_iso.as_deref(), import_iso.as_deref()),
-    );
+    let (as_of, all_stale, all_import_status, all_import_stale) =
+        date_notes(price_iso.as_deref(), import_iso.as_deref());
     let stock_profit = stock_market - stock_purchase;
     let market = stock_market + fund_market;
     let purchase = stock_purchase + fund_purchase;

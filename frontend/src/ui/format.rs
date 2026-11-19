@@ -271,22 +271,12 @@ pub fn jst_date(iso: &str) -> Option<(i32, u32, u32)> {
     Some((year, month, day))
 }
 
-/// 日付("YYYY-MM-DD")を年を意識して短く書く。今年なら "M/D"、
-/// 今年でなければ "YYYY/M/D"。純粋な関数(今年を引数で受ける)。
-/// 日付として読めない値は None
-pub fn compact_iso_date(iso: &str, current_year: i32) -> Option<String> {
+/// 日付("YYYY-MM-DD")を "YYYY/MM/DD"(ゼロ埋め)で書く。
+/// 取引明細の表の日付と同じ書き方。「M/D」は分数に見えるため使わない。
+/// 純粋な関数。日付として読めない値は None
+pub fn compact_iso_date(iso: &str) -> Option<String> {
     let (year, month, day) = date_parts(iso)?;
-    Some(if year == current_year {
-        format!("{month}/{day}")
-    } else {
-        format!("{year}/{month}/{day}")
-    })
-}
-
-/// 今日(JST)の年。時計を読むため純粋ではない。表示側が今年判定に使う。
-/// ネイティブでは None
-pub fn today_year_jst() -> Option<i32> {
-    today_jst().map(|(year, _, _)| year)
+    Some(format!("{year:04}/{month:02}/{day:02}"))
 }
 
 /// 日付("YYYY-MM-DD")を "M/D" にする(取込日など、桁を詰めて出す画面用)

@@ -96,7 +96,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('1/1 時点');
+  await expect(bandText).toContainText(`${THIS_YEAR}/01/01 時点`);
 
   // 「すべて」タブも件数行に件数だけ。時点は帯のラベル横に残る
   await page.getByTestId('asset-kind-tab-all').click();
@@ -104,7 +104,7 @@ test('国内株式テーブルに1株あたりの前日比が出て、前日終�
     '2件 / 2件',
   );
   await expect(page.getByTestId('asset-portfolio-summary')).toContainText(
-    '1/1 時点',
+    `${THIS_YEAR}/01/01 時点`,
   );
 });
 
@@ -145,6 +145,6 @@ test('基準日が他の行と違う行だけ、前日比の横に日付を出�
     `${LAST_YEAR}/12/30 時点`,
   );
   await expect(page.getByTestId('asset-portfolio-summary')).not.toContainText(
-    '1/1 時点',
+    `${THIS_YEAR}/01/01 時点`,
   );
 });

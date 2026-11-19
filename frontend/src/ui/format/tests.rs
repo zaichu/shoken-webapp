@@ -160,24 +160,24 @@ fn iso_date_formats_and_rejects_invalid_values() {
 }
 
 #[test]
-fn compact_iso_date_uses_short_form_for_current_year() {
+fn compact_iso_date_writes_year_month_day() {
     assert_eq!(
-        compact_iso_date("2026-11-19", 2026).as_deref(),
-        Some("11/19")
+        compact_iso_date("2026-11-19").as_deref(),
+        Some("2026/11/19")
     );
-    assert_eq!(compact_iso_date("2026-01-05", 2026).as_deref(), Some("1/5"));
-    // 今年でない日付だけ YYYY/M/D
     assert_eq!(
-        compact_iso_date("2025-12-31", 2026).as_deref(),
+        compact_iso_date("2026-01-05").as_deref(),
+        Some("2026/01/05")
+    );
+    assert_eq!(
+        compact_iso_date("2025-12-31").as_deref(),
         Some("2025/12/31")
     );
-    // 年またぎ(1/1 が去年なら年付き)
     assert_eq!(
-        compact_iso_date("2025-01-01", 2026).as_deref(),
-        Some("2025/1/1")
+        compact_iso_date("2025-01-01").as_deref(),
+        Some("2025/01/01")
     );
-    assert_eq!(compact_iso_date("2026-01-01", 2026).as_deref(), Some("1/1"));
-    assert_eq!(compact_iso_date("not-a-date", 2026), None);
+    assert_eq!(compact_iso_date("not-a-date"), None);
 }
 
 #[test]
@@ -248,14 +248,14 @@ fn calendar_days_between_counts_calendar_days() {
 fn compact_iso_date_picks_nothing_but_formats() {
     // 最新選択は呼び出し側(latest_import_iso)が担い、ここでは書式だけ決める
     assert_eq!(
-        compact_iso_date("2026-10-19", 2026).as_deref(),
-        Some("10/19")
+        compact_iso_date("2026-10-19").as_deref(),
+        Some("2026/10/19")
     );
     assert_eq!(
-        compact_iso_date("2025-10-19", 2026).as_deref(),
+        compact_iso_date("2025-10-19").as_deref(),
         Some("2025/10/19")
     );
-    assert_eq!(compact_iso_date("garbage", 2026), None);
+    assert_eq!(compact_iso_date("garbage"), None);
 }
 
 proptest::proptest! {

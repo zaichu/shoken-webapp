@@ -1240,11 +1240,10 @@ pub fn account_note(account: &str) -> &str {
     }
 }
 
-/// 評価額の時点の補足。「11/19 時点」のように短く書く。
-/// 日付は M/D、今年でない日付だけ YYYY/M/D。純粋な関数。
-/// 日付として読めない値は空にする(補足を出さないため)
-pub fn valuation_point_label(price_iso: &str, current_year: i32) -> String {
-    format::compact_iso_date(price_iso, current_year).map_or_else(String::new, |date| {
+/// 評価額の時点の補足。「2026/10/20 時点」のように書く(ゼロ埋め)。
+/// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
+pub fn valuation_point_label(price_iso: &str) -> String {
+    format::compact_iso_date(price_iso).map_or_else(String::new, |date| {
         format!("{date} {VALUATION_POINT_SUFFIX}")
     })
 }
@@ -1252,11 +1251,10 @@ pub fn valuation_point_label(price_iso: &str, current_year: i32) -> String {
 /// 評価額の時点の接尾辞
 pub const VALUATION_POINT_SUFFIX: &str = "時点";
 
-/// 取込が古いときの2行目の補足。「取り込み 1/1」のように短く書く。
-/// 日付は M/D、今年でない日付だけ YYYY/M/D。純粋な関数。
-/// 日付として読めない値は空にする(補足を出さないため)
-pub fn stale_import_label(import_iso: &str, current_year: i32) -> String {
-    format::compact_iso_date(import_iso, current_year)
+/// 取込が古いときの2行目の補足。「取り込み 2026/01/01」のように書く(ゼロ埋め)。
+/// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
+pub fn stale_import_label(import_iso: &str) -> String {
+    format::compact_iso_date(import_iso)
         .map_or_else(String::new, |date| format!("{STALE_IMPORT_PREFIX} {date}"))
 }
 
