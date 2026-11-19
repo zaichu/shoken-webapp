@@ -135,6 +135,7 @@ fn delete_success_clears_result_and_empties_cached_list() {
         let dividends: RwSignal<DividendMaps> = RwSignal::new(DividendMaps {
             per_share: HashMap::from([("9904".to_string(), 50.0)]),
             status: HashMap::new(),
+            responded: true,
         });
         let store = AssetBalanceCsvStore::new(
             session,

@@ -453,6 +453,23 @@ fn chart_percentages_match_component_conditions() {
 }
 
 #[test]
+fn largest_remainder_percents_sum_to_100() {
+    // 99% になる例(3等分を整数%にすると 33*3=99)
+    let thirds = largest_remainder_percents(&[1.0, 1.0, 1.0], 0);
+    assert_eq!(thirds.iter().sum::<f64>(), 100.0);
+    // 101% になる例を最大剰余法で 100% にそろえる
+    let up = largest_remainder_percents(&[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0], 0);
+    assert_eq!(up.iter().sum::<f64>(), 100.0);
+    // 0 件・1 件
+    assert!(largest_remainder_percents(&[], 0).is_empty());
+    assert_eq!(largest_remainder_percents(&[500.0], 0), vec![100.0]);
+    // 小数1桁でも合計 100%
+    let one_decimal = largest_remainder_percents(&[1.0, 1.0, 1.0], 1);
+    let sum: f64 = one_decimal.iter().sum();
+    assert!((sum - 100.0).abs() < 1e-9, "{one_decimal:?}");
+}
+
+#[test]
 fn missing_markers_are_not_parsed_as_amounts() {
     for marker in [
         "",

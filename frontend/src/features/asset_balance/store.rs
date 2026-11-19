@@ -148,6 +148,7 @@ pub(crate) async fn poll_dividend_maps(
     let max_pending = dividend_per_share::dividend_pending_max_retries(codes.len());
     let mut pending_used = 0u32;
     let mut network_used = 0u32;
+    let mut succeeded = false;
     loop {
         if !is_current() {
             break;
@@ -161,6 +162,7 @@ pub(crate) async fn poll_dividend_maps(
             let (maps, has_pending) = dividend_per_share::dividend_maps_from_batch(&batch);
             if is_current() {
                 apply_dividend_maps(&balances, &dividends, generation, maps);
+                succeeded = true;
             }
             if !has_pending || pending_used >= max_pending {
                 break;
@@ -173,6 +175,19 @@ pub(crate) async fn poll_dividend_maps(
             network_used += 1;
         }
         gloo_timers::future::TimeoutFuture::new(dividend_per_share::DIVIDEND_RETRY_DELAY_MS).await;
+    }
+    // 一度も応答が無いまま打ち切ったときは欠測として残す(取得中のままにしない)。
+    // 途中で応答済みの値は消さない
+    if !succeeded && is_current() {
+        apply_dividend_maps(
+            &balances,
+            &dividends,
+            generation,
+            dividend_per_share::DividendMaps {
+                responded: true,
+                ..dividend_per_share::DividendMaps::default()
+            },
+        );
     }
 }
 

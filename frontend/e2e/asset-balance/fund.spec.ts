@@ -245,7 +245,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
   // 注記行は出さず、時点と更新待ちだけを帯のラベル横に出す
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('価格基準日 1/1');
+  await expect(bandText).toContainText('1/1 時点の株価');
   await expect(bandText).toContainText('一部更新待ち');
 
   // 「すべて」タブでも更新待ちの行は前日比を出さない
@@ -265,7 +265,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
 
   // 「すべて」タブも、時点と更新待ちを帯のラベル横に出す
   const allBand = page.getByTestId('asset-portfolio-summary');
-  await expect(allBand).toContainText('価格基準日 1/1');
+  await expect(allBand).toContainText('1/1 時点の株価');
   await expect(allBand).toContainText('一部更新待ち');
 
   // 「すべて」タブでは株と投信が混ざるため前日比は騰落率(%)で出す。

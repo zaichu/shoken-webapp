@@ -1,4 +1,5 @@
 use super::use_asset_balance_state;
+use crate::features::asset_balance;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund;
 use crate::features::asset_balance::fund::FundView;
@@ -15,9 +16,11 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::ui::amount::Amount;
 use crate::ui::asset_balance::{AssetPageEmpty, AssetPageError, CompositionFrame};
+use crate::ui::badge::AccountLegend;
 use crate::ui::button::TabButton;
 use crate::ui::format;
 use crate::ui::labels;
+use crate::ui::labels::UnavailableKind;
 use crate::ui::list_row::{ListRow, ListRowStatic};
 use crate::ui::page_frame::PageFrame;
 use crate::ui::page_skeleton::SkeletonNote;
@@ -31,30 +34,72 @@ const BASIS_OPTIONS: &[(&str, &str)] = &[
     ("dividend", labels::COMPOSITION_DIVIDEND_BASIS),
 ];
 
-/// 行ごとの基準金額。算出不可は `None`。投資信託の年間配当は
-/// 1株配当の見積もりが無いため算出不可にする
-fn basis_values(
+/// 行ごとの基準金額と算出不可の理由。投資信託の年間配当は
+/// 1株配当の見積もりが無いため対象外にする。欠測・取得中・無配は
+/// 株式の配当見積もりの状態で区別する
+fn basis_cells(
     views: &[HoldingView],
     funds: &[FundView],
     basis: CompositionBasis,
     dividends: &DividendMaps,
-) -> Vec<Option<f64>> {
+) -> Vec<(Option<f64>, Option<labels::UnavailableKind>)> {
+    use labels::UnavailableKind::{NoDividend, OutOfScope, Pending, Unavailable};
     views
         .iter()
         .map(|view| match basis {
             CompositionBasis::MarketValue => {
-                model::holding_valuation(&ValuationInput::from(view)).market_value
+                let value = model::holding_valuation(&ValuationInput::from(view)).market_value;
+                let cause = match value.filter(|value| *value != 0.0) {
+                    Some(_) => None,
+                    None => Some(Unavailable),
+                };
+                (value, cause)
             }
             CompositionBasis::Dividend => {
-                holdings::holding_dividend(&view.code, view.shares, view.average_price, dividends)
-                    .annual
+                let dividend = holdings::holding_dividend(
+                    &view.code,
+                    view.shares,
+                    view.average_price,
+                    dividends,
+                );
+                let cause = if !dividends.responded || dividend.status.as_deref() == Some("pending")
+                {
+                    Some(Pending)
+                } else if asset_balance::is_no_dividend(&dividend) {
+                    Some(NoDividend)
+                } else if dividend.annual.as_ref().is_some_and(|value| *value != 0.0) {
+                    None
+                } else {
+                    Some(Unavailable)
+                };
+                (dividend.annual, cause)
             }
         })
         .chain(funds.iter().map(|view| match basis {
-            CompositionBasis::MarketValue => Some(view.market_value),
-            CompositionBasis::Dividend => None,
+            CompositionBasis::MarketValue => {
+                let cause = match Some(view.market_value).filter(|value| *value != 0.0) {
+                    Some(_) => None,
+                    None => Some(Unavailable),
+                };
+                (Some(view.market_value), cause)
+            }
+            CompositionBasis::Dividend => (None, Some(OutOfScope)),
         }))
         .collect()
+}
+
+/// 算出不可の区分の金額欄の表示。無配は無配と出し、取得中は取得中と出す
+fn missing_primary_text(missing: Option<UnavailableKind>) -> String {
+    labels::unavailable_text(missing.unwrap_or(UnavailableKind::Unavailable)).to_string()
+}
+
+/// 算出不可の区分の割合欄の表示。無配の割合は 0.0% と出す
+fn missing_secondary_text(missing: Option<UnavailableKind>, display_percent: f64) -> String {
+    match missing {
+        Some(UnavailableKind::NoDividend) => format::format_fixed_percent(display_percent, 1),
+        Some(kind) => labels::unavailable_text(kind).to_string(),
+        None => labels::FETCH_UNAVAILABLE.to_string(),
+    }
 }
 
 /// 区分の色に対応する塗りクラス
@@ -256,14 +301,26 @@ fn CompositionContent(
             {move || {
                 let current_basis = basis.get();
                 let current_group = group.get();
-                let values = basis_values(&views, &funds, current_basis, &dividends.get());
-                let entries = portfolio::composition_entries(&sources, current_group, &values);
+                let cells = basis_cells(&views, &funds, current_basis, &dividends.get());
+                let values: Vec<Option<f64>> =
+                    cells.iter().map(|(value, _)| *value).collect();
+                let cell_causes: Vec<Option<labels::UnavailableKind>> =
+                    cells.iter().map(|(_, cause)| *cause).collect();
+                let entries = portfolio::composition_entries_with_causes(
+                    &sources,
+                    current_group,
+                    &values,
+                    &cell_causes,
+                );
                 let raw: Vec<Option<f64>> = entries
                     .iter()
                     .map(|entry| entry.value)
                     .collect();
                 let (total, percentages) = portfolio::composition_percentages(&raw);
                 let rows = portfolio::composition_rows(&entries, &percentages);
+                let raw_abs: Vec<f64> =
+                    raw.iter().map(|value| value.unwrap_or(0.0)).collect();
+                let display_percents = model::largest_remainder_percents(&raw_abs, 1);
                 let center = match current_group {
                     CompositionGroup::Holding => labels::composition_total(entries.len()),
                     CompositionGroup::Product => labels::composition_kinds(entries.len()),
@@ -286,11 +343,21 @@ fn CompositionContent(
                             >
                                 {rows
                                     .into_iter()
-                                    .map(|row| {
+                                    .enumerate()
+                                    .map(|(index, row)| {
                                         let fill = color_fill_class(row.color);
                                         let static_computable = row.computable;
-                                        let static_percentage = row.percentage;
+                                        let static_percentage = display_percents
+                                            .get(index)
+                                            .copied()
+                                            .unwrap_or(row.percentage);
                                         let row_value = row.value;
+                                        let missing_primary =
+                                            missing_primary_text(row.missing);
+                                        let missing_secondary = missing_secondary_text(
+                                            row.missing,
+                                            static_percentage,
+                                        );
                                         let bar_width = if row.computable {
                                             format!("{}%", row.percentage.min(100.0))
                                         } else {
@@ -302,7 +369,7 @@ fn CompositionContent(
                                             <ListRow
                                                 name=move || name.clone()
                                                 primary=move || row_value.map_or_else(
-                                                    || view! { {labels::MISSING} }.into_any(),
+                                                    || view! { {missing_primary.clone()} }.into_any(),
                                                     |value| view! {
                                                         <Amount
                                                             text=format::format_currency(value)
@@ -318,7 +385,7 @@ fn CompositionContent(
                                                             />
                                                         }.into_any()
                                                     } else {
-                                                        view! { {labels::MISSING} }.into_any()
+                                                        view! { {missing_secondary.clone()} }.into_any()
                                                     }}
                                                 }
                                             />
@@ -333,6 +400,11 @@ fn CompositionContent(
                                         let static_name = row.name.clone();
                                         let static_sub = row.sub.clone();
                                         let static_value = row_value;
+                                        let static_primary_missing = missing_primary_text(row.missing);
+                                        let static_secondary_missing = missing_secondary_text(
+                                            row.missing,
+                                            static_percentage,
+                                        );
                                         let static_fill = color_fill_class(row.color);
                                         let static_bar_width = if static_computable {
                                             format!("{}%", static_percentage.min(100.0))
@@ -348,7 +420,7 @@ fn CompositionContent(
                                                         <ListRowStatic
                                                             name=move || static_name.clone()
                                                             primary=move || static_value.map_or_else(
-                                                                || view! { {labels::MISSING} }.into_any(),
+                                                                || view! { {static_primary_missing.clone()} }.into_any(),
                                                                 |value| view! {
                                                                     <Amount
                                                                         text=format::format_currency(value)
@@ -360,7 +432,7 @@ fn CompositionContent(
                                                                 <Amount
                                                                     text=format::format_fixed_percent(static_percentage, 1)
                                                                 />
-                                                            }.into_any() } else { view! { {labels::MISSING} }.into_any() }
+                                                            }.into_any() } else { view! { {static_secondary_missing.clone()} }.into_any() }
                                                         />
                                                         <div class="comp-bar" aria-hidden="true">
                                                             <span
@@ -380,6 +452,8 @@ fn CompositionContent(
                                     })
                                     .collect_view()}
                             </ul>
+                            {matches!(current_group, CompositionGroup::Account)
+                                .then(|| view! { <AccountLegend /> })}
                         }
                             .into_any()
                     }}
@@ -405,6 +479,8 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
             (row, start)
         })
         .collect();
+    let amounts: Vec<f64> = rows.iter().map(|row| row.value.unwrap_or(0.0)).collect();
+    let display = crate::features::asset_balance::model::largest_remainder_percents(&amounts, 1);
     let center_x = geometry.center_x;
     let center_y = geometry.center_y;
     let radius = geometry.radius;
@@ -492,12 +568,15 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 {rows
                     .into_iter()
                     .take(visible)
-                    .map(|row| {
+                    .enumerate()
+                    .map(|(index, row)| {
                         let fill = color_fill_class(row.color);
+                        let display_percent =
+                            display.get(index).copied().unwrap_or(row.percentage);
                         let rate = if row.computable {
-                            format::format_fixed_percent(row.percentage, 1)
+                            format::format_fixed_percent(display_percent, 1)
                         } else {
-                            labels::MISSING.to_string()
+                            missing_secondary_text(row.missing, display_percent)
                         };
                         let name = row.name.clone();
                         view! {
@@ -529,5 +608,143 @@ fn CompositionDonut(rows: Vec<CompositionRow>, center: String) -> impl IntoView 
                 }}
             </ul>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{basis_cells, missing_primary_text, missing_secondary_text};
+    use crate::features::asset_balance::fund::FundView;
+    use crate::features::asset_balance::holdings::HoldingView;
+    use crate::features::asset_balance::portfolio::CompositionBasis;
+    use crate::features::dividend_per_share::DividendMaps;
+    use crate::ui::labels::UnavailableKind;
+    use std::collections::HashMap;
+
+    fn holding(code: &str, current_price: f64) -> HoldingView {
+        HoldingView {
+            id: None,
+            code: code.to_string(),
+            name: "架空銘柄".to_string(),
+            account: Some("特定".to_string()),
+            shares: 100.0,
+            average_price: 1000.0,
+            purchase: 100_000.0,
+            current_price,
+            day_change: None,
+            price_as_of: Some("2026-10-20".to_string()),
+        }
+    }
+
+    fn fund(name: &str) -> FundView {
+        FundView {
+            id: Some(format!("fund-{name}")),
+            name: name.to_string(),
+            account: "特定".to_string(),
+            course: None,
+            shares: 10000.0,
+            average_purchase_price: 10000.0,
+            purchase: 100000.0,
+            base_price: 11000.0,
+            base_price_day_change: None,
+            base_price_month_change: None,
+            market_value: 110000.0,
+            profit_loss: 10000.0,
+            profit_loss_rate: None,
+            total_return: None,
+            price_as_of: Some("2026-10-20".to_string()),
+            price_source: crate::api::dto::FundPriceSource::Api,
+            is_nav_latest: true,
+            expected_nav_date: None,
+        }
+    }
+
+    fn maps_with(per_share: &[(&str, f64)], status: &[(&str, &str)]) -> DividendMaps {
+        DividendMaps {
+            per_share: per_share
+                .iter()
+                .map(|(code, value)| ((*code).to_string(), *value))
+                .collect::<HashMap<_, _>>(),
+            status: status
+                .iter()
+                .map(|(code, value)| ((*code).to_string(), (*value).to_string()))
+                .collect::<HashMap<_, _>>(),
+            responded: true,
+        }
+    }
+
+    #[test]
+    fn dividend_basis_distinguishes_fund_and_stock_reasons() {
+        let views = vec![
+            holding("9904", 2600.0),
+            holding("9914", 2600.0),
+            holding("9920", 2600.0),
+            holding("9921", 2600.0),
+        ];
+        let funds = vec![fund("A")];
+        // 9904 は値あり、9914 は取得失敗、9920 は取得中、9921 は無配
+        let maps = DividendMaps {
+            per_share: [("9904".to_string(), 90.0), ("9921".to_string(), 0.0)]
+                .into_iter()
+                .collect(),
+            status: [
+                ("9914".to_string(), "error".to_string()),
+                ("9920".to_string(), "pending".to_string()),
+                ("9921".to_string(), "zero".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            responded: true,
+        };
+        let cells = basis_cells(&views, &funds, CompositionBasis::Dividend, &maps);
+        assert_eq!(cells.len(), 5);
+        assert!(cells[0].0.is_some());
+        assert_eq!(cells[0].1, None);
+        assert_eq!(cells[1], (None, Some(UnavailableKind::Unavailable)));
+        assert_eq!(cells[2], (None, Some(UnavailableKind::Pending)));
+        assert_eq!(cells[3], (Some(0.0), Some(UnavailableKind::NoDividend)));
+        assert_eq!(cells[4], (None, Some(UnavailableKind::OutOfScope)));
+        // 無配の表示は金額も割合も無配の状態を残す
+        assert_eq!(
+            missing_primary_text(Some(UnavailableKind::NoDividend)),
+            "無配"
+        );
+        assert_eq!(
+            missing_secondary_text(Some(UnavailableKind::NoDividend), 0.0),
+            "0.0%"
+        );
+        assert_eq!(
+            missing_primary_text(Some(UnavailableKind::OutOfScope)),
+            "対象外"
+        );
+    }
+
+    #[test]
+    fn market_basis_marks_unpriced_as_unavailable() {
+        let views = vec![holding("9904", 2600.0), holding("9914", 0.0)];
+        let cells = basis_cells(
+            &views,
+            &[],
+            CompositionBasis::MarketValue,
+            &maps_with(&[], &[]),
+        );
+        assert!(cells[0].0.is_some());
+        assert_eq!(cells[0].1, None);
+        assert_eq!(cells[1], (None, Some(UnavailableKind::Unavailable)));
+    }
+
+    #[test]
+    fn dividend_basis_shows_pending_before_first_response() {
+        let views = vec![holding("9904", 2600.0)];
+        let funds = vec![fund("A")];
+        // 推定の応答前は空のマップ。株式は取得中、投信は対象外のまま
+        let cells = basis_cells(
+            &views,
+            &funds,
+            CompositionBasis::Dividend,
+            &DividendMaps::default(),
+        );
+        assert_eq!(cells[0], (None, Some(UnavailableKind::Pending)));
+        assert_eq!(cells[1], (None, Some(UnavailableKind::OutOfScope)));
     }
 }

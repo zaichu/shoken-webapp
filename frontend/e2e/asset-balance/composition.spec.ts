@@ -177,7 +177,7 @@ test.describe('スマホの構成比', () => {
     const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(5);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('ファンドA');
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.4%');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.3%');
     await expect(page.getByTestId('asset-composition')).toContainText(
       '5銘柄',
     );
@@ -309,7 +309,7 @@ test.describe('スマホの構成比', () => {
     // 算出不可の行も個別に残し、「その他」にはまとめない
     const missing = list.getByTestId('comp-row').nth(1);
     await expect(missing).toContainText('価格なし銘柄');
-    await expect(missing).toContainText('—');
+    await expect(missing).toContainText('取得できません');
     await expect(list.getByText('その他')).toHaveCount(0);
   });
 
@@ -328,7 +328,7 @@ test.describe('スマホの構成比', () => {
     const items = legend.getByTestId('comp-legend-item');
     await expect(items).toHaveCount(5);
     await expect(items.nth(0)).toContainText('ファンドA');
-    await expect(items.nth(0)).toContainText('36.4%');
+    await expect(items.nth(0)).toContainText('36.3%');
     // 5件以下なので「ほか」の行は出さない
     await expect(page.getByTestId('comp-legend-others')).toHaveCount(0);
   });
@@ -397,7 +397,7 @@ test('PCでもスマホと同じ部品で評価額順に全保有を並べる', 
   const items = page.getByTestId('asset-composition-list').getByRole('listitem');
   await expect(items).toHaveCount(22);
   await expect(items.nth(0)).toContainText('銘柄01');
-  await expect(items.nth(0)).toContainText('4.5%');
+  await expect(items.nth(0)).toContainText('4.6%');
   await expect(items.nth(21)).toContainText('銘柄22');
   // 切れの数は行と同じ
   await expect(
@@ -430,7 +430,7 @@ test('評価額が出せない銘柄は構成比を出さずに一覧へ残す',
   await expect(items.nth(0)).toContainText('100.0%');
   const giftedItem = items.filter({ hasText: '贈与銘柄' });
   await expect(giftedItem).toHaveCount(1);
-  await expect(giftedItem).toContainText('—');
+  await expect(giftedItem).toContainText('取得できません');
 });
 
 test('評価額の合計が0のときは算出不可を表示する', async ({ page }) => {
