@@ -16,9 +16,10 @@ enum AmountColor {
 }
 
 /// 金額・率の表示。書式は呼び出し側の format 関数で作った文字列を
-/// 受け取り、この部品が tabular-nums・nowrap と正負の色をまとめる。
-/// 表示文字列の符号で色を決める。負は種類を問わず赤・正は Delta のとき緑・
-/// 0 と欠損は色なし。残高・価格などの Plain は正でも通常色のままにする。
+/// 受け取り、この部品が書体(数字と記号だけ Inter)・tabular-nums・nowrap と
+/// 正負の色をまとめる。表示文字列の符号で色を決める。負は種類を問わず赤・正は
+/// Delta のとき緑・0 と欠損は色なし。残高・価格などの Plain は正でも通常色のままにする。
+/// 画面に出る `-` は符号の位置のものだけ `−`(U+2212)にする。データ側の文字は変えない。
 /// block=true のときこの部品が p を出すので、呼び出し側で p で包まない。
 /// block=false(既定)はインラインの span を出し、周囲の要素(dd/td 等)はそのまま残す。
 #[component]
@@ -36,7 +37,10 @@ pub fn Amount(
     let color = move || amount_color(kind, negative.get(), positive.get(), &sign_text.get());
     let classes = move || amount_classes(color(), &class.get());
     let negative_attr = move || amount_negative_attr(color());
-    let text = move || text.get();
+    // 符号の `-` は表示だけ U+2212(−)にする。色の判定は元の文字列で済ませ、
+    // CSV などデータ側の文字は変えない。日付の中の `-` は触らない
+    // (docs/design/numerals.md「マイナスの字形」)。
+    let text = move || display_text(&text.get());
     if block {
         view! {
             <p class=classes data-negative=negative_attr>
@@ -88,7 +92,9 @@ fn amount_color(kind: AmountKind, negative: bool, positive: bool, text: &str) ->
 }
 
 fn amount_classes(color: AmountColor, extra: &str) -> String {
-    let mut base = String::from("tabular-nums whitespace-nowrap");
+    // numerals: 数字と記号だけ Inter の subset を当て、日本語と単位は Noto のまま出す
+    // (style/input.css の @font-face と .numerals。docs/design/numerals.md)。
+    let mut base = String::from("numerals tabular-nums whitespace-nowrap");
     if !extra.is_empty() {
         base.push(' ');
         base.push_str(extra);
@@ -108,6 +114,22 @@ const fn amount_negative_attr(color: AmountColor) -> Option<&'static str> {
         AmountColor::Negative => Some("true"),
         AmountColor::Neutral | AmountColor::Positive => None,
     }
+}
+
+/// 符号の `-`(U+002D)を表示用の `−`(U+2212)にする。文頭・`(` の直後・
+/// 空白の直後のものだけを符号とみなし、日付などの中の `-` は残す。
+fn display_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut signable = true;
+    for ch in text.chars() {
+        if ch == '-' && signable {
+            out.push('−');
+        } else {
+            out.push(ch);
+        }
+        signable = matches!(ch, '(' | ' ' | '　' | '\t');
+    }
+    out
 }
 
 #[cfg(test)]

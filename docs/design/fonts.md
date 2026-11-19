@@ -28,3 +28,29 @@
 
 常用・人名用の典拠は Unihan の `kJoyoKanji`/`kJinmeiyoKanji` と
 `常用漢字一覧`・`人名用漢字一覧`(旧字体を含む)。
+
+## 数字と記号の Inter subset(#2042)
+
+金額・率の数字と記号(16 字: `0-9` `,` `.` `¥` `%` `+` `−`(U+2212))だけ Inter を当てる。
+日本語・単位(円・株・口・万・千)・括弧など範囲外の文字は後ろの Noto に落ちる。
+決めた値(等幅・¥・% の比・字間・マイナスの字形)は `docs/design/numerals.md`。
+
+### ファイル
+
+- `frontend/fonts/numerals/inter-400-700.woff2` (4,128 バイト、可変 wght 400–700、opsz 14 固定、cmap は 16 字ちょうど)
+- `frontend/fonts/numerals/OFL-inter.txt` (SIL OFL 1.1 の文面。subset は Modified Version のため同梱)
+- `frontend/fonts/numerals/sources.json` (出典: google/fonts のコミット SHA で固定した元ファイルの URL・sha256・軸)
+
+### 当て方
+
+`style/input.css` の `@font-face` に `unicode-range`(16 字)を付け、
+`Amount` の出す要素(`.numerals`)と数値列(`.col-num`)で
+`font-family: var(--font-numerals)`(`'Shoken Numerals'` の後に `--font-sans`)を指定する。
+等幅は `tabular-nums`(表は `tabular-nums lining-nums`)と subset の `tnum` で出す。
+内部名は Reserved Font Name を避けて `Shoken Numerals` に替えている。
+
+### subset の作り方
+
+`python3 frontend/scripts/build-numerals-fonts.py`(fonttools・brotli が必要)。
+`--verify-only` で検証だけを行う。検証の内容は cmap が 16 字ちょうど・
+GSUB に `tnum` がある・`tnum` 適用後の 0–9 の送り幅が 1 つにそろうこと(400 と 700)。
