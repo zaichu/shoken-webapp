@@ -6,8 +6,10 @@ use rust_decimal_macros::dec;
 
 #[test]
 fn known_zero_dividend_has_zero_yield() {
-    let mut maps = DividendMaps::default();
-    maps.responded = true;
+    let mut maps = DividendMaps {
+        responded: true,
+        ..DividendMaps::default()
+    };
     maps.status.insert("9904".to_string(), "zero".to_string());
     for average_price in [2500.0, 0.0] {
         let dividend = holding_dividend("9904", 100.0, average_price, &maps);
@@ -20,8 +22,10 @@ fn known_zero_dividend_has_zero_yield() {
 #[test]
 fn dividend_display_distinguishes_no_dividend_and_unavailable() {
     use crate::ui::labels::{self, UnavailableKind};
-    let mut maps = DividendMaps::default();
-    maps.responded = true;
+    let mut maps = DividendMaps {
+        responded: true,
+        ..DividendMaps::default()
+    };
     maps.status
         .insert("zero-code".to_string(), "zero".to_string());
     maps.status
@@ -58,8 +62,10 @@ fn dividend_display_distinguishes_no_dividend_and_unavailable() {
 #[test]
 fn missing_dividend_keeps_yield_unknown() {
     for status in [None, Some("pending"), Some("error")] {
-        let mut maps = DividendMaps::default();
-        maps.responded = true;
+        let mut maps = DividendMaps {
+            responded: true,
+            ..DividendMaps::default()
+        };
         if let Some(status) = status {
             maps.status.insert("9904".to_string(), status.to_string());
         }
