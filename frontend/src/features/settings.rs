@@ -161,6 +161,7 @@ fn SectionDisplay() -> impl IntoView {
                         />
                     </settings_ui::SettingRow>
                 </div>
+                <settings_ui::SettingsNote after=true>{labels::SETTINGS_AMOUNT_UNIT_NOTE}</settings_ui::SettingsNote>
             </settings_ui::SettingsPanel>
         </settings_ui::SettingsSection>
     }

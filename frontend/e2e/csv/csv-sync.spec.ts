@@ -565,7 +565,7 @@ test.describe('CSV 最新取得', () => {
     }
   });
 
-  test('行の⋯メニューの再取得はその種類だけを拡張機能へ渡す', async ({ page }) => {
+  test('行の操作メニューの再取得はその種類だけを拡張機能へ渡す', async ({ page }) => {
     await mockSession(page);
     const calls = await mockSyncApis(page);
     await mockCsvKindStats(page, { counts: () => ({}) });

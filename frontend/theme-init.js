@@ -1,5 +1,5 @@
 // wasm の起動前にテーマを確定させる。ダーク設定の利用者に初期描画が白く点滅するのを防ぐ。
-// light・dark 以外の値は既定の「端末に合わせる」と同じ扱いにする(settings.rs の Theme と一致させる)
+// light・dark 以外の値は既定の「OS の設定に合わせる」と同じ扱いにする(settings.rs の Theme と一致させる)
 (function () {
   var theme = null;
   try {

@@ -477,7 +477,7 @@ test.describe('取引明細 CSV 取込・削除', () => {
       await importCsvFile(page, scenario.row, path.join(fixtureDir(), scenario.additionalFile));
       await expect(savedCount(page, scenario.row)).toContainText(`${totalCount}件`);
 
-      // 削除は行の⋯メニューから確認モーダルで行う
+      // 削除は行の操作メニューから確認モーダルで行う
       await openCsvDelete(page, scenario.row);
       const modal = page.getByRole('dialog');
       await expect(modal).toContainText(`${scenario.rowLabel}を削除しますか?`);

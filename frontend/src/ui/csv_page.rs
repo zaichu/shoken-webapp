@@ -466,13 +466,13 @@ fn CsvKindRow(
                 <div class="relative inline-block" node_ref=menu_container>
                     <Button
                         variant=ButtonVariant::Secondary(ButtonSize::Sm)
-                        class="inline-flex h-8 w-8 hit-area-44-x items-center justify-center rounded-md hover:bg-surface-sunken text-text-muted"
+                        class="inline-flex h-8 hit-area-44-x items-center justify-center rounded-md hover:bg-surface-sunken px-2 text-text-muted"
                         aria_label=labels::MENU
                         aria_expanded=move || menu_open.get()
                         on_click=move |_| menu_open.toggle()
                         node_ref=menu_trigger
                     >
-                        <span class="text-subhero">{labels::CSV_MANAGE_COL_MENU}</span>
+                        <span class="text-cell font-bold">{labels::CSV_MANAGE_COL_MENU}</span>
                     </Button>
                     {move || menu_open.get().then(|| {
                         view! {
@@ -751,6 +751,7 @@ pub(crate) fn CsvKindTable(
                     }}
                 </tbody>
             </table>
+            <p class="px-4 py-2 text-cell text-text-muted">{labels::CSV_MANAGE_FRESHNESS_NOTE}</p>
         </div>
     }
 }
