@@ -21,11 +21,9 @@ pub const ANNUAL_EXPECTED_DIVIDEND: &str = "年間予想配当(税引前)";
 /// 年間予想配当の算出条件(見出しの注記・説明用。税引前)
 pub const ANNUAL_DIVIDEND_NOTE: &str = "1株配当(会社予想)×保有数・税引前";
 /// 年間予想配当の列見出し(PC の表用)。1280 で表がはみ出さないよう1行の
-/// 「年間予想配当」だけを出し、税区分は見出しの説明(title・注記)に書く。
-/// 読み上げ名は注記と合わせて「年間予想配当 (税引前)」になる
+/// 「年間予想配当」だけを出し、税区分は見出しの説明(title・注記)に書く
+/// (ボタンの読み上げ名は「年間予想配当」。税区分は表下の注記で確かめられる)
 pub const ANNUAL_DIVIDEND_HEAD: &str = "年間予想配当";
-/// 年間予想配当の列見出しの2行目。PC の表では幅のため出さない(空のまま残す)
-pub const ANNUAL_DIVIDEND_HEAD_SUB: &str = "";
 /// 年間予想配当・取得額利回りの算出条件(表の下の注記用。1行で添える)
 pub fn dividend_formula_note() -> String {
     format!(
