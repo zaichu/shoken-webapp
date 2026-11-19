@@ -147,11 +147,7 @@ interface AxeExclusion {
   labelPrefix: string;
 }
 
-const AXE_EXCLUSIONS: AxeExclusion[] = [
-  // 390px幅で累計グラフの月の柱が22.5pxになり target-size を満たさない。抜本対応は #2060 で追う
-  { issue: 2060, rule: 'target-size', target: 'home-cum-col', labelPrefix: 'ホーム' },
-  { issue: 2060, rule: 'target-size', target: 'home-cum-col', labelPrefix: 'ダーク(ホーム)' },
-];
+const AXE_EXCLUSIONS: AxeExclusion[] = [];
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

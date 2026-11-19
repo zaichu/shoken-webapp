@@ -2,6 +2,18 @@ use super::*;
 use std::path::{Path, PathBuf};
 
 #[test]
+fn cumulative_slider_valuetext_reads_month_receipt_and_total() {
+    assert_eq!(
+        cumulative_slider_valuetext(6, "¥34,200", "¥120,000", None),
+        "6月 受取 ¥34,200 / 累計 ¥120,000"
+    );
+    assert_eq!(
+        cumulative_slider_valuetext(6, "¥34,200", "¥120,000", Some("¥100,000")),
+        "6月 受取 ¥34,200 / 累計 ¥120,000 / 前年累計 ¥100,000"
+    );
+}
+
+#[test]
 fn previous_dividend_span_collapses_single_month_and_ends_in_december() {
     for month in [1, 9, 10] {
         let text = previous_dividend_span(month);
