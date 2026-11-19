@@ -465,7 +465,7 @@ fn CsvKindRow(
             <td class="px-4 py-3 whitespace-nowrap text-right max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1">
                 <div class="relative inline-block" node_ref=menu_container>
                     <Button
-                        variant=ButtonVariant::Secondary(ButtonSize::Sm)
+                        variant=ButtonVariant::Secondary(ButtonSize::Xs)
                         class="inline-flex h-8 hit-area-44-x items-center justify-center rounded-md hover:bg-surface-sunken px-2 text-text-muted"
                         aria_label=labels::CSV_MANAGE_MENU_BUTTON_LABEL
                         aria_expanded=move || menu_open.get()
