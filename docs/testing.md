@@ -25,8 +25,8 @@ trunk build --release
 Playwright は Trunk の開発サーバーを自動起動します。worktree ごとに異なるポートを使ってください。
 
 ```bash
-env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts
-env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.deploy.config.ts
+env -u NO_COLOR env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.leptos.config.ts
+env -u NO_COLOR env LEPTOS_E2E_PORT=8091 npx playwright test --config playwright.deploy.config.ts
 ```
 
 ## バックエンド

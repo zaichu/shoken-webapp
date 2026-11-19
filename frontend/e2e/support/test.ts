@@ -1,4 +1,5 @@
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
 import { loadBackendOrigin, loadProductionCsp } from '../../scripts/backend-origin.cjs';
 
 const backendOrigin = loadBackendOrigin();
@@ -31,10 +32,25 @@ export const test = base.extend<{ _cspGuard: void; _apiGuard: void }>({
             ),
           ),
         ];
-        const csp = nonces.length
+        // trunk serve (0.22) のインライン bootstrap は nonce が付かないため、
+        // その script の sha256 を script-src に足す。本番の _headers は変えない
+        // (本番では prepare-dist.mjs で外部化済み)。
+        const inlineHashes = [
+          ...new Set(
+            [...body.matchAll(/<script\b(?![^>]*\bsrc=)(?![^>]*\bnonce=)[^>]*>([\s\S]*?)<\/script>/g)]
+              .map((match) => match[1])
+              .filter((content) => content.trim().length > 0)
+              .map(
+                (content) =>
+                  `'sha256-${createHash('sha256').update(content).digest('base64')}'`,
+              ),
+          ),
+        ];
+        const tokens = [...nonces, ...inlineHashes];
+        const csp = tokens.length
           ? productionCsp.replace(
               "script-src 'self'",
-              `script-src 'self' ${nonces.join(' ')}`,
+              `script-src 'self' ${tokens.join(' ')}`,
             )
           : productionCsp;
         await route.fulfill({
