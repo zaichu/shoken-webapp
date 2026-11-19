@@ -177,7 +177,7 @@ test.describe('スマホの構成比', () => {
     const list = page.getByTestId('asset-composition-list');
     await expect(list.getByTestId('comp-row')).toHaveCount(5);
     await expect(list.getByTestId('comp-row').nth(0)).toContainText('ファンドA');
-    await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.4%');
+    await expect(list.getByTestId('comp-row').nth(0)).toContainText('36.3%');
     await expect(page.getByTestId('asset-composition')).toContainText(
       '5銘柄',
     );
@@ -328,7 +328,7 @@ test.describe('スマホの構成比', () => {
     const items = legend.getByTestId('comp-legend-item');
     await expect(items).toHaveCount(5);
     await expect(items.nth(0)).toContainText('ファンドA');
-    await expect(items.nth(0)).toContainText('36.4%');
+    await expect(items.nth(0)).toContainText('36.3%');
     // 5件以下なので「ほか」の行は出さない
     await expect(page.getByTestId('comp-legend-others')).toHaveCount(0);
   });
@@ -397,7 +397,7 @@ test('PCでもスマホと同じ部品で評価額順に全保有を並べる', 
   const items = page.getByTestId('asset-composition-list').getByRole('listitem');
   await expect(items).toHaveCount(22);
   await expect(items.nth(0)).toContainText('銘柄01');
-  await expect(items.nth(0)).toContainText('4.5%');
+  await expect(items.nth(0)).toContainText('4.6%');
   await expect(items.nth(21)).toContainText('銘柄22');
   // 切れの数は行と同じ
   await expect(

@@ -1,12 +1,14 @@
 use super::{
     CompositionBasis, CompositionGroup, CompositionProduct, CompositionSource, SortInput, SortKey,
-    SortOrder, composition_color, composition_entries, composition_legend_split,
-    composition_percentages, composition_rows, composition_sources, sort_holdings,
+    SortOrder, combine_missing_causes, composition_color, composition_entries,
+    composition_entries_with_causes, composition_legend_split, composition_percentages,
+    composition_rows, composition_sources, sort_holdings,
 };
 use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::fund::FundView;
 use crate::features::asset_balance::holdings::{HoldingDividend, HoldingView};
 use crate::features::asset_balance::model::ValuationInput;
+use crate::ui::labels::UnavailableKind;
 
 fn sort_input(code: &str, market: f64, purchase: f64, annual: Option<f64>) -> SortInput<'static> {
     let dividend = Box::leak(Box::new(HoldingDividend {
@@ -590,4 +592,118 @@ fn sort_holdings_allows_other_keys_while_dividend_pending() {
     ];
     let order = sort_holdings(inputs, SortKey::MarketValue, SortOrder::Desc);
     assert_eq!(order, vec![1, 0, 2]);
+}
+
+#[test]
+fn combine_missing_causes_prefers_out_of_scope_only_then_pending() {
+    use UnavailableKind::{NoDividend, OutOfScope, Pending, Unavailable};
+    assert_eq!(
+        combine_missing_causes(&[OutOfScope, OutOfScope]),
+        OutOfScope
+    );
+    assert_eq!(
+        combine_missing_causes(&[OutOfScope, Unavailable]),
+        Unavailable
+    );
+    assert_eq!(combine_missing_causes(&[Pending, OutOfScope]), Pending);
+    assert_eq!(
+        combine_missing_causes(&[NoDividend, NoDividend]),
+        NoDividend
+    );
+    assert_eq!(
+        combine_missing_causes(&[NoDividend, Unavailable]),
+        Unavailable
+    );
+}
+
+#[test]
+fn entries_with_causes_keep_per_source_reasons_for_holding_group() {
+    use UnavailableKind::{NoDividend, OutOfScope, Unavailable};
+    let (sources, _) = mixed_sources();
+    // 配当基準の想定: 1行だけ値があり、残りは欠測・無配・対象外(投信)
+    let basis = vec![Some(300.0), None, None, None, None];
+    let causes = vec![
+        None,
+        Some(Unavailable),
+        Some(NoDividend),
+        Some(OutOfScope),
+        Some(OutOfScope),
+    ];
+    let entries =
+        composition_entries_with_causes(&sources, CompositionGroup::Holding, &basis, &causes);
+    assert_eq!(entries.len(), 5);
+    assert_eq!(entries[0].value, Some(300.0));
+    assert_eq!(entries[0].missing, None);
+    assert_eq!(entries[1].value, None);
+    assert_eq!(entries[1].missing, Some(Unavailable));
+    assert_eq!(entries[2].value, None);
+    assert_eq!(entries[2].missing, Some(NoDividend));
+    assert_eq!(entries[3].name, "ファンドA");
+    assert_eq!(entries[3].value, None);
+    assert_eq!(entries[3].missing, Some(OutOfScope));
+    assert_eq!(entries[4].name, "ファンドB");
+    assert_eq!(entries[4].value, None);
+    assert_eq!(entries[4].missing, Some(OutOfScope));
+}
+
+#[test]
+fn entries_with_causes_combine_account_members() {
+    use UnavailableKind::{NoDividend, OutOfScope, Unavailable};
+    let (sources, basis) = mixed_sources();
+    // 特定: 株式(値あり)・株式(欠測)・投信(対象外) → 値があるので理由なし
+    let causes = vec![
+        None,
+        Some(Unavailable),
+        Some(NoDividend),
+        Some(OutOfScope),
+        Some(OutOfScope),
+    ];
+    let account =
+        composition_entries_with_causes(&sources, CompositionGroup::Account, &basis, &causes);
+    let tokutei = account.iter().find(|entry| entry.name == "特定").unwrap();
+    assert!(tokutei.value.is_some());
+    assert_eq!(tokutei.missing, None);
+
+    // 全行が算出不可のときだけ理由が付く。対象外だけなら対象外、混ざれば欠測
+    let no_values = vec![None, None, None, None, None];
+    let all_out = vec![
+        Some(OutOfScope),
+        Some(OutOfScope),
+        Some(OutOfScope),
+        Some(OutOfScope),
+        Some(OutOfScope),
+    ];
+    let entries =
+        composition_entries_with_causes(&sources, CompositionGroup::Account, &no_values, &all_out);
+    assert!(entries.iter().all(|entry| entry.value.is_none()));
+    // 2口座とも対象外だけの集まりになる
+    assert!(
+        entries
+            .iter()
+            .all(|entry| entry.missing == Some(OutOfScope))
+    );
+    let mixed = vec![
+        Some(Unavailable),
+        Some(OutOfScope),
+        Some(NoDividend),
+        Some(OutOfScope),
+        Some(OutOfScope),
+    ];
+    let entries =
+        composition_entries_with_causes(&sources, CompositionGroup::Account, &no_values, &mixed);
+    // 特定は欠測と無配と対象外の混ざりのため欠測、NISA は対象外だけのため対象外
+    assert_eq!(
+        entries
+            .iter()
+            .find(|entry| entry.name == "特定")
+            .and_then(|entry| entry.missing),
+        Some(Unavailable)
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .find(|entry| entry.name == "NISA")
+            .and_then(|entry| entry.missing),
+        Some(OutOfScope)
+    );
 }

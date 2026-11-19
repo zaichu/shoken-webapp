@@ -7,9 +7,9 @@ use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
 use super::search_bar::{AssetMobileSearchEntry, AssetSearchBar, ConditionKind};
 use super::summary::{
-    AssetSummaryBand, combined_date_note, fund_has_pending, latest_import_iso,
-    oldest_combined_price_iso, oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag,
-    stock_pending_from_parts, stock_price_dates, stock_summary_values,
+    AssetSummaryBand, date_notes, fund_has_pending, latest_import_iso, oldest_combined_price_iso,
+    oldest_fund_price_iso, oldest_stock_price_iso, purchase_summary_tag, stock_pending_from_parts,
+    stock_price_dates, stock_summary_values,
 };
 use crate::api::dto::{AssetBalanceSummary, FundBalanceSummary};
 use crate::features::asset_balance;
@@ -221,7 +221,7 @@ fn StockContent(
                     let import_iso = latest_import_iso(
                         rows.iter().map(|row| row.updated_at.as_str()),
                     );
-                    let (as_of, stale) = combined_date_note(
+                    let (as_of, stale, import_status, import_stale) = date_notes(
                         price_iso.as_deref(),
                         import_label.as_deref(),
                         import_iso.as_deref(),
@@ -242,6 +242,8 @@ fn StockContent(
                                 as_of=as_of
                                 show_pending=pending
                                 as_of_stale=stale
+                                status=import_status
+                                status_stale=import_stale
                             />
                         </SkeletonSummary>
                         <SkeletonNote filtered=filtered_count />
@@ -355,7 +357,7 @@ fn FundContent(
         resolved.rows.iter().map(|row| row.updated_at.as_str()),
     );
     let import_iso = latest_import_iso(resolved.rows.iter().map(|row| row.updated_at.as_str()));
-    let (as_of, stale) = combined_date_note(
+    let (as_of, stale, import_status, import_stale) = date_notes(
         price_iso.as_deref(),
         import_label.as_deref(),
         import_iso.as_deref(),
@@ -377,6 +379,8 @@ fn FundContent(
                     as_of=as_of
                     show_pending=pending
                     as_of_stale=stale
+                    status=import_status
+                    status_stale=import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />
@@ -544,7 +548,7 @@ fn AllContent(
     let import_label =
         crate::ui::format::format_latest_import_date(import_stamps.iter().map(String::as_str));
     let import_iso = latest_import_iso(import_stamps.iter().map(String::as_str));
-    let (as_of, all_stale) = combined_date_note(
+    let (as_of, all_stale, all_import_status, all_import_stale) = date_notes(
         price_iso.as_deref(),
         import_label.as_deref(),
         import_iso.as_deref(),
@@ -575,6 +579,8 @@ fn AllContent(
                     as_of=as_of
                     show_pending=pending
                     as_of_stale=all_stale
+                    status=all_import_status
+                    status_stale=all_import_stale
                 />
             </SkeletonSummary>
             <SkeletonNote filtered=filtered_count />

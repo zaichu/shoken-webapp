@@ -121,8 +121,14 @@ pub(crate) fn holding_dividend(
     }
 }
 
-fn is_no_dividend(dividend: &HoldingDividend) -> bool {
+pub(crate) fn is_no_dividend(dividend: &HoldingDividend) -> bool {
     dividend.status.as_deref() == Some("zero") || dividend.per_share == Some(0.0)
+}
+
+/// 配当表示が値なしのときの文言(対象外・取得できません・無配・取得中)。
+/// 値があるときは `None`。表のセルは値なしを折り返しの印で出す
+pub(crate) fn dividend_marker_text(dividend: &HoldingDividend) -> Option<&'static str> {
+    dividend_display_kind(dividend).map(crate::ui::labels::unavailable_text)
 }
 
 /// 配当表示の種類。無配・欠測・表示可を区別する純粋な判定

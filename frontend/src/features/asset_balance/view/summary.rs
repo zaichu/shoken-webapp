@@ -90,30 +90,26 @@ pub(crate) fn latest_import_iso<'a>(stamps: impl Iterator<Item = &'a str>) -> Op
         .map(|(year, month, day)| format!("{year:04}-{month:02}-{day:02}"))
 }
 
-/// 価格と取込を合わせた帯の注記。両方あるときは両方出し、古い方に印を付ける
-/// 戻り値は (注記, 古い方があるか)
-pub(crate) fn combined_date_note(
+/// 帯の注記と取込の状態。価格の注記はラベルの横、取込の状態は数字の横に出す。
+/// 戻り値は (価格の注記, 価格が古いか, 取込の状態, 取込が古いか)
+pub(crate) fn date_notes(
     price_iso: Option<&str>,
     import_ymd: Option<&str>,
     import_iso: Option<&str>,
-) -> (String, bool) {
-    let mut price_note = price_iso.map_or_else(String::new, labels::price_as_of_with_role);
-    let mut import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
+) -> (String, bool, String, bool) {
     let (price_stale, import_stale) = match (price_iso, import_iso) {
         (Some(price), Some(import)) => labels::stale_sides(price, import),
         _ => (false, false),
     };
+    let mut price_note = price_iso.map_or_else(String::new, labels::price_as_of_with_role);
     if price_stale && !price_note.is_empty() {
         price_note.push_str(labels::DATE_STALE_MARK);
     }
+    let mut import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
     if import_stale && !import_note.is_empty() {
         import_note.push_str(labels::DATE_STALE_MARK);
     }
-    let note = match (!price_note.is_empty(), !import_note.is_empty()) {
-        (true, true) => format!("{price_note}{}{import_note}", labels::TAG_SEPARATOR),
-        _ => format!("{price_note}{import_note}"),
-    };
-    (note, price_stale || import_stale)
+    (price_note, price_stale, import_note, import_stale)
 }
 
 /// 投信に更新待ちの行があるか。前日比の合計に入っていない行があれば true
@@ -230,6 +226,12 @@ pub(crate) fn AssetSummaryBand(
     /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
     as_of_stale: bool,
+    /// 数字の横に小さく出す取込の状態(空なら出さない)
+    #[prop(optional, into)]
+    status: String,
+    /// 取込が基準日より古いときの強調。色と「(古い方)」の文字で示す
+    #[prop(optional)]
+    status_stale: bool,
 ) -> impl IntoView {
     let market_text = balance_format::format_valuation_amount(market);
     let profit_text = balance_format::format_signed_valuation_amount(profit);
@@ -338,6 +340,8 @@ pub(crate) fn AssetSummaryBand(
                 primary_as_of=as_of
                 show_pending=show_pending
                 as_of_stale=as_of_stale
+                primary_status=status
+                primary_status_stale=status_stale
                 aux_label=labels::VALUATION_PROFIT_LOSS
                 aux_value=profit_text
                 aux_rate=rate_text

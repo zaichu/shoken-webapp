@@ -75,6 +75,9 @@ pub fn SummaryItem(
     /// 数字の横に小さく出す補足(読み込み中など)
     #[prop(optional)]
     status: String,
+    /// 数字の横の補足が古い日付のときの強調。色と文字の両方で示す
+    #[prop(optional)]
+    status_stale: bool,
     /// ラベルの横に小さく出す補足(基準日・更新待ちなど)。空なら出さない
     #[prop(optional, into)]
     label_note: String,
@@ -113,7 +116,13 @@ pub fn SummaryItem(
                         </span>
                     })}
                 {(!status.is_empty())
-                    .then(|| view! { <span class="summary-status">{status.clone()}</span> })}
+                    .then(|| view! {
+                        <span class=if status_stale {
+                            "summary-status text-warn-ink"
+                        } else {
+                            "summary-status"
+                        }>{status.clone()}</span>
+                    })}
             </dd>
         </div>
     }
@@ -178,6 +187,12 @@ pub fn SummaryBand(
     /// 基準日が取込日より古いときの強調。色と「(古い方)」の文字で示す
     #[prop(optional)]
     as_of_stale: bool,
+    /// 主の数字の横に小さく出す取込の状態(空なら出さない)
+    #[prop(optional, into)]
+    primary_status: String,
+    /// 取込が基準日より古いときの強調。色と「(古い方)」の文字で示す
+    #[prop(optional)]
+    primary_status_stale: bool,
     #[prop(optional)] testid_band: Option<&'static str>,
 ) -> impl IntoView {
     let has_aux = !aux_label.is_empty();
@@ -210,6 +225,8 @@ pub fn SummaryBand(
                         size=SummarySize::Primary
                         label_note=label_note.clone()
                         label_note_stale=as_of_stale
+                        status=primary_status.clone()
+                        status_stale=primary_status_stale
                         tone=primary_tone
                     />
                     {has_aux.then(|| view! {
@@ -246,6 +263,8 @@ pub fn SummaryBand(
                     size=SummarySize::Primary
                     label_note=label_note
                     label_note_stale=as_of_stale
+                    status=primary_status
+                    status_stale=primary_status_stale
                     tone=primary_tone
                 />
                 {has_aux.then(|| view! {

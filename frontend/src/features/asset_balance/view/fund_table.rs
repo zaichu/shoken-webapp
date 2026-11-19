@@ -4,7 +4,7 @@ use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::asset_balance::AssetRateAmount;
+use crate::ui::asset_balance::{AssetMarker, AssetRateAmount};
 use crate::ui::badge::{AccountBadge, AccountLegend};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
@@ -87,7 +87,10 @@ pub fn FundHoldingsTable(
                                         <AccountBadge label=view.account.clone() />
                                     </td>
                                     <td class="col-text text-text-soft">
-                                        {view.course.clone().unwrap_or_else(|| labels::FETCH_UNAVAILABLE.to_string())}
+                                        {view.course.clone().map_or_else(
+                                            || view! { <AssetMarker text=labels::FETCH_UNAVAILABLE.to_string() /> }.into_any(),
+                                            |course| view! { {course} }.into_any(),
+                                        )}
                                     </td>
                                     <td class="col-num text-text-soft">
                                         <Amount kind=AmountKind::Plain text=shares_text />

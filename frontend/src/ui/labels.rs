@@ -944,11 +944,6 @@ fn short_unit(value: f64, unit: f64, suffix: &str) -> String {
     }
 }
 
-/// ホーム: 取込日の表示(「データ: 10/21 12:00 取り込み」)
-pub fn home_import_label(label: &str) -> String {
-    format!("データ: {label} 取り込み")
-}
-
 /// ホーム: 予想額の表示(「/ 予想 ¥12,000」)
 pub fn home_forecast(forecast: &str) -> String {
     format!("/ 予想 {forecast}")
@@ -1167,6 +1162,7 @@ pub enum UnavailableKind {
     Unavailable,
     Unassigned,
     NoDividend,
+    Pending,
 }
 
 /// 値なし表示の文言。どの場面がどれかをここで決める
@@ -1176,6 +1172,7 @@ pub const fn unavailable_text(kind: UnavailableKind) -> &'static str {
         UnavailableKind::Unavailable => FETCH_UNAVAILABLE,
         UnavailableKind::Unassigned => ACCOUNT_UNASSIGNED,
         UnavailableKind::NoDividend => NO_DIVIDEND,
+        UnavailableKind::Pending => CSV_MANAGE_FETCH_RUNNING,
     }
 }
 
@@ -1202,14 +1199,15 @@ pub fn account_note(account: &str) -> &str {
     }
 }
 
-/// 価格基準日の役割注記。見出しの語は残し、評価額がこの日の価格であることを添える
+/// 価格基準日の役割注記。見出しの語は残し、この日の価格で評価額を出すことを添える
+/// 帯の1項目に収まる短さにする(PC 1280 の縦線・並びを崩さないため)
 pub fn price_as_of_with_role(date: &str) -> String {
-    format!("{}・評価額はこの日の価格", price_as_of(date))
+    format!("{}・この日の価格", price_as_of(date))
 }
 
-/// 取込日の役割注記。見出しの語は残し、CSVの最終取り込みであることを添える
+/// 取込日の役割注記。最終取り込みであることを添える
 pub fn home_import_with_role(label: &str) -> String {
-    format!("{}・CSVの最終取り込み", home_import_label(label))
+    format!("最終取り込み {label}")
 }
 
 /// 古い方の日付に付ける印。色だけに頼らず文字でも示す

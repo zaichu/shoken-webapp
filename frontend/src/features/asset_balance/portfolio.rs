@@ -7,6 +7,7 @@ use crate::features::asset_balance::model;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::ui::badge;
 use crate::ui::labels;
+use crate::ui::labels::UnavailableKind;
 use crate::urls;
 use std::cmp::Ordering;
 
@@ -248,14 +249,36 @@ pub fn composition_sources(views: &[HoldingView], funds: &[FundView]) -> Vec<Com
 }
 
 /// 構成比の区分1行。`value` は基準の金額で、算出不可は `None`(一覧の末尾に置く)。
+/// `missing` は算出不可の理由。値がある行は `None`
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompositionEntry {
     pub color_key: String,
     pub name: String,
     pub sub: String,
     pub value: Option<f64>,
+    pub missing: Option<UnavailableKind>,
     pub holdings: usize,
     pub href: Option<String>,
+}
+
+/// 算出不可の区分が混ざるときの理由のまとめ方。対象外だけの集まりは
+/// 対象外、取得中が1行でもあれば取得中、無配だけなら無配、それ以外は欠測
+pub fn combine_missing_causes(causes: &[UnavailableKind]) -> UnavailableKind {
+    if causes
+        .iter()
+        .all(|cause| *cause == UnavailableKind::OutOfScope)
+    {
+        UnavailableKind::OutOfScope
+    } else if causes.contains(&UnavailableKind::Pending) {
+        UnavailableKind::Pending
+    } else if causes
+        .iter()
+        .all(|cause| *cause == UnavailableKind::NoDividend)
+    {
+        UnavailableKind::NoDividend
+    } else {
+        UnavailableKind::Unavailable
+    }
 }
 
 /// 区分を金額の降順に並べる。算出不可は末尾、同値は入力順を保つ
@@ -268,14 +291,24 @@ fn sort_composition_entries(entries: &mut [CompositionEntry]) {
     });
 }
 
-/// 保有行を区分にまとめる。`basis` は各行の基準金額(算出不可は `None`)
-/// で、区分の金額は行の合計(行が全て算出不可なら区分も算出不可)になる。
-/// 基準が0の行は算出不可として扱い、末尾に置く。
-/// 銘柄別は行のまま、商品別は商品種別、口座別は同一口座でまとめる
+/// 保有行を区分にまとめる。テスト用の旧入口。表示は
+/// `composition_entries_with_causes` を使う
+#[cfg(test)]
 pub fn composition_entries(
     sources: &[CompositionSource],
     group: CompositionGroup,
     basis: &[Option<f64>],
+) -> Vec<CompositionEntry> {
+    composition_entries_with_causes(sources, group, basis, &vec![None; basis.len()])
+}
+
+/// `composition_entries` に行ごとの算出不可の理由を添える版。区分の理由は
+/// 行の理由を `combine_missing_causes` でまとめる。値がある区分の理由は `None`
+pub fn composition_entries_with_causes(
+    sources: &[CompositionSource],
+    group: CompositionGroup,
+    basis: &[Option<f64>],
+    causes: &[Option<UnavailableKind>],
 ) -> Vec<CompositionEntry> {
     fn entry_key(source: &CompositionSource, group: CompositionGroup) -> String {
         match group {
@@ -286,7 +319,12 @@ pub fn composition_entries(
     }
     let mut entries: Vec<CompositionEntry> = Vec::new();
     let mut positions: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for (source, value) in sources.iter().zip(basis.iter().copied()) {
+    let mut member_causes: Vec<Vec<UnavailableKind>> = Vec::new();
+    for ((source, value), cause) in sources
+        .iter()
+        .zip(basis.iter().copied())
+        .zip(causes.iter().copied().chain(std::iter::repeat(None)))
+    {
         let value = value.filter(|value| *value != 0.0);
         let key = entry_key(source, group);
         let color_key = match group {
@@ -331,9 +369,11 @@ pub fn composition_entries(
                     CompositionGroup::Product | CompositionGroup::Account => String::new(),
                 },
                 value: None,
+                missing: None,
                 holdings: 0,
                 href: None,
             });
+            member_causes.push(Vec::new());
         }
         let entry = &mut entries[position];
         if entry.holdings == 0 {
@@ -341,11 +381,19 @@ pub fn composition_entries(
         } else if let Some(value) = value {
             entry.value = Some(entry.value.unwrap_or(0.0) + value);
         }
+        if let Some(cause) = cause.filter(|_| value.is_none()) {
+            member_causes[position].push(cause);
+        }
         entry.holdings += 1;
         if entry.holdings == 1 {
             entry.href = source.href.clone();
         } else {
             entry.href = None;
+        }
+    }
+    for (entry, causes) in entries.iter_mut().zip(member_causes.iter()) {
+        if entry.value.is_none() && !causes.is_empty() {
+            entry.missing = Some(combine_missing_causes(causes));
         }
     }
     sort_composition_entries(&mut entries);
@@ -404,6 +452,7 @@ pub struct CompositionRow {
     pub name: String,
     pub sub: String,
     pub value: Option<f64>,
+    pub missing: Option<UnavailableKind>,
     pub percentage: f64,
     pub computable: bool,
     pub color: usize,
@@ -425,6 +474,7 @@ pub fn composition_rows(
             name: entry.name.clone(),
             sub: entry.sub.clone(),
             value: entry.value,
+            missing: entry.missing,
             percentage: percentage.unwrap_or(0.0),
             computable: percentage.is_some(),
             color: composition_color(&entry.color_key),

@@ -11,7 +11,7 @@ use crate::features::asset_balance::model::ValuationInput;
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
-use crate::ui::asset_balance::{AssetRateAmount, DayChangeNote};
+use crate::ui::asset_balance::{AssetMarker, AssetRateAmount, DayChangeNote};
 use crate::ui::badge::{AccountBadge, AccountLegend};
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
@@ -253,33 +253,42 @@ pub fn AssetMergedTable(
                                         </td>
                                         <td class="col-text text-text-soft">{row.kind}</td>
                                         <td class="col-text">
-                                            {row.account.as_ref().map_or_else(|| view! { <span class="text-text-soft">{labels::unavailable_text(labels::UnavailableKind::Unassigned)}</span> }
+                                            {row.account.as_ref().map_or_else(|| view! { <AssetMarker text=labels::unavailable_text(labels::UnavailableKind::Unassigned).to_string() soft=true /> }
                                                     .into_any(), |account| view! {
                                                     <AccountBadge label=account.clone() />
                                                 }
                                                     .into_any())}
                                         </td>
                                         <td class="col-text text-text-soft">
-                                            {row.course.clone().unwrap_or_else(|| {
-                                                if row.kind == labels::MUTUAL_FUND {
-                                                    labels::FETCH_UNAVAILABLE.to_string()
-                                                } else {
-                                                    labels::unavailable_text(
-                                                        labels::UnavailableKind::OutOfScope,
-                                                    )
-                                                    .to_string()
+                                            {row.course.clone().map_or_else(
+                                                || view! {
+                                                    <AssetMarker text=if row.kind == labels::MUTUAL_FUND {
+                                                        labels::FETCH_UNAVAILABLE.to_string()
+                                                    } else {
+                                                        labels::unavailable_text(
+                                                            labels::UnavailableKind::OutOfScope,
+                                                        )
+                                                        .to_string()
+                                                    } />
                                                 }
-                                            })}
+                                                    .into_any(),
+                                                |course| view! { {course} }.into_any(),
+                                            )}
                                         </td>
                                         <td class="col-num">
-                                            <Amount text=row
+                                            {row
                                                 .dividend
-                                                .as_ref().map_or_else(|| labels::unavailable_text(labels::UnavailableKind::OutOfScope).to_string(), |dividend| {
-                                                    holdings::format_dividend_per_share(
-                                                        dividend,
-                                                        dividend_decimals,
+                                                .as_ref().map_or_else(|| view! { <AssetMarker text=labels::unavailable_text(labels::UnavailableKind::OutOfScope).to_string() /> }.into_any(), |dividend| {
+                                                    holdings::dividend_marker_text(dividend).map_or_else(
+                                                        || view! {
+                                                            <Amount text=holdings::format_dividend_per_share(
+                                                                dividend,
+                                                                dividend_decimals,
+                                                            ) />
+                                                        }.into_any(),
+                                                        |marker| view! { <AssetMarker text=marker.to_string() /> }.into_any(),
                                                     )
-                                                }) />
+                                                })}
                                         </td>
                                         <td
                                             class="col-num"

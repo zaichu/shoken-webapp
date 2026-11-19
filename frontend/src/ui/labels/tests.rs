@@ -391,7 +391,7 @@ fn account_notes_cover_all_badges() {
 fn date_role_notes_keep_headings() {
     let price = price_as_of_with_role("2026-10-20");
     assert!(price.contains("価格基準日 10/20"));
-    assert!(price.contains("評価額"));
+    assert!(price.contains("この日の価格"));
     let import = home_import_with_role("2026/1/1");
     assert!(import.contains("取り込み"));
     assert!(import.contains("最終"));
@@ -403,6 +403,7 @@ fn date_role_notes_keep_headings() {
     assert_eq!(stale_sides("2026-01-01", "2026-10-20"), (true, false));
     assert_eq!(stale_sides("2026-10-20", "2026-01-01"), (false, true));
     assert_eq!(stale_sides("2026-10-20", "2026-10-20"), (false, false));
+    assert_eq!(unavailable_text(UnavailableKind::Pending), "取得中…");
 }
 
 #[test]

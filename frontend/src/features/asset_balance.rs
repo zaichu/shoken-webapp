@@ -20,6 +20,7 @@ pub(crate) use fund::{FUND_CSV_CHUNKING, FUND_IMPORT_PATH, FUND_LIST_PATH, FUND_
 pub(crate) use holdings::{
     HoldingGroup, HoldingView, format_dividend_annual, format_dividend_per_share,
     format_dividend_yield, group_holdings_by_code, holding_dividend, holding_stock_href,
+    is_no_dividend,
 };
 pub(crate) use lookup::{fetch_single_asset_balance, find_by_code};
 pub(crate) use model::{
