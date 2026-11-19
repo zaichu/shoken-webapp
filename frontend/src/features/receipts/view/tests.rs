@@ -1625,7 +1625,8 @@ fn profit_rate_uses_acquisition_cost() {
         ReceiptsTab::DomesticStock,
         ReceiptItem::DomesticStock(stock),
     );
-    let rate = profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("損益率がある");
+    let rate =
+        profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("実現損益率がある");
     assert_eq!(rate.text, "+20.0%");
     assert!(!rate.negative);
     assert!(rate.positive);
@@ -1634,8 +1635,8 @@ fn profit_rate_uses_acquisition_cost() {
         unreachable!()
     };
     let fund_card = card_for(ReceiptsTab::MutualFund, ReceiptItem::MutualFund(fund));
-    let fund_rate =
-        profit_rate_sub(ReceiptsTab::MutualFund, &fund_card.details).expect("投信の損益率がある");
+    let fund_rate = profit_rate_sub(ReceiptsTab::MutualFund, &fund_card.details)
+        .expect("投信の実現損益率がある");
     assert_eq!(fund_rate.text, "+90000.0%");
     assert!(fund_rate.positive);
 }
@@ -1653,7 +1654,7 @@ fn profit_rate_loss_is_negative_and_unavailable_cases_are_none() {
         ReceiptItem::DomesticStock(stock.clone()),
     );
     let rate =
-        profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("損失の損益率がある");
+        profit_rate_sub(ReceiptsTab::DomesticStock, &card.details).expect("損失の実現損益率がある");
     assert_eq!(rate.text, "-10.0%");
     assert!(rate.negative);
     assert!(!rate.positive);
