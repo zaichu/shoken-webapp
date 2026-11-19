@@ -106,17 +106,10 @@ pub fn HomePage() -> impl IntoView {
         view! {
             {move || {
                 import_label.get().map(|(label, stale)| {
-                    let text = if stale {
-                        format!(
-                            "{}{}",
-                            labels::home_import_with_role(&label),
-                            labels::IMPORT_STALE_MARK
-                        )
-                    } else {
-                        labels::home_import_with_role(&label)
-                    };
                     view! {
-                        <HomeImportLabel stale=stale>{text}</HomeImportLabel>
+                        <HomeImportLabel stale=stale>
+                            {labels::home_import_with_role(&label)}
+                        </HomeImportLabel>
                     }
                 })
             }}

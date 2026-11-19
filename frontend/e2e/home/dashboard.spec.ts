@@ -309,3 +309,21 @@ test('一部の取得が失敗しても、取れた集計で帯とカードを�
   const composition = page.getByTestId('home-composition-card');
   await expect(composition).toContainText('国内株式');
 });
+
+test('取込が株価より古いときは印と読み上げ文で示し、かっこ書きは出さない', async ({
+  page,
+}) => {
+  await setupHomeMocks(page);
+  await page.goto('/');
+
+  // モックは価格 1/10 に対して取込 1/1 のため、取込が古い
+  const importNote = page.getByText('最終取り込み 2026/1/1');
+  await expect(importNote).toBeVisible();
+  // 画面にはかっこ書きを出さず、色と注意の印で示す
+  await expect(importNote).not.toContainText('（');
+  await expect(importNote.locator('svg[aria-hidden="true"]')).toBeVisible();
+  // 理由は画面外の文字で読み上げに残す
+  await expect(
+    importNote.getByText('株価の日付より古い', { exact: true }),
+  ).toHaveCount(1);
+});
