@@ -348,7 +348,7 @@ pub fn CumulativeChart(
                     </p>
                 }
             })}
-        <table class="sr-only">
+        <table class="home-cum-table sr-only">
             <caption>{aria_label}</caption>
             <thead>
                 <tr>

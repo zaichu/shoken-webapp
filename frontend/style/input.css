@@ -1783,6 +1783,11 @@
     @apply mt-1.5 text-right text-cell text-text-muted;
   }
 
+  /* 読み上げ用の表。幅を 1px に固定し、狭い画面で横スクロールを出さない */
+  .home-cum-table {
+    @apply table-fixed;
+  }
+
   .home-chart-month-labels {
     @apply mt-1.5 flex;
   }
