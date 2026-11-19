@@ -359,7 +359,7 @@ fn glossary_builds_counts_and_placeholders() {
     assert_eq!(count(1_000_000), "1000000件");
     assert_eq!(search_placeholder("銘柄名・コード"), "銘柄名・コードで検索");
     assert_eq!(group_count("2026年10月", 3), "2026年10月 · 3件");
-    assert_eq!(price_as_of_with_role("2026-10-21"), "10/21 時点の株価");
+    assert_eq!(valuation_point_label("2026-10-21"), "2026/10/21 時点");
     assert_eq!(composition_others(3), "ほか3件");
     assert_eq!(composition_others(67), "ほか67件");
 }
@@ -389,12 +389,8 @@ fn account_notes_cover_all_badges() {
 
 #[test]
 fn date_role_notes_keep_headings() {
-    let price = price_as_of_with_role("2026-10-20");
-    assert_eq!(price, "10/20 時点の株価");
-    let import = home_import_with_role("2026/1/1");
-    assert!(import.contains("取り込み"));
-    assert!(import.contains("最終"));
-    assert!(import_as_of_note("10/21").contains("最終取り込み"));
+    assert_eq!(valuation_point_label("2026-10-20"), "2026/10/20 時点");
+    assert_eq!(stale_import_label("2026-01-01"), "取り込み 2026/01/01");
     assert_eq!(older_is_first("2026-01-01", "2026-10-20"), Some(true));
     assert_eq!(older_is_first("2026-10-20", "2026-01-01"), Some(false));
     assert_eq!(older_is_first("2026-10-20", "2026-10-20"), None);
@@ -403,6 +399,22 @@ fn date_role_notes_keep_headings() {
     assert_eq!(stale_sides("2026-10-20", "2026-01-01"), (false, true));
     assert_eq!(stale_sides("2026-10-20", "2026-10-20"), (false, false));
     assert_eq!(unavailable_text(UnavailableKind::Pending), "取得中…");
+}
+
+#[test]
+fn valuation_point_writes_year_month_day() {
+    assert_eq!(valuation_point_label("2026-11-19"), "2026/11/19 時点");
+    assert_eq!(valuation_point_label("2026-01-05"), "2026/01/05 時点");
+    assert_eq!(valuation_point_label("2025-12-31"), "2025/12/31 時点");
+    assert_eq!(valuation_point_label("2025-01-01"), "2025/01/01 時点");
+    assert_eq!(valuation_point_label("not-a-date"), "");
+}
+
+#[test]
+fn stale_import_note_writes_year_month_day() {
+    assert_eq!(stale_import_label("2026-01-01"), "取り込み 2026/01/01");
+    assert_eq!(stale_import_label("2025-12-31"), "取り込み 2025/12/31");
+    assert_eq!(stale_import_label("not-a-date"), "");
 }
 
 #[test]

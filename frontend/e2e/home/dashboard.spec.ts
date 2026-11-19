@@ -15,8 +15,8 @@ const STOCKS = [
     current_price: 2600,
     daily_change: 50,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
   {
     id: 'asset-balance-2',
@@ -28,8 +28,8 @@ const STOCKS = [
     current_price: 2000,
     daily_change: -20,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
 ];
 
@@ -58,8 +58,8 @@ const FUNDS = [
     profit_loss_rate: 20,
     total_return: null,
     price_as_of: `${THIS_YEAR}-01-10`,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   },
 ];
 
@@ -82,8 +82,8 @@ function dividend(id: string, settlementDate: string, net: number, name: string)
     dividends_before_tax: net * 1.25,
     taxes: net * 0.25,
     net_amount_received: net,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
   };
 }
 
@@ -310,20 +310,75 @@ test('一部の取得が失敗しても、取れた集計で帯とカードを�
   await expect(composition).toContainText('国内株式');
 });
 
-test('取込が株価より古いときは印と読み上げ文で示し、かっこ書きは出さない', async ({
+test('取込が株価より古いときは右上と帯に印と読み上げ文を出し、かっこ書きは出さない', async ({
   page,
 }) => {
   await setupHomeMocks(page);
   await page.goto('/');
 
   // モックは価格 1/10 に対して取込 1/1 のため、取込が古い
-  const importNote = page.getByText('最終取り込み 2026/1/1');
-  await expect(importNote).toBeVisible();
-  // 画面にはかっこ書きを出さず、色と注意の印で示す
-  await expect(importNote).not.toContainText('（');
-  await expect(importNote.locator('svg[aria-hidden="true"]')).toBeVisible();
+  // PC は右上だけに出す。集計帯の評価額の数字はほかの列とそろったままにする
+  const header = page.locator('.page-frame-head');
+  await expect(header.getByText(`取り込み ${THIS_YEAR}/01/01`).first()).toBeVisible();
+  await expect(
+    header
+      .getByText(`取り込み ${THIS_YEAR}/01/01`)
+      .first()
+      .locator('svg[aria-hidden="true"]'),
+  ).toBeVisible();
   // 理由は画面外の文字で読み上げに残す
   await expect(
-    importNote.getByText('株価の日付より古い', { exact: true }),
-  ).toHaveCount(1);
+    header.getByText('株価の日付より古い', { exact: true }),
+  ).toBeAttached();
+
+  const band = page.getByTestId('home-overview');
+  // 画面にはかっこ書きを出さない
+  await expect(band).not.toContainText('（');
+  // PC の集計帯には出さない
+  await expect(band.locator('.summary-band-pc')).not.toContainText('取り込み');
+  // スマホは帯の2行目に出す
+  await expect(band.locator('.summary-band-rows')).toContainText(`取り込み ${THIS_YEAR}/01/01`);
+  // 評価額の補足は「M/D 時点」の1行
+  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
+});
+
+test('取込が古くないときは取込の行を出さず、時点だけ出す', async ({ page }) => {
+  await mockSession(page);
+
+  const freshStocks = STOCKS.map((row) => ({
+    ...row,
+    updated_at: `${THIS_YEAR}-01-10T00:00:00Z`,
+  }));
+  const freshFunds = FUNDS.map((row) => ({
+    ...row,
+    updated_at: `${THIS_YEAR}-01-10T00:00:00Z`,
+  }));
+  await page.route(/\/api\/v1\/asset-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(freshStocks, { summary: STOCK_SUMMARY }))),
+  );
+  await page.route(/\/api\/v1\/fund-balances(?:\?.*)?$/, (route) =>
+    route.fulfill(json(paginated(freshFunds, { summary: FUND_SUMMARY }))),
+  );
+  await page.route(/\/api\/v1\/dividends(?:\?.*)?$/, (route) => {
+    const url = new URL(route.request().url());
+    const year = url.searchParams.get('year');
+    const perPage = Number(url.searchParams.get('per_page') ?? '0');
+    const rows =
+      year === String(THIS_YEAR)
+        ? CURRENT_DIVIDENDS
+        : year === String(LAST_YEAR)
+          ? PREVIOUS_DIVIDENDS
+          : RECENT_DIVIDENDS;
+    return route.fulfill(json(paginated(perPage > 0 ? rows.slice(0, perPage) : rows)));
+  });
+  await page.route(/\/api\/v1\/dividend-per-share-estimates(?:\?.*)?$/, (route) =>
+    route.fulfill(json(ESTIMATES)),
+  );
+
+  await page.goto('/');
+
+  const band = page.getByTestId('home-overview');
+  await expect(band).toContainText(`${THIS_YEAR}/01/10 時点`);
+  await expect(band).not.toContainText('取り込み');
+  await expect(page.locator('.page-frame-head')).not.toContainText('取り込み');
 });

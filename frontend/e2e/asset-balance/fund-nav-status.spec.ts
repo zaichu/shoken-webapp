@@ -1,11 +1,13 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
 
+const THIS_YEAR = new Date().getFullYear();
+
 const FUND_ROWS = [
   {
     id: 'fund-1',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     fund_name: '架空バランスファンドA号',
     account: '特定',
     dividends_course: '受取型',
@@ -19,7 +21,7 @@ const FUND_ROWS = [
     profit_loss: 10000,
     profit_loss_rate: 10.0,
     total_return: 10000,
-    price_as_of: '2026-01-05',
+    price_as_of: `${THIS_YEAR}-01-05`,
     price_source: 'api',
     nav_is_latest: true,
     expected_nav_date: null,
@@ -90,7 +92,7 @@ test('帯の下の注記は出さず、基準日の時点だけを帯のラベ�
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   // 時点だけは帯のラベル横に小さく残す(数字を嘘にしない)
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('1/5 時点の株価');
+  await expect(band).toContainText(`${THIS_YEAR}/01/05 時点`);
 });
 
 test('更新待ちのファンドがあるときは帯に一部更新待ちを出す', async ({
@@ -99,7 +101,7 @@ test('更新待ちのファンドがあるときは帯に一部更新待ちを�
   const stale = FUND_ROWS.map((row) => ({
     ...row,
     nav_is_latest: false,
-    expected_nav_date: '2026-01-06',
+    expected_nav_date: `${THIS_YEAR}-01-06`,
   }));
   await setupMocks(
     page,
@@ -120,6 +122,6 @@ test('更新待ちのファンドがあるときは帯に一部更新待ちを�
   await expect(page.getByText('計算基準を見る')).toHaveCount(0);
   // 時点と更新待ちだけ出す
   const band = page.getByTestId('asset-portfolio-summary');
-  await expect(band).toContainText('1/5 時点の株価');
+  await expect(band).toContainText(`${THIS_YEAR}/01/05 時点`);
   await expect(band).toContainText('一部更新待ち');
 });

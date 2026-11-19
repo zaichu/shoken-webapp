@@ -40,8 +40,16 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
             {move || {
                 let (assets, funds, estimates) = state();
                 let loading = assets.is_none() || funds.is_none();
-                let (merged, daily, as_of, pending, price_stale) = if loading {
-                    (None, None, String::new(), false, false)
+                let (merged, daily, as_of, pending, price_stale, import_note, import_stale) = if loading {
+                    (
+                        None,
+                        None,
+                        String::new(),
+                        false,
+                        false,
+                        String::new(),
+                        false,
+                    )
                 } else {
                     let stock_summary = assets.as_ref().and_then(|slot| {
                         slot.as_ref().map(|loaded| {
@@ -78,19 +86,29 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                         .map(|row| row.updated_at.clone())
                         .collect();
                     stamps.extend(fund_rows.iter().map(|row| row.updated_at.clone()));
-                    let price_stale = match (
-                        model::oldest_home_price_iso(stock_rows, fund_rows),
-                        model::latest_import_iso(&stamps),
-                    ) {
-                        (Some(price), Some(import)) => labels::stale_sides(&price, &import).0,
-                        _ => false,
+                    let price_iso = model::oldest_home_price_iso(stock_rows, fund_rows);
+                    let import_iso = model::latest_import_iso(&stamps);
+                    let (price_stale, import_stale) = match (&price_iso, &import_iso) {
+                        (Some(price), Some(import)) => labels::stale_sides(price, import),
+                        _ => (false, false),
                     };
                     let mut as_of = model::oldest_home_as_of(stock_rows, fund_rows)
                         .unwrap_or_default();
                     if price_stale && !as_of.is_empty() {
                         as_of.push_str(labels::PRICE_STALE_MARK);
                     }
-                    (merged, daily, as_of, pending, price_stale)
+                    let import_note = import_iso
+                        .as_deref()
+                        .map_or_default(labels::stale_import_label);
+                    (
+                        merged,
+                        daily,
+                        as_of,
+                        pending,
+                        price_stale,
+                        import_note,
+                        import_stale,
+                    )
                 };
                 view! {
                     <BandTiles
@@ -102,6 +120,8 @@ pub(super) fn SummaryBand(data: HomeOverviewData) -> impl IntoView {
                         as_of=as_of
                         show_pending=pending
                         as_of_stale=price_stale
+                        import_note=import_note
+                        import_stale=import_stale
                     />
                 }
             }}
@@ -119,6 +139,8 @@ fn BandTiles(
     #[prop(optional, into)] as_of: String,
     #[prop(optional)] show_pending: bool,
     #[prop(optional)] as_of_stale: bool,
+    #[prop(optional, into)] import_note: String,
+    #[prop(optional)] import_stale: bool,
 ) -> impl IntoView {
     let market_value = merged
         .as_ref()
@@ -196,6 +218,8 @@ fn BandTiles(
             primary_as_of=as_of
             show_pending=show_pending
             as_of_stale=as_of_stale
+            primary_note2=import_note
+            primary_note2_stale=import_stale
             aux_label=labels::VALUATION_PROFIT_LOSS
             aux_value=profit_text
             aux_rate=profit_rate

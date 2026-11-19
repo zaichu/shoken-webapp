@@ -2,6 +2,8 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
 
+const THIS_YEAR = new Date().getFullYear();
+
 const CSV_FIXTURE_PATH = path.resolve(
   process.cwd(),
   'e2e/fixtures/csv/assetbalance-invst-sample.csv',
@@ -10,8 +12,8 @@ const CSV_FIXTURE_PATH = path.resolve(
 const FUND_ROWS = [
   {
     id: 'fund-1',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     fund_name: '架空バランスファンドA号',
     account: '特定',
     dividends_course: '受取型',
@@ -25,15 +27,15 @@ const FUND_ROWS = [
     profit_loss: 10000,
     profit_loss_rate: 10.0,
     total_return: 10000,
-    price_as_of: '2026-01-05',
+    price_as_of: `${THIS_YEAR}-01-05`,
     price_source: 'api',
     nav_is_latest: true,
     expected_nav_date: null,
   },
   {
     id: 'fund-2',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     fund_name: '架空インデックスファンドB号',
     account: 'NISA',
     dividends_course: '再投資型',
@@ -47,10 +49,10 @@ const FUND_ROWS = [
     profit_loss: 6000,
     profit_loss_rate: 3.16,
     total_return: 6000,
-    price_as_of: '2026-01-01',
+    price_as_of: `${THIS_YEAR}-01-01`,
     price_source: 'csv',
     nav_is_latest: false,
-    expected_nav_date: '2026-01-05',
+    expected_nav_date: `${THIS_YEAR}-01-05`,
   },
 ];
 
@@ -245,7 +247,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
   // 注記行は出さず、時点と更新待ちだけを帯のラベル横に出す
   await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
   const bandText = page.getByTestId('asset-portfolio-summary');
-  await expect(bandText).toContainText('1/1 時点の株価');
+  await expect(bandText).toContainText(`${THIS_YEAR}/01/01 時点`);
   await expect(bandText).toContainText('一部更新待ち');
 
   // 「すべて」タブでも更新待ちの行は前日比を出さない
@@ -265,7 +267,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
 
   // 「すべて」タブも、時点と更新待ちを帯のラベル横に出す
   const allBand = page.getByTestId('asset-portfolio-summary');
-  await expect(allBand).toContainText('1/1 時点の株価');
+  await expect(allBand).toContainText(`${THIS_YEAR}/01/01 時点`);
   await expect(allBand).toContainText('一部更新待ち');
 
   // 「すべて」タブでは株と投信が混ざるため前日比は騰落率(%)で出す。

@@ -1,12 +1,14 @@
 import type { Page } from '@playwright/test';
 import { expect, test, json, mockSession } from '../support/test';
 
+const THIS_YEAR = new Date().getFullYear();
+
 // 小数桁がそろっていない価格を入れて、列の中で桁がそろうことを確かめる
 const STOCK_ROWS = [
   {
     id: 'asset-1',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     security_code: '9901',
     security_name: '架空自動車',
     account: '特定',
@@ -15,13 +17,13 @@ const STOCK_ROWS = [
     total_purchase_amount: 599760,
     current_price: 6187.25,
     daily_change: 12,
-    price_as_of: '2026-10-20',
+    price_as_of: `${THIS_YEAR}-10-20`,
     prev_close: 6175.25,
   },
   {
     id: 'asset-2',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     security_code: '9902',
     security_name: '架空精密機器',
     account: '一般',
@@ -30,7 +32,7 @@ const STOCK_ROWS = [
     total_purchase_amount: 37472,
     current_price: 162,
     daily_change: -3,
-    price_as_of: '2026-10-20',
+    price_as_of: `${THIS_YEAR}-10-20`,
     prev_close: 165,
   },
 ];
@@ -38,8 +40,8 @@ const STOCK_ROWS = [
 const FUND_ROWS = [
   {
     id: 'fund-1',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     fund_name: '架空バランスファンドA号',
     account: '特定',
     dividends_course: '受取型',
@@ -53,15 +55,15 @@ const FUND_ROWS = [
     profit_loss: 42,
     profit_loss_rate: 0.42,
     total_return: 42,
-    price_as_of: '2026-10-20',
+    price_as_of: `${THIS_YEAR}-10-20`,
     price_source: 'api',
     nav_is_latest: true,
     expected_nav_date: null,
   },
   {
     id: 'fund-2',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
+    created_at: `${THIS_YEAR}-01-01T00:00:00Z`,
+    updated_at: `${THIS_YEAR}-01-01T00:00:00Z`,
     fund_name: '架空インデックスファンドB号',
     account: '一般',
     dividends_course: '再投資型',
@@ -75,7 +77,7 @@ const FUND_ROWS = [
     profit_loss: 600,
     profit_loss_rate: 3.16,
     total_return: 600,
-    price_as_of: '2026-10-20',
+    price_as_of: `${THIS_YEAR}-10-20`,
     price_source: 'csv',
     nav_is_latest: true,
     expected_nav_date: null,
@@ -177,7 +179,7 @@ test.describe('資産管理のタブ', () => {
       // 注記行は出さず、時点だけを帯のラベル横に出す
       await expect(page.locator('.page-skeleton-note')).toHaveCount(0);
       await expect(page.getByText('計算基準を見る')).toHaveCount(0);
-      await expect(band).toContainText('10/20 時点の株価');
+      await expect(band).toContainText(`${THIS_YEAR}/10/20 時点`);
     }
 
     // タブを跨いで帯の主要項目・検索欄の文言がそろう

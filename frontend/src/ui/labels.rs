@@ -1240,26 +1240,31 @@ pub fn account_note(account: &str) -> &str {
     }
 }
 
-/// 価格基準日の役割注記。「10/20 時点の株価」のように短く書く
-/// (帯の1項目に収まる短さにするため。PC 1280 の縦線・並びを崩さない)
-pub fn price_as_of_with_role(date: &str) -> String {
-    format!("{} 時点の株価", format::format_price_date(date))
+/// 評価額の時点の補足。「2026/10/20 時点」のように書く(ゼロ埋め)。
+/// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
+pub fn valuation_point_label(price_iso: &str) -> String {
+    format::compact_iso_date(price_iso).map_or_else(String::new, |date| {
+        format!("{date} {VALUATION_POINT_SUFFIX}")
+    })
 }
 
-/// 取込日の役割注記。最終取り込みであることを添える
-pub fn home_import_with_role(label: &str) -> String {
-    format!("最終取り込み {label}")
+/// 評価額の時点の接尾辞
+pub const VALUATION_POINT_SUFFIX: &str = "時点";
+
+/// 取込が古いときの2行目の補足。「取り込み 2026/01/01」のように書く(ゼロ埋め)。
+/// 純粋な関数。日付として読めない値は空にする(補足を出さないため)
+pub fn stale_import_label(import_iso: &str) -> String {
+    format::compact_iso_date(import_iso)
+        .map_or_else(String::new, |date| format!("{STALE_IMPORT_PREFIX} {date}"))
 }
+
+/// 取込が古いときの2行目の頭
+pub const STALE_IMPORT_PREFIX: &str = "取り込み";
 
 /// 古い日付に付ける印。色だけに頼らず、比べる相手も書いて示す
 pub const PRICE_STALE_MARK: &str = "（取込の日付より古い）";
 /// 古い取込日の注意の読み上げ文。画面には印だけを出し、理由は画面外の文字で読む
 pub const IMPORT_STALE_SR: &str = "株価の日付より古い";
-
-/// 取込日の役割注記。最終取り込みであることを添える
-pub fn import_as_of_note(ymd: &str) -> String {
-    format!("最終取り込み {ymd}")
-}
 
 /// 2つの日付(YYYY-MM-DD)のどちらが古いか。等しい・読めないときは None
 /// true は前者が古い、false は後者が古い

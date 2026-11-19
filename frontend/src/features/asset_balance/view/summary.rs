@@ -35,7 +35,7 @@ pub(crate) fn oldest_stock_price_iso(rows: &[AssetBalanceRow]) -> Option<String>
 pub(crate) fn oldest_stock_as_of(rows: &[AssetBalanceRow]) -> Option<String> {
     oldest_stock_price_iso(rows)
         .as_deref()
-        .map(labels::price_as_of_with_role)
+        .map(labels::valuation_point_label)
 }
 
 /// 投信の最古の基準日(YYYY-MM-DD)。比較用の素の日付
@@ -54,7 +54,7 @@ pub(crate) fn oldest_fund_price_iso(view: &ResolvedFundBalance) -> Option<String
 pub(crate) fn oldest_fund_as_of(view: &ResolvedFundBalance) -> Option<String> {
     oldest_fund_price_iso(view)
         .as_deref()
-        .map(labels::price_as_of_with_role)
+        .map(labels::valuation_point_label)
 }
 
 /// 株と投信を合わせた最古の日(YYYY-MM-DD)。比較用の素の日付
@@ -79,7 +79,7 @@ pub(crate) fn oldest_combined_as_of(
 ) -> Option<String> {
     oldest_combined_price_iso(stock_rows, fund_view)
         .as_deref()
-        .map(labels::price_as_of_with_role)
+        .map(labels::valuation_point_label)
 }
 
 /// 取込日の素の日付(YYYY-MM-DD)。JSTで最も新しい日
@@ -92,21 +92,21 @@ pub(crate) fn latest_import_iso<'a>(stamps: impl Iterator<Item = &'a str>) -> Op
 
 /// 帯の注記と取込の状態。価格の注記はラベルの横、取込の状態は数字の横に出す。
 /// 戻り値は (価格の注記, 価格が古いか, 取込の状態, 取込が古いか)
+/// 取込の状態は PC では出さずスマホの帯だけが出すため、古くなくても文言は作る
 pub(crate) fn date_notes(
     price_iso: Option<&str>,
-    import_ymd: Option<&str>,
     import_iso: Option<&str>,
 ) -> (String, bool, String, bool) {
     let (price_stale, import_stale) = match (price_iso, import_iso) {
         (Some(price), Some(import)) => labels::stale_sides(price, import),
         _ => (false, false),
     };
-    let mut price_note = price_iso.map_or_else(String::new, labels::price_as_of_with_role);
+    let mut price_note = price_iso.map_or_else(String::new, labels::valuation_point_label);
     if price_stale && !price_note.is_empty() {
         price_note.push_str(labels::PRICE_STALE_MARK);
     }
     // 取込の古さは部品の印(注意の印と読み上げ文)で示すため、かっこ書きは付けない
-    let import_note = import_ymd.map_or_else(String::new, labels::import_as_of_note);
+    let import_note = import_iso.map_or_else(String::new, labels::stale_import_label);
     (price_note, price_stale, import_note, import_stale)
 }
 

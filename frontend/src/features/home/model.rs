@@ -93,7 +93,8 @@ pub(crate) fn merged_daily_change(
 pub(crate) fn oldest_home_as_of(stocks: &[AssetBalance], funds: &[FundBalance]) -> Option<String> {
     oldest_home_price_iso(stocks, funds)
         .as_deref()
-        .map(labels::price_as_of_with_role)
+        .map(labels::valuation_point_label)
+        .filter(|label| !label.is_empty())
 }
 
 /// ホーム帯の最古の価格日(YYYY-MM-DD)。比較用に素の日付を返す
