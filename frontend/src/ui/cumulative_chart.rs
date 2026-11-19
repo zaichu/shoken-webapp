@@ -9,6 +9,8 @@ use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::format;
 use crate::ui::labels;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 /// 縦軸の目盛り(0 を含むきりのよい 3〜4 本)。上限が最大値を覆う最小の段になる
 pub fn axis_ticks(max: f64) -> Vec<f64> {
@@ -79,8 +81,10 @@ pub fn table_monthly_text(month: u32, current_month: u32, monthly: &[f64]) -> Op
         .map(|value| format::format_currency(*value))
 }
 
+// 月の x 座標。押せる帯・目盛りの文字は12等分の帯の中心にいるため、
+// 線と丸も同じ帯中心から出す(全幅に広げると端で半月ずれる)
 fn x_percent(month: u32) -> f64 {
-    f64::from(month.saturating_sub(1)) / 11.0 * 100.0
+    (f64::from(month.saturating_sub(1)) + 0.5) / 12.0 * 100.0
 }
 
 fn y_percent(value: f64, top: f64) -> f64 {
@@ -130,6 +134,70 @@ pub fn CumulativeChart(
     let ticks = axis_ticks(max);
     let top = ticks.last().copied().unwrap_or(0.0);
     let selected = RwSignal::new(None::<u32>);
+    let chart_ref = NodeRef::<leptos::html::Div>::new();
+    // scroll・Escape で閉じても hover・focus だけで吹き出しが出るため、
+    // 閉じた月は押下・Enter・入り直しまで抑える
+    let dismissed = RwSignal::new(None::<u32>);
+    let dismiss = move || {
+        if selected.get_untracked().is_some() {
+            dismissed.set(selected.get_untracked());
+            selected.set(None);
+        }
+    };
+    let clear_dismissed = move || {
+        if dismissed.get_untracked().is_some() {
+            dismissed.set(None);
+        }
+    };
+    // 吹き出しが開いている間だけ、ページ全体に1つずつ検知を付ける。
+    // 別の月は容器の内側なので閉じずに押した月の切替えに任せ、閉じたら外す
+    Effect::new(move |_| {
+        if selected.get().is_none() {
+            return;
+        }
+        let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+            return;
+        };
+        let on_outside = Closure::wrap(Box::new(move |event: web_sys::PointerEvent| {
+            let inside = chart_ref
+                .get_untracked()
+                .zip(
+                    event
+                        .target()
+                        .and_then(|target| target.dyn_into::<web_sys::Node>().ok()),
+                )
+                .is_some_and(|(chart, target)| chart.contains(Some(&target)));
+            if !inside {
+                dismiss();
+            }
+        }) as Box<dyn FnMut(_)>);
+        let _ = document.add_event_listener_with_callback_and_bool(
+            "pointerdown",
+            on_outside.as_ref().unchecked_ref(),
+            true,
+        );
+        // scroll はバブルしないため document のキャプチャ段で拾う
+        let on_scroll = Closure::wrap(Box::new(dismiss) as Box<dyn FnMut()>);
+        let _ = document.add_event_listener_with_callback_and_bool(
+            "scroll",
+            on_scroll.as_ref().unchecked_ref(),
+            true,
+        );
+        let handles = send_wrapper::SendWrapper::new((document, on_outside, on_scroll));
+        on_cleanup(move || {
+            let (document, on_outside, on_scroll) = &*handles;
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                "pointerdown",
+                on_outside.as_ref().unchecked_ref(),
+                true,
+            );
+            let _ = document.remove_event_listener_with_callback_and_bool(
+                "scroll",
+                on_scroll.as_ref().unchecked_ref(),
+                true,
+            );
+        });
+    });
     let current_label = labels::cumulative_year_label(current_year);
     let previous_label = labels::cumulative_year_label(previous_year);
     let current_line = line_points(
@@ -156,6 +224,22 @@ pub fn CumulativeChart(
         end_diff.is_some_and(|value| asset_balance::is_positive_valuation(Some(value)));
 
     let months: Vec<u32> = (1..=12).collect();
+    // 前年の丸は未来月にも置く(前年の線は12か月あるため)。
+    // 横は帯の中心で、線の x_percent と一致する
+    let previous_dot = |month: u32| {
+        previous_cum
+            .as_ref()
+            .and_then(|sums| sums.get(month as usize - 1).copied())
+            .map(|value| {
+                let top_pos = y_percent(value, top);
+                view! {
+                    <span
+                        class="home-cum-dot home-cum-dot-previous"
+                        style:top=format!("{top_pos}%")
+                    />
+                }
+            })
+    };
     view! {
         <div class="home-cum-legend" aria-hidden="true">
             <span class="home-cum-legend-item">
@@ -169,7 +253,7 @@ pub fn CumulativeChart(
                 </span>
             })}
         </div>
-        <div class="home-chart">
+        <div class="home-chart" node_ref=chart_ref>
             <div class="home-cum-axis" aria-hidden="true">
                 {ticks
                     .iter()
@@ -222,7 +306,7 @@ pub fn CumulativeChart(
                             // 未来の月も同じ幅の枠だけ置く。線の12か月座標と
                             // 点・押せる範囲・月ラベルをずらさないため
                             return view! {
-                                <div class="home-cum-col" aria-hidden="true"></div>
+                                <div class="home-cum-col" aria-hidden="true">{previous_dot(month)}</div>
                             }
                                 .into_any();
                         }
@@ -249,7 +333,6 @@ pub fn CumulativeChart(
                         let current_cell = current_label.clone();
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
-                        let dot_left = x_percent(month);
                         // 端の月は吹き出しを内側に寄せ、点より上にあるときは
                         // 凡例に被せないよう点の下に出す
                         let edge = if month == 1 {
@@ -260,6 +343,12 @@ pub fn CumulativeChart(
                             ""
                         };
                         let tip_below = dot_top < 50.0;
+                        let is_current = month == current_month;
+                        let clear_click = clear_dismissed;
+                        let clear_key = clear_dismissed;
+                        let clear_focus = clear_dismissed;
+                        let clear_enter = clear_dismissed;
+                        let dismiss_key = dismiss;
                         view! {
                             <div
                                 class="home-cum-col"
@@ -268,46 +357,40 @@ pub fn CumulativeChart(
                                 aria-expanded=move || (selected.get() == Some(month)).to_string()
                                 aria-label=month_aria
                                 data-selected=move || (selected.get() == Some(month)).to_string()
+                                data-current=is_current.to_string()
+                                data-suppressed=move || {
+                                    (dismissed.get() == Some(month)).to_string()
+                                }
                                 data-edge=edge
                                 on:click=move |_| {
+                                    clear_click();
                                     selected.update(|state| {
                                         *state = if *state == Some(month) { None } else { Some(month) };
                                     });
                                 }
+                                on:mouseenter=move |_| clear_enter()
+                                on:focus=move |_| clear_focus()
                                 on:keydown=move |event| {
                                     if event.key() == "Enter" || event.key() == " " {
                                         event.prevent_default();
+                                        clear_key();
                                         selected.update(|state| {
-                                            *state = if *state == Some(month) { None } else { Some(month) };
+                                            *state = if *state == Some(month) {
+                                                None
+                                            } else {
+                                                Some(month)
+                                            };
                                         });
                                     } else if event.key() == "Escape" {
-                                        selected.set(None);
+                                        dismiss_key();
                                     }
                                 }
                             >
-                                {move || {
-                                    (selected.get() == Some(month) || month == current_month).then(|| {
-                                        view! {
-                                            {previous_value
-                                                .map(|value| {
-                                                    let top_pos = y_percent(value, top);
-                                                    let left_pos = x_percent(month);
-                                                    view! {
-                                                        <span
-                                                            class="home-cum-dot home-cum-dot-previous"
-                                                            style:top=format!("{top_pos}%")
-                                                            style:left=format!("{left_pos}%")
-                                                        />
-                                                    }
-                                                })}
-                                            <span
-                                                class="home-cum-dot home-cum-dot-current"
-                                                style:top=format!("{dot_top}%")
-                                                style:left=format!("{dot_left}%")
-                                            />
-                                        }
-                                    })
-                                }}
+                                {previous_dot(month)}
+                                <span
+                                    class="home-cum-dot home-cum-dot-current"
+                                    style:top=format!("{dot_top}%")
+                                />
                                 <div
                                     class="home-cum-tip"
                                     aria-hidden="true"
