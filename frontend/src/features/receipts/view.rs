@@ -30,6 +30,14 @@ pub fn ReceiptsPage() -> impl IntoView {
     );
     // 再訪ではストアのキャッシュがそのまま出るので、鮮度だけ裏で更新する
     store.revisit();
+    // URL の `?tab=` が有効なら設定の初期タブより優先する(再読み込み・共有・戻る/進む用)
+    Effect::new(move |_| {
+        if let Some(tab) = receipts::ReceiptsTab::url_tab()
+            && store.active_tab.get_untracked() != tab
+        {
+            store.select_tab(tab);
+        }
+    });
 
     let active_tab = store.active_tab;
     let motion = SwipeMotion::new();
@@ -77,7 +85,9 @@ pub fn ReceiptsPage() -> impl IntoView {
                     count=Signal::derive(move || ReceiptsTab::ALL.len())
                     current=current_tab
                     on_select=Callback::new(move |next: usize| {
-                        store.select_tab(ReceiptsTab::ALL[next]);
+                        let tab = ReceiptsTab::ALL[next];
+                        store.select_tab(tab);
+                        tab.sync_tab_url();
                     })
                     motion=motion
                     tabs=tabs

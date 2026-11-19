@@ -162,7 +162,7 @@ async function setupAssetBalanceMocks(
 }
 
 async function gotoAssetBalancePage(page: Page) {
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
 }
 
 test('資産管理データがないとき EmptyState が表示される', async ({ page }) => {

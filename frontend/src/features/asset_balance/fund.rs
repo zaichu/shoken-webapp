@@ -47,6 +47,36 @@ impl AssetKind {
             Self::Fund => "fund",
         }
     }
+
+    /// `?tab=` の値からタブを決める。知らない値・値なしは最初のタブ(すべて)
+    pub(crate) fn from_query(value: &str) -> Self {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|kind| kind.value() == value)
+            .unwrap_or(Self::All)
+    }
+
+    /// 開いている URL の `?tab=` が有効なときだけタブを返す。
+    /// 再読み込み・共有・戻る/進むで同じタブを開くために使う
+    pub(crate) fn url_kind() -> Option<Self> {
+        // 単体テスト(非 wasm)では window が無いため空パス扱いで常に None を返す
+        #[cfg(target_arch = "wasm32")]
+        let path = crate::app::current_location();
+        #[cfg(not(target_arch = "wasm32"))]
+        let path = String::new();
+        let value = crate::urls::tab_query_value(&path, "tab")?;
+        // from_query は未知値を既定に倒すため、有効な値のときだけ Some にする
+        Self::ALL
+            .iter()
+            .any(|kind| kind.value() == value)
+            .then(|| Self::from_query(&value))
+    }
+
+    /// 選んでいるタブを URL の `?tab=` に載せる。履歴は積まない
+    pub(crate) fn sync_kind_url(self) {
+        crate::app::replace_url(&crate::urls::asset_balance_tab_href(self.value()));
+    }
 }
 
 /// 一覧行

@@ -22,7 +22,7 @@ pub(super) fn PnlRankingCard(data: HomeOverviewData) -> impl IntoView {
         <HomeListCard testid="home-pnl-card">
             <HomeCardHead
                 title=labels::HOME_PNL_TITLE
-                href="/assetbalance"
+                href="/assetbalance?tab=all"
                 link_label=labels::ASSET_BALANCE_TITLE
             />
             {move || {

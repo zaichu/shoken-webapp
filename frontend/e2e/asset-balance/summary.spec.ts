@@ -66,7 +66,7 @@ test('絞り込み中もKPIはAPIのsummaryではなく全保有分の合計の�
 }) => {
   await setupAssetBalanceMocks(page);
 
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
 
   const kpi = page.getByTestId('portfolio-kpi-grid');
 
@@ -114,7 +114,7 @@ test('評価額のそばは株価の日付だけを出し、取り込み日は�
     route.fulfill(json({ items: [] })),
   );
 
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   await page.getByTestId('asset-kind-tab-stock').click();
 
   const band = page.getByTestId('asset-portfolio-summary');
@@ -153,7 +153,7 @@ test('取込の状態によらず帯に取込の行を出さない', async ({ pa
     route.fulfill(json({ items: [] })),
   );
 
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   await page.getByTestId('asset-kind-tab-stock').click();
 
   const band = page.getByTestId('asset-portfolio-summary');

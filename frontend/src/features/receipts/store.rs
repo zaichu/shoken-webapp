@@ -356,6 +356,10 @@ fn build_receipts_store(
     // 設定画面で初期タブが変わったらアクティブタブへ反映する(再訪時だけでなく即時)
     Effect::new(move |_| {
         let tab = initial_tab.get();
+        // URL に有効な `?tab=` があるときはそちらを優先し、設定では上書きしない
+        if super::ReceiptsTab::url_tab().is_some() {
+            return;
+        }
         if active_tab.get_untracked() != tab {
             active_tab.set(tab);
         }

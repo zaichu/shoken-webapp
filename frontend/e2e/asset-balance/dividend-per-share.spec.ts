@@ -206,7 +206,7 @@ test('推定の初回レスポンス後に配当値が表示される(PC)', asyn
     await estimateResponse;
     await route.fulfill(json({ items: [DIVIDEND_ITEMS[0]] }));
   });
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   const table = page.getByTestId('asset-holdings-table');
   // 表の描画前に列見出しを引くと空になるため、先に表を待つ(他テストと同じ)
   await expect(table).toBeVisible();
@@ -238,7 +238,7 @@ test('推定の初回レスポンス後に配当値が表示される(スマホ)
     await estimateResponse;
     await route.fulfill(json({ items: [DIVIDEND_ITEMS[0]] }));
   });
-  await page.goto('/assetbalance');
+  await page.goto('/assetbalance?tab=stock');
   const row = page.getByTestId('asset-compact-row').filter({ hasText: '架空自動車' });
   await expect(row).toBeVisible();
   await expect(page.getByTestId('asset-holding-dialog')).toHaveCount(0);

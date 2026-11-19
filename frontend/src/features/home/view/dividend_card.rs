@@ -26,7 +26,7 @@ pub(super) fn DividendCard(data: HomeOverviewData) -> impl IntoView {
         <HomeDetailCard testid="home-dividend-card">
             <HomeCardHead
                 title=labels::HOME_THIS_YEAR_DIVIDEND
-                href="/receipts"
+                href="/receipts?tab=dividend"
                 link_label=labels::HOME_RECEIPTS_VIEW_LINK
             />
             {move || {

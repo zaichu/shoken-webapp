@@ -218,7 +218,7 @@ fn build_asset_balance_state(session: SessionStore) -> AssetBalanceState {
     });
     let fund_sort_key = RwSignal::new(FundSortKey::MarketValue);
     let fund_sort_order = RwSignal::new(SortOrder::Desc);
-    let kind = RwSignal::new(AssetKind::Stock);
+    let kind = RwSignal::new(AssetKind::All);
     let data_ops: RwSignal<DataOps> = RwSignal::new(DataOps::default());
     let csv_store =
         AssetBalanceCsvStore::new(session, balances, funds, dividends, lookup, data_ops);
@@ -263,6 +263,10 @@ pub fn AssetBalancePage() -> impl IntoView {
     let busy_session = session;
     let rail_session = session;
     let state = use_asset_balance_state(session);
+    // URL の `?tab=` が有効なら既定(すべて)より優先する(再読み込み・共有・戻る/進む用)
+    if let Some(kind) = fund::AssetKind::url_kind() {
+        state.kind.set(kind);
+    }
     let balances = state.balances;
     let funds = state.funds;
     let dividends = state.dividends;
@@ -367,7 +371,11 @@ pub fn AssetBalancePage() -> impl IntoView {
                 testid="assetbalance-main-stage"
                 count=Signal::derive(move || AssetKind::ALL.len())
                 current=current_tab
-                on_select=Callback::new(move |next: usize| state.kind.set(AssetKind::ALL[next]))
+                on_select=Callback::new(move |next: usize| {
+                    let kind = AssetKind::ALL[next];
+                    state.kind.set(kind);
+                    kind.sync_kind_url();
+                })
                 motion=motion
                 tabs=tabs
             >
