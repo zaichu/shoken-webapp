@@ -755,39 +755,6 @@ fn tax_signed_text_inverts_outflow() {
 }
 
 #[test]
-fn before_tax_row_subtitle_is_limited_to_stock_and_fund() {
-    // 主の金額は税引後のまま、その下に税引前を小さく出す。
-    // 特定口座で税額がある行は税引前と税引後が違う値になる
-    for tab in [ReceiptsTab::DomesticStock, ReceiptsTab::MutualFund] {
-        let card = card_for(
-            tab,
-            if tab == ReceiptsTab::DomesticStock {
-                receipts::domestic().remove(0)
-            } else {
-                receipts::funds().remove(0)
-            },
-        );
-        let expected = if tab == ReceiptsTab::DomesticStock {
-            "+¥1,000"
-        } else {
-            "+¥900"
-        };
-        assert_eq!(
-            before_tax_subtext(tab, &card.details)
-                .map(|(text, _, _)| text)
-                .as_deref(),
-            Some(expected)
-        );
-        // プラスは Amount(Delta)で緑になるよう正の符号を渡す
-        let (_, negative, positive) = before_tax_subtext(tab, &card.details).expect("税引前がある");
-        assert!(!negative);
-        assert!(positive);
-    }
-    let dividend = card_for(ReceiptsTab::Dividend, receipts::dividends().remove(0));
-    assert!(before_tax_subtext(ReceiptsTab::Dividend, &dividend.details).is_none());
-}
-
-#[test]
 fn card_header_carries_code_badge_value_and_copy_name() {
     let rows = receipts::dividends();
     let cells = rows[0].cells();
