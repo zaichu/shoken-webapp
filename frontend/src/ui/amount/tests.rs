@@ -1,4 +1,4 @@
-use super::{AmountColor, AmountKind, amount_color, amount_negative_attr};
+use super::{AmountColor, AmountKind, amount_color, amount_negative_attr, display_text};
 
 #[test]
 fn negative_display_is_negative_for_both_kinds() {
@@ -102,5 +102,21 @@ fn quantities_dates_and_labels_remain_neutral() {
             AmountColor::Neutral,
             "{text}"
         );
+    }
+}
+
+#[test]
+fn display_swaps_only_sign_hyphens_to_minus_sign() {
+    for (input, expected) in [
+        ("-¥1,234", "−¥1,234"),
+        ("+¥1,234", "+¥1,234"),
+        ("(-1.0%)", "(−1.0%)"),
+        ("-¥50,000 -20.0%", "−¥50,000 −20.0%"),
+        ("2026-11-18", "2026-11-18"),
+        ("2026/11/18", "2026/11/18"),
+        ("—", "—"),
+        ("+5.0%", "+5.0%"),
+    ] {
+        assert_eq!(display_text(input), expected, "{input}");
     }
 }

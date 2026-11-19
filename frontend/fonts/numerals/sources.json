@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Shoken Numerals",
+    "source": "Inter",
+    "url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/inter/Inter[opsz,wght].ttf",
+    "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+    "axes": {
+      "opsz": 14,
+      "wght": [
+        400,
+        700
+      ]
+    },
+    "source_check": {
+      "gsub_tnum": true,
+      "cmap_missing": []
+    },
+    "output": "inter-400-700.woff2",
+    "license": "OFL-inter.txt",
+    "license_url": "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a/ofl/inter/OFL.txt"
+  }
+]

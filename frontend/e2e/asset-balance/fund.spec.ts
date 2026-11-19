@@ -224,7 +224,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
   // 更新待ちの行は古い日の前日比(-30円)を出さず「更新待ち」とだけ示す
   const pending = table.getByRole('row', { name: /架空インデックスファンドB号/ });
   await expect(pending).toContainText('更新待ち');
-  await expect(pending).not.toContainText('-¥30');
+  await expect(pending).not.toContainText('−¥30');
 
   // 件数行には件数だけを出す(前日比の集計は出さない)
   await expect(page.getByTestId('page-title-count')).toHaveCount(0);
@@ -256,7 +256,7 @@ test('前日比は最新の基準価額の変動だけを出し、件数行に�
     name: /架空インデックスファンドB号/,
   });
   await expect(mergedPending).toContainText('更新待ち');
-  await expect(mergedPending).not.toContainText('-¥30');
+  await expect(mergedPending).not.toContainText('−¥30');
 
   // 「すべて」タブでもタイトルに前日比の集計を出さない
   await expect(page.getByTestId('page-title-count')).toHaveCount(0);

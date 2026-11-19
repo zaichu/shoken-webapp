@@ -14,6 +14,19 @@
   font-display: swap;
 }
 
+/* 金額・率の数字と記号だけの Inter subset(可変 wght 400-700)。
+   unicode-range で 16 字(0-9 , . ¥ % + −)にだけ当て、
+   日本語・単位・括弧など範囲外の文字は後ろの Noto に落ちる。
+   由来・対象文字・作り方は docs/design/fonts.md、決めた値は docs/design/numerals.md */
+@font-face {
+  font-family: 'Shoken Numerals';
+  src: url('/fonts/numerals/inter-400-700.woff2') format('woff2');
+  unicode-range: U+0025, U+002B-002C, U+002E, U+0030-0039, U+00A5, U+2212;
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-design-header: var(--color-white);
   --color-design-header-text: #111827;
@@ -190,6 +203,8 @@
 
   /* stylelint-disable-next-line value-keyword-case -- 書体の固有名詞の表記のため */
   --font-sans: 'Noto Sans JP', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  /* 金額・率の数字と記号。範囲外の文字は Noto に落ちる */
+  --font-numerals: 'Shoken Numerals', var(--font-sans);
 }
 
 @layer base {
@@ -1181,14 +1196,28 @@
   }
 
   /* 列の種別。th と td に同じクラスを付けると文字位置を1か所で決められる。
-     数値(金額・数量・率)=右で桁揃え、文字(名前・コード・口座)=左 */
+     数値(金額・数量・率)=右で桁揃え、文字(名前・コード・口座)=左。
+     数値列の数字と記号だけ Inter を当て、日本語と単位は Noto のまま出す
+     (docs/design/numerals.md「表のセル」)。数量・日付など Amount を
+     通らない数字も同じ書体でそろえる */
   .col-text {
     @apply px-2.5 text-left;
   }
 
   .col-num {
     @apply px-2 text-right tabular-nums;
+    font-family: var(--font-numerals);
     font-variant-numeric: tabular-nums lining-nums;
+    /* Inter の数字は Noto より約 17% 広い。1280px で表が枠に収まるよう
+       字間だけ詰める(-0.02em が上限。docs/design/numerals.md「表のセル」)。
+       大きさ・余白・配置は変えない */
+    letter-spacing: -0.02em;
+  }
+
+  /* 金額・率(Amount 部品)の数字と記号。範囲外の文字は後ろの Noto に落ちる。
+     集計帯の値は Amount を通るため、この指定で帯も同じ書体になる */
+  .numerals {
+    font-family: var(--font-numerals);
   }
 
   .receipts-table tbody tr {
