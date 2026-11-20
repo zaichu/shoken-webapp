@@ -111,4 +111,7 @@ exclude_re = [
     "Transport.* in short_failure_reason",
     # 等価 mutant。clamp_history_offset は Some(0) も 0 を返すため > と >= は同値
     "replace > with >= in clamp_history_offset",
+    # 等価 mutant。CsvImport::ensure_importable の既定実装は無条件に Ok を返すため、
+    # 本体を Ok(()) に置き換えても振る舞いは変わらない
+    "replace CsvImport::ensure_importable -> Result<\\(\\), ApiError> with Ok\\(\\(\\)\\)",
 ]
