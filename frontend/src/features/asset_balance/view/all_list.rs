@@ -12,7 +12,7 @@ use crate::features::asset_balance::portfolio::SortOrder;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::{AssetMarker, AssetRateAmount, DayChangeNote};
-use crate::ui::badge::{AccountBadge, AccountLegend};
+use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
 use crate::ui::labels;
@@ -342,7 +342,6 @@ pub fn AssetMergedTable(
                     }}
                 </tbody>
             </table>
-            <AccountLegend />
         </div>
     }
 }

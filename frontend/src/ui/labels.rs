@@ -1215,15 +1215,13 @@ pub const fn unavailable_text(kind: UnavailableKind) -> &'static str {
     }
 }
 
-/// 口座バッジの短い説明。バッジの title と凡例1行に使う
+/// 口座バッジの短い説明。バッジの title に使う
 pub const ACCOUNT_SPECIFIC_NOTE: &str = "特定:課税口座(源泉あり)";
 pub const ACCOUNT_GENERAL_NOTE: &str = "一般:課税口座(源泉なし)";
 pub const ACCOUNT_SPECIFIC_GENERAL_NOTE: &str = "特定・一般:特定と一般の合算";
 pub const ACCOUNT_OLD_NISA_NOTE: &str = "旧NISA:非課税(新規買付不可)";
 pub const ACCOUNT_NISA_GROWTH_NOTE: &str = "NISA成長:非課税の成長枠";
 pub const ACCOUNT_NISA_TSUMITATE_NOTE: &str = "NISAつみたて:非課税の積立枠";
-/// 口座バッジの凡例1行
-pub const ACCOUNT_LEGEND: &str = "特定は源泉あり・一般は源泉なしの課税口座、特定・一般は2口座の合算、旧NISA・NISA成長・NISAつみたては非課税";
 
 /// 口座表示名に対応する短い説明。対応表にない口座はそのまま返す
 pub fn account_note(account: &str) -> &str {
