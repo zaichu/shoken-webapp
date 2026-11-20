@@ -50,6 +50,10 @@ exclude_re = [
     # 国内株式の集計 SQL は services/domestic_stock.rs の
     # test_search_summary_matches_frontend_daily_tax_calculation(Docker)で値を検証済み
     "backend/src/services/domestic_stock\\.rs.*fetch_summary",
+    # 配当の集計 fetch_aggregates は DB 境界(結合テストは #[ignore] のため --lib 評価では観測不可。
+    # ARRAY_AGG 除去後の DISTINCT ON 分割の等価性は使い捨て DB での新旧 SQL 比較と
+    # tests/db_integration.rs::search_facets_group_by_domain_fields(Docker)で検証済み)
+    "backend/src/services/dividend\\.rs.*fetch_aggregates",
     "backend/src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",
