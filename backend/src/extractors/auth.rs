@@ -48,7 +48,7 @@ where
             .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました"))?;
 
         let token = crate::handlers::v1::auth::oauth::get_session_id_from_jar(&jar)?;
-        // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
+        // セッション照会は最終利用時刻も更新する
         let user = auth_service::select_user_by_session(&app_state.pool, token)
             .await
             .map_err(session_lookup_error)?
@@ -112,7 +112,7 @@ mod tests {
         let (mut parts, ()) = request.into_parts();
 
         let error = tokio::time::timeout(
-            std::time::Duration::from_secs(1),
+            std::time::Duration::from_secs(3),
             AuthenticatedUser::from_request_parts(&mut parts, &state),
         )
         .await

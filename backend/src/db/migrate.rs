@@ -44,6 +44,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0106_limited_functions",
         include_str!("../../migrations/0106_limited_functions.sql"),
     ),
+    (
+        "0107_session_idle_timeout",
+        include_str!("../../migrations/0107_session_idle_timeout.sql"),
+    ),
 ];
 
 /// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版

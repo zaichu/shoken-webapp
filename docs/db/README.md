@@ -9,7 +9,7 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 | Name | Columns | Comment | Type |
 | ---- | ------- | ------- | ---- |
 | [public.users](public.users.md) | 8 | Google 認証のユーザー | BASE TABLE |
-| [public.sessions](public.sessions.md) | 6 | ログインセッション | BASE TABLE |
+| [public.sessions](public.sessions.md) | 7 | ログインセッション | BASE TABLE |
 | [public.login_events](public.login_events.md) | 9 | ログインの記録(端末IDはハッシュのみ。IPは保存しない) | BASE TABLE |
 | [public.admin_login_views](public.admin_login_views.md) | 3 | 管理者によるログイン一覧の閲覧監査（閲覧者と日時のみ） | BASE TABLE |
 | [public.login_notify_tokens](public.login_notify_tokens.md) | 6 | ログイン通知メール内の全端末ログアウト用使い捨てトークン(平文は保存しない) | BASE TABLE |
@@ -61,6 +61,7 @@ erDiagram
   timestamp_with_time_zone expires_at
   bytea token_hash
   bytea device_hash
+  timestamp_with_time_zone last_used_at
 }
 "public.login_events" {
   uuid id
