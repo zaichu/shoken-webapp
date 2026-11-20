@@ -156,7 +156,6 @@ async fn fetch_operation_log_page(
 
 fn operation_label(operation: &str) -> &'static str {
     match operation {
-        "account_delete" => labels::OPERATION_LOG_ACCOUNT_DELETE,
         "logout_all" => labels::OPERATION_LOG_LOGOUT_ALL,
         "device_revoke" => labels::OPERATION_LOG_DEVICE_REVOKE,
         _ => labels::OPERATION_LOG_CSV_DELETE,
@@ -203,6 +202,7 @@ pub fn SectionOperationLog() -> impl IntoView {
             return;
         }
         loading_more.set(true);
+        more_error.set(None);
         leptos::task::spawn_local(async move {
             let offset = i64::try_from(entries.with_untracked(Vec::len)).unwrap_or(i64::MAX);
             match fetch_operation_log_page(HISTORY_PAGE_SIZE, offset).await {

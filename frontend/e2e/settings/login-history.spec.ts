@@ -14,13 +14,13 @@ const entries = Array.from({ length: TOTAL }, (_, index) => ({
 
 const operationLogs = Array.from({ length: 25 }, (_, index) => ({
   occurred_at: new Date(Date.UTC(2026, 9, 31, 0, 12) - index * 86_400_000).toISOString(),
-  operation: ['csv_delete', 'account_delete', 'logout_all', 'device_revoke'][index % 4],
+  operation: ['csv_delete', 'logout_all', 'device_revoke'][index % 3],
   target:
     index % 4 === 0
       ? ['dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances'][
           Math.floor(index / 4) % 5
         ]
-      : ['account', 'sessions', 'device'][(index % 4) - 1],
+      : ['sessions', 'device'][index % 2],
   count: index * 127,
 }));
 
@@ -91,4 +91,35 @@ test('操作の記録は10件ずつ増え、残りが無くなると「もっと
   await more.click();
   await expect(section.locator('li')).toHaveCount(25);
   await expect(more).toHaveCount(0);
+});
+
+test('操作記録の追加読み込みに成功したら直前のエラーを消す', async ({ page }) => {
+  await mockSession(page);
+  await page.route(/\/api\/v1\/login-history(?:\?.*)?$/, (route) =>
+    route.fulfill(json({ data: entries.slice(0, 10) })),
+  );
+  await page.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json({ data: [] })));
+  await page.route(/\/api\/v1\/notification-settings$/, (route) =>
+    route.fulfill(json({ login_notify_enabled: false })),
+  );
+  let failNextPage = true;
+  await page.route(/\/api\/v1\/operation-logs(?:\?.*)?$/, async (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const offset = Number(params.get('offset') ?? 0);
+    if (offset > 0 && failNextPage) {
+      failNextPage = false;
+      return route.fulfill({ status: 400, body: '{}' });
+    }
+    const limit = Number(params.get('limit') ?? 10);
+    return route.fulfill(json({ data: operationLogs.slice(offset, offset + limit) }));
+  });
+  await page.goto('/settings#operation-log');
+
+  const section = page.locator('#operation-log');
+  await expect(section.locator('li')).toHaveCount(10);
+  await page.getByTestId('operation-log-more').click();
+  await expect(section.getByTestId('list-load-error')).toBeVisible();
+  await section.getByTestId('list-load-error').getByRole('button').click();
+  await expect(section.locator('li')).toHaveCount(20);
+  await expect(section.getByTestId('list-load-error')).toHaveCount(0);
 });

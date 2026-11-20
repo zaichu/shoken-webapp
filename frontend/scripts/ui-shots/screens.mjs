@@ -288,7 +288,7 @@ async function installMocks(context, { anonymous, admin }) {
         const kind = index % 4;
         return {
           occurred_at: new Date(Date.UTC(2026, 10, 19, 3) - index * 86_400_000).toISOString(),
-          operation: ['csv_delete', 'account_delete', 'logout_all', 'device_revoke'][kind],
+          operation: ['csv_delete', 'logout_all', 'device_revoke'][kind % 3],
           target:
             kind === 0
               ? ['dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances'][

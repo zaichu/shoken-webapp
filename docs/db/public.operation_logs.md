@@ -20,9 +20,9 @@
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
 | operation_logs_count_check | CHECK | CHECK ((count >= 0)) |
-| operation_logs_operation_check | CHECK | CHECK ((operation = ANY (ARRAY['csv_delete'::text, 'account_delete'::text, 'logout_all'::text, 'device_revoke'::text]))) |
-| operation_logs_operation_target | CHECK | CHECK ((((operation = 'csv_delete'::text) AND (target = ANY (ARRAY['dividends'::text, 'domestic_stocks'::text, 'mutualfunds'::text, 'asset_balances'::text, 'fund_balances'::text]))) OR ((operation = 'account_delete'::text) AND (target = 'account'::text)) OR ((operation = 'logout_all'::text) AND (target = 'sessions'::text)) OR ((operation = 'device_revoke'::text) AND (target = 'device'::text)))) |
-| operation_logs_target_check | CHECK | CHECK ((target = ANY (ARRAY['dividends'::text, 'domestic_stocks'::text, 'mutualfunds'::text, 'asset_balances'::text, 'fund_balances'::text, 'account'::text, 'sessions'::text, 'device'::text]))) |
+| operation_logs_operation_check | CHECK | CHECK ((operation = ANY (ARRAY['csv_delete'::text, 'logout_all'::text, 'device_revoke'::text]))) |
+| operation_logs_operation_target | CHECK | CHECK ((((operation = 'csv_delete'::text) AND (target = ANY (ARRAY['dividends'::text, 'domestic_stocks'::text, 'mutualfunds'::text, 'asset_balances'::text, 'fund_balances'::text]))) OR ((operation = 'logout_all'::text) AND (target = 'sessions'::text)) OR ((operation = 'device_revoke'::text) AND (target = 'device'::text)))) |
+| operation_logs_target_check | CHECK | CHECK ((target = ANY (ARRAY['dividends'::text, 'domestic_stocks'::text, 'mutualfunds'::text, 'asset_balances'::text, 'fund_balances'::text, 'sessions'::text, 'device'::text]))) |
 | operation_logs_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE |
 | operation_logs_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

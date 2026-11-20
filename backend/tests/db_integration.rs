@@ -7541,14 +7541,6 @@ async fn rls_5c_writes_via_app_enter() {
     .await
     .expect("件数取得に失敗");
     assert_eq!(remaining, 0);
-    let deleted_user_logs: i64 = db::query_scalar(
-        "SELECT COUNT(*) FROM operation_logs WHERE user_id = $1",
-        vec![Bind::from(user_c)],
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("削除利用者の操作記録件数取得");
-    assert_eq!(deleted_user_logs, 0);
     assert_eq!(count_where(&pool, "dividends", user_a).await, 2);
     assert_eq!(count_where(&pool, "dividends", user_b).await, 1);
 

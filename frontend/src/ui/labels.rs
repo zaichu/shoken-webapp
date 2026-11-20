@@ -430,7 +430,6 @@ pub const LOGIN_HISTORY_SECTION: &str = "ログイン履歴";
 pub const OPERATION_LOG_SECTION: &str = "操作の記録";
 pub const OPERATION_LOG_EMPTY: &str = "操作の記録はまだありません";
 pub const OPERATION_LOG_CSV_DELETE: &str = "CSVデータの削除";
-pub const OPERATION_LOG_ACCOUNT_DELETE: &str = "アカウントの削除";
 pub const OPERATION_LOG_LOGOUT_ALL: &str = "全端末のログアウト";
 pub const OPERATION_LOG_DEVICE_REVOKE: &str = "端末の解除";
 pub const OPERATION_LOG_TARGET_DIVIDENDS: &str = "配当金";

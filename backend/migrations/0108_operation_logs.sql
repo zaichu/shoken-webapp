@@ -1,13 +1,14 @@
+SET LOCAL lock_timeout = '5s';
+
 CREATE TABLE public.operation_logs (
     id bigserial PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    operation text NOT NULL CHECK (operation IN ('csv_delete', 'account_delete', 'logout_all', 'device_revoke')),
-    target text NOT NULL CHECK (target IN ('dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances', 'account', 'sessions', 'device')),
+    operation text NOT NULL CHECK (operation IN ('csv_delete', 'logout_all', 'device_revoke')),
+    target text NOT NULL CHECK (target IN ('dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances', 'sessions', 'device')),
     count bigint NOT NULL CHECK (count >= 0),
     occurred_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT operation_logs_operation_target CHECK (
         (operation = 'csv_delete' AND target IN ('dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances')) OR
-        (operation = 'account_delete' AND target = 'account') OR
         (operation = 'logout_all' AND target = 'sessions') OR
         (operation = 'device_revoke' AND target = 'device')
     )
