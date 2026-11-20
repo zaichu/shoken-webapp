@@ -2078,3 +2078,165 @@ async fn app_roles_cannot_bypass_user_table_rls_without_force() {
     .unwrap();
     assert_eq!(violations, "");
 }
+
+async fn default_privilege_grant_counts(pool: &Db) -> Vec<(String, i64, i64, i64, i64)> {
+    let mut counts: Vec<(String, i64, i64, i64, i64)> =
+        db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+            .fetch_all::<(String,), _>(pool)
+            .await
+            .expect("app_worker から接続状態を読める")
+            .into_iter()
+            .filter_map(|(line,)| {
+                let rest = line.strip_prefix("default_privilege_grants ")?;
+                let mut role = String::new();
+                let mut table = 0;
+                let mut view = 0;
+                let mut function = 0;
+                let mut sequence = 0;
+                for part in rest.split(' ') {
+                    let (key, value) = part.split_once('=')?;
+                    match key {
+                        "role" => role = value.to_string(),
+                        "table" => table = value.parse().ok()?,
+                        "view" => view = value.parse().ok()?,
+                        "function" => function = value.parse().ok()?,
+                        "sequence" => sequence = value.parse().ok()?,
+                        _ => return None,
+                    }
+                }
+                (!role.is_empty()).then_some((role, table, view, function, sequence))
+            })
+            .collect();
+    counts.sort();
+    counts
+}
+
+fn grant_count(counts: &[(String, i64, i64, i64, i64)], role: &str) -> (i64, i64, i64, i64) {
+    counts
+        .iter()
+        .find(|(name, _, _, _, _)| name == role)
+        .map_or_else(
+            || panic!("{role} の件数行がある"),
+            |(_, table, view, function, sequence)| (*table, *view, *function, *sequence),
+        )
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn default_privilege_grants_counts_roles_present_and_missing() {
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'test'")
+        .await
+        .unwrap();
+    let worker = connect_pool_lazy(
+        &format!("postgres://app_worker:test@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+
+    let missing = default_privilege_grant_counts(&worker).await;
+    assert_eq!(missing.len(), 3);
+    for (role, table, view, function, sequence) in &missing {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "無いロールは 0 件で失敗しない: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;",
+        )
+        .await
+        .unwrap();
+    let baseline = default_privilege_grant_counts(&worker).await;
+    assert_eq!(baseline.len(), 3);
+    for (role, table, view, function, sequence) in &baseline {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "作っただけのロールに直接付けた権限は無い: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "GRANT SELECT ON public.users TO anon;
+             GRANT SELECT ON public.asset_balances_view TO authenticated;
+             GRANT EXECUTE ON FUNCTION public.range_check_violation_counts_v2() TO service_role;
+             GRANT USAGE ON SEQUENCE public.operation_logs_id_seq TO anon;",
+        )
+        .await
+        .unwrap();
+    let granted = default_privilege_grant_counts(&worker).await;
+    assert_eq!(granted.len(), 3);
+    let baseline_anon = grant_count(&baseline, "anon");
+    let baseline_authenticated = grant_count(&baseline, "authenticated");
+    let baseline_service = grant_count(&baseline, "service_role");
+    assert_eq!(
+        grant_count(&granted, "anon"),
+        (
+            baseline_anon.0 + 1,
+            baseline_anon.1,
+            baseline_anon.2,
+            baseline_anon.3 + 1
+        )
+    );
+    assert_eq!(
+        grant_count(&granted, "authenticated"),
+        (
+            baseline_authenticated.0,
+            baseline_authenticated.1 + 1,
+            baseline_authenticated.2,
+            baseline_authenticated.3
+        )
+    );
+    assert_eq!(
+        grant_count(&granted, "service_role"),
+        (
+            baseline_service.0,
+            baseline_service.1,
+            baseline_service.2 + 1,
+            baseline_service.3
+        )
+    );
+
+    admin
+        .batch_execute(
+            "REVOKE ALL ON TABLE public.users FROM anon;
+             REVOKE ALL ON TABLE public.asset_balances_view FROM authenticated;
+             REVOKE ALL ON FUNCTION public.range_check_violation_counts_v2() FROM service_role;
+             REVOKE ALL ON SEQUENCE public.operation_logs_id_seq FROM anon;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    let missing_again = default_privilege_grant_counts(&worker).await;
+    assert_eq!(missing_again.len(), 3);
+    for (role, table, view, function, sequence) in &missing_again {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "消したロールは再び 0 件で失敗しない: {role}"
+        );
+    }
+}

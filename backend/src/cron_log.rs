@@ -45,6 +45,9 @@ pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
 
 /// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
 /// 出すのはロール名・表名・関数名・真偽値・件数だけ
+/// anon・authenticated・service_role に直接付いた public の表・ビュー・関数・シーケンスの
+/// 権限の件数もロールごとに 1 行出す(PUBLIC 経由は数えない)。無いロールは 0 件にし、
+/// 名前指定の権限調べは使わない(ロール不在で検査自体が落ちるため pg_roles 経由で oid を解決する)。
 /// 末尾の range_check_violations は 0119 の CHECK 制約(dividend_per_share_cache。#2112 で VALIDATE 予定)と
 /// #2112 で追加予定の shares > 0 制約に先立つ違反件数だけを出す(値・利用者は出さない)。
 /// 個人表への直接参照は権限のないロールで検査自体が落ちるため、
@@ -104,6 +107,31 @@ SELECT CASE WHEN o.oid IS NULL THEN 'role_owner postgres member=- can_set=-'
            pg_catalog.pg_has_role(current_user, o.oid, 'SET')::text) END
 FROM (SELECT 1) AS dummy
 LEFT JOIN pg_catalog.pg_roles o ON o.rolname = 'postgres'
+UNION ALL
+SELECT pg_catalog.format('default_privilege_grants role=%s table=%s view=%s function=%s sequence=%s',
+           v.rolname,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname = 'public' AND c.relkind IN ('v', 'm')
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_proc p
+               WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                     WHERE a.grantee = r.oid)) END,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname = 'public' AND c.relkind = 'S'
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END)
+FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS v(rolname)
+LEFT JOIN pg_catalog.pg_roles r ON r.rolname = v.rolname
 UNION ALL
 SELECT pg_catalog.format('range_check_violations %s', public.range_check_violation_counts_v2())
 ";
@@ -257,6 +285,58 @@ mod tests {
             !DB_ACCESS_STATE_SQL.contains("pg_has_role(current_user, 'postgres'"),
             "名前指定の pg_has_role はロール不在で例外になるため pg_roles 経由で解決する"
         );
+        for fragment in [
+            "has_table_privilege('anon'",
+            "has_table_privilege('authenticated'",
+            "has_table_privilege('service_role'",
+            "has_function_privilege('anon'",
+            "has_function_privilege('authenticated'",
+            "has_function_privilege('service_role'",
+            "has_sequence_privilege('anon'",
+            "has_sequence_privilege('authenticated'",
+            "has_sequence_privilege('service_role'",
+        ] {
+            assert!(
+                !DB_ACCESS_STATE_SQL.contains(fragment),
+                "名前指定の has_* はロール不在で例外になるため pg_roles 経由の oid で調べる: {fragment}"
+            );
+        }
+        assert!(
+            DB_ACCESS_STATE_SQL.contains("grantee = r.oid"),
+            "PUBLIC 経由を含めず直接付けた権限だけを数える"
+        );
+    }
+
+    #[test]
+    fn db_access_state_reports_default_privilege_grants_without_personal_data() {
+        assert!(
+            DB_ACCESS_STATE_SQL.contains("default_privilege_grants"),
+            "Supabase 3 ロールの権限件数行を出す"
+        );
+        for role in ["anon", "authenticated", "service_role"] {
+            assert!(
+                DB_ACCESS_STATE_SQL.contains(role),
+                "ロールごとに件数を出す: {role}"
+            );
+        }
+        for kind in ["table=", "view=", "function=", "sequence="] {
+            assert!(
+                DB_ACCESS_STATE_SQL.contains(kind),
+                "種類ごとに件数を出す: {kind}"
+            );
+        }
+        for fragment in [
+            "user_id",
+            "email",
+            "token_hash",
+            "device_hash",
+            "security_code",
+        ] {
+            assert!(
+                !DB_ACCESS_STATE_SQL.contains(fragment),
+                "件数だけを出し値・利用者は出さない: {fragment}"
+            );
+        }
     }
 
     #[test]
