@@ -20,6 +20,10 @@ pub struct HistoryQuery {
     pub offset: Option<i64>,
 }
 
+fn is_current_device(current_hash: &[u8], device_hash: &[u8]) -> bool {
+    current_hash == device_hash
+}
+
 /// 自分のログイン履歴を新しい順に返す（v1）
 #[utoipa::path(
     get,
@@ -97,23 +101,26 @@ pub async fn delete_device(
         .ok_or(ApiError::NotFound)?;
     auth_service::delete_device_sessions(&state.pool, auth_user.id(), &device_hash).await?;
     let current = oauth::get_device_token_from_jar(&jar);
-    if current.hash() == device_hash {
-        let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
-            state.config.secure_cookie,
-        ));
-        return Ok((
-            jar,
-            Json(MessageResponse {
-                message: "端末を解除しました".to_string(),
-            }),
-        ));
+    let response = Json(MessageResponse {
+        message: "端末を解除しました".to_string(),
+    });
+    let mut response = response.into_response();
+    if is_current_device(&current.hash(), &device_hash) {
+        oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)?;
     }
-    Ok((
-        jar,
-        Json(MessageResponse {
-            message: "端末を解除しました".to_string(),
-        }),
-    ))
+    Ok(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_current_device;
+
+    #[test]
+    fn current_device_matches_only_its_own_hash() {
+        let current = [7u8; 32];
+        assert!(is_current_device(&current, &current));
+        assert!(!is_current_device(&current, &[8u8; 32]));
+    }
 }
 
 /// すべての端末をログアウトする（v1）
@@ -130,19 +137,18 @@ pub async fn delete_device(
 pub async fn delete_all_sessions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    jar: CookieJar,
+    _jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
     auth_service::delete_all_sessions(&state.pool, auth_user.id()).await?;
-    let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
-        state.config.secure_cookie,
-    ));
-    Ok((
+    let mut response = (
         StatusCode::OK,
-        jar,
         Json(MessageResponse {
             message: "すべての端末からログアウトしました".to_string(),
         }),
-    ))
+    )
+        .into_response();
+    oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)?;
+    Ok(response)
 }
 
 /// 自分のログイン通知設定を取得する（v1）
