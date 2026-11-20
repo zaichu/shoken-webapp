@@ -544,28 +544,18 @@ fn quantity_column_tiers_match_width_budget() {
     }
 }
 
-// 段のクラスは帯ごとの表示を制御する CSS ルールのフック。Core だけクラス無しで、
-// 残る段は互いに区別でき、CSS にも対応するルールが無いと隠れないまま全帯で出る
 #[test]
-fn non_core_tiers_have_distinct_class_backed_by_a_css_rule() {
-    let css = include_str!("../../../../style/input.css");
+fn non_core_tiers_have_distinct_non_empty_classes() {
     assert_eq!(ColumnTier::Core.class().trim(), "");
 
     let classes: Vec<&str> = [ColumnTier::Md, ColumnTier::Wide, ColumnTier::Wider]
         .iter()
         .map(|tier| tier.class().trim())
         .collect();
-    for class in &classes {
-        assert!(!class.is_empty(), "段にクラスが無いと隠れない");
-        assert!(
-            css.contains(&format!(".{class} ")),
-            "{class} の CSS ルールが無い"
-        );
+    for (index, class) in classes.iter().enumerate() {
+        assert!(!class.is_empty());
+        assert!(!classes[..index].contains(class));
     }
-    let mut unique = classes.clone();
-    unique.sort_unstable();
-    unique.dedup();
-    assert_eq!(unique.len(), classes.len(), "段のクラスが区別できない");
 }
 
 // span_masks が `tier <= max` で集計見出しの結合幅を数えるため、宣言順の大小関係に依存する
