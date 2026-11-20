@@ -338,6 +338,58 @@ test('配当グラフは配当金の累計の折れ線で、点からその月�
   expect(firstSwatchClass.split(' ')).toContain(barColor);
 });
 
+test('PCではホバーだけで月の金額が出て、外に出ると消える', async ({ page }) => {
+  await setupHomeMocks(page);
+  await page.goto('/');
+
+  const dividend = page.getByTestId('home-dividend-card');
+  const chart = dividend.locator('.home-chart').first();
+  const plot = chart.locator('.home-chart-plot');
+  const tipFor = (month: number) =>
+    chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
+  const currentMonth = new Date().getMonth() + 1;
+  const probeMonth = Math.min(3, currentMonth);
+  const box = await plot.boundingBox();
+  const xFor = (month: number) => (box!.width * (month - 0.5)) / 12;
+
+  await plot.hover({ position: { x: xFor(probeMonth), y: box!.height / 2 } });
+  await expect(tipFor(probeMonth)).toBeVisible();
+  await expect(plot).toHaveAttribute('aria-valuenow', String(probeMonth));
+
+  await dividend.locator('h2').first().hover();
+  await expect(tipFor(probeMonth)).toBeHidden();
+});
+
+test.describe('タッチ操作', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test('スマホのタップでは従来どおり開閉できる', async ({ page }) => {
+    await setupHomeMocks(page);
+    await page.goto('/');
+
+    const dividend = page.getByTestId('home-dividend-card');
+    const chart = dividend.locator('.home-chart').first();
+    const plot = chart.locator('.home-chart-plot');
+    const currentMonth = new Date().getMonth() + 1;
+    const probeMonth = Math.min(3, currentMonth);
+    const tip = chart.locator('.home-cum-col').nth(probeMonth - 1).locator('.home-cum-tip');
+    const box = await plot.boundingBox();
+    const tapPlot = async () => {
+      await page.touchscreen.tap(
+        box!.x + (box!.width * (probeMonth - 0.5)) / 12,
+        box!.y + box!.height / 2,
+      );
+    };
+
+    await tapPlot();
+    await expect(tip).toBeVisible();
+
+    const head = await dividend.locator('h2').first().boundingBox();
+    await page.touchscreen.tap(head!.x + head!.width / 2, head!.y + head!.height / 2);
+    await expect(tip).toBeHidden();
+  });
+});
+
 test('各月の丸はその月の目盛りの文字の真上にある', async ({ page }) => {
   await setupHomeMocks(page);
   await page.goto('/');

@@ -121,6 +121,17 @@ fn x_percent(month: u32) -> f64 {
     (f64::from(month.saturating_sub(1)) + 0.5) / 12.0 * 100.0
 }
 
+fn hover_capable() -> bool {
+    web_sys::window()
+        .and_then(|window| {
+            window
+                .match_media("(hover: hover) and (pointer: fine)")
+                .ok()
+                .flatten()
+        })
+        .is_some_and(|query| query.matches())
+}
+
 fn y_percent(value: f64, top: f64) -> f64 {
     if top <= 0.0 || !value.is_finite() {
         return 100.0;
@@ -336,6 +347,28 @@ pub fn CumulativeChart(
                         selected.update(|state| {
                             *state = if *state == Some(month) { None } else { Some(month) };
                         });
+                    }
+                    on:pointermove=move |event| {
+                        if !hover_capable() {
+                            return;
+                        }
+                        let Some(plot) = plot_ref.get() else { return };
+                        let rect = plot.get_bounding_client_rect();
+                        let month = month_for_position(
+                            f64::from(event.client_x()) - rect.left(),
+                            rect.width(),
+                            current_month,
+                        );
+                        selected.update(|state| {
+                            if *state != Some(month) {
+                                *state = Some(month);
+                            }
+                        });
+                    }
+                    on:pointerleave=move |_| {
+                        if hover_capable() {
+                            dismiss();
+                        }
                     }
                     on:keydown=move |event| {
                         let key = event.key();
