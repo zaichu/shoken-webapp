@@ -2257,6 +2257,144 @@ async fn default_privilege_grants_counts_roles_present_and_missing() {
     }
 }
 
+async fn leftover_function_grants(pool: &Db) -> Vec<(String, i64, i64, i64, String, String)> {
+    let mut rows: Vec<(String, i64, i64, i64, String, String)> =
+        db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+            .fetch_all::<(String,), _>(pool)
+            .await
+            .expect("app_worker から残った関数の内訳を読める")
+            .into_iter()
+            .filter_map(|(line,)| {
+                let rest = line.strip_prefix("function_leftover_grants ")?;
+                let mut role = String::new();
+                let mut total = 0;
+                let mut ext = 0;
+                let mut own = 0;
+                let mut owners = String::new();
+                let mut names = String::new();
+                for part in rest.split(' ') {
+                    let (key, value) = part.split_once('=')?;
+                    match key {
+                        "role" => role = value.to_string(),
+                        "total" => total = value.parse().ok()?,
+                        "ext" => ext = value.parse().ok()?,
+                        "own" => own = value.parse().ok()?,
+                        "owners" => owners = value.to_string(),
+                        "names" => names = value.to_string(),
+                        _ => return None,
+                    }
+                }
+                (!role.is_empty()).then_some((role, total, ext, own, owners, names))
+            })
+            .collect();
+    rows.sort();
+    rows
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn leftover_function_grants_distinguishes_extension_functions() {
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'test'")
+        .await
+        .unwrap();
+    let worker = connect_pool_lazy(
+        &format!("postgres://app_worker:test@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+             CREATE FUNCTION public.aaa_leftover_probe_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;",
+        )
+        .await
+        .unwrap();
+    let leftover = leftover_function_grants(&worker).await;
+    assert_eq!(leftover.len(), 3);
+    for (role, total, ext, own, owners, names) in &leftover {
+        assert_eq!(
+            *total,
+            ext + own,
+            "全体は拡張とそれ以外に分かれるはず: {role}"
+        );
+        assert!(
+            *ext >= 1,
+            "pgcrypto の関数が拡張として数えられるはず: {role}"
+        );
+        assert!(
+            *own >= 1,
+            "アプリの関数が拡張以外として数えられるはず: {role}"
+        );
+        assert!(
+            owners.contains("postgres:"),
+            "所有者ごとの件数が出るはず: {role} {owners}"
+        );
+        let listed: Vec<&str> = names.split(',').collect();
+        assert!(
+            listed.len() <= 10,
+            "拡張でない関数の名前は最大 10 件のはず: {role} {names}"
+        );
+        assert!(
+            listed.contains(&"aaa_leftover_probe_fn"),
+            "拡張でないアプリの関数名が出るはず: {role} {names}"
+        );
+        assert!(
+            !listed.contains(&"digest") && !listed.contains(&"hmac"),
+            "拡張の関数名は名前の一覧に出ないはず: {role} {names}"
+        );
+    }
+    let counts = default_privilege_grant_counts(&worker).await;
+    for (role, total, _, _, _, _) in &leftover {
+        assert_eq!(
+            grant_count(&counts, role).2,
+            *total,
+            "件数行の関数件数と一致するはず: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated, service_role;
+             DROP ROLE anon; DROP ROLE authenticated; DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    let missing = leftover_function_grants(&worker).await;
+    assert_eq!(missing.len(), 3);
+    for (role, total, ext, own, owners, names) in &missing {
+        assert_eq!(
+            (*total, *ext, *own),
+            (0, 0, 0),
+            "無いロールは 0 件で失敗しない: {role}"
+        );
+        assert_eq!(
+            (owners.as_str(), names.as_str()),
+            ("-", "-"),
+            "無いロールの内訳は空のはず: {role}"
+        );
+    }
+}
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres 17 container"]
 async fn supabase_roles_revoked_including_future_objects() {
