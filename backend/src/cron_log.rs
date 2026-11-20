@@ -50,6 +50,9 @@ pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
 /// anon・authenticated・service_role に直接付いた public の表・ビュー・関数・シーケンスの
 /// 権限の件数もロールごとに 1 行出す(PUBLIC 経由は数えない)。無いロールは 0 件にし、
 /// 名前指定の権限調べは使わない(ロール不在で検査自体が落ちるため pg_roles 経由で oid を解決する)。
+/// 残った関数の内訳もロールごとに 1 行出す。EXECUTE を持つ public の関数を数え、
+/// 所有者ごとの件数と拡張の関数(pg_depend の deptype='e')かどうかの件数、
+/// 拡張でない関数の名前を最大 10 件出す。読み取りだけで権限は変えない。
 /// 末尾の range_check_violations は 0119 の CHECK 制約(dividend_per_share_cache。#2112 で VALIDATE 予定)と
 /// #2112 で追加予定の shares > 0 制約に先立つ違反件数だけを出す(値・利用者は出さない)。
 /// 個人表への直接参照は権限のないロールで検査自体が落ちるため、
@@ -132,6 +135,51 @@ SELECT pg_catalog.format('default_privilege_grants role=%s table=%s view=%s func
                WHERE n.nspname = 'public' AND c.relkind = 'S'
                  AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
                      WHERE a.grantee = r.oid)) END)
+FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS v(rolname)
+LEFT JOIN pg_catalog.pg_roles r ON r.rolname = v.rolname
+UNION ALL
+SELECT pg_catalog.format('function_leftover_grants role=%s total=%s ext=%s own=%s owners=%s names=%s',
+           v.rolname,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_proc p
+               WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                     WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')) END,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_proc p
+               WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                     WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
+                 AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+                     WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                       AND d.objid = p.oid AND d.deptype = 'e')) END,
+           CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_proc p
+               WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                     WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
+                 AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+                     WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                       AND d.objid = p.oid AND d.deptype = 'e')) END,
+           CASE WHEN r.oid IS NULL THEN '-' ELSE COALESCE(
+               (SELECT pg_catalog.string_agg(g.owner || ':' || g.cnt, ',' ORDER BY g.owner)
+                FROM (SELECT o.rolname AS owner, pg_catalog.count(*) AS cnt
+                      FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_roles o ON o.oid = p.proowner
+                      WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                        AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                            WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
+                      GROUP BY o.rolname) g), '-') END,
+           CASE WHEN r.oid IS NULL THEN '-' ELSE COALESCE(
+               (SELECT pg_catalog.string_agg(n.proname, ',' ORDER BY n.proname)
+                FROM (SELECT DISTINCT p.proname
+                      FROM pg_catalog.pg_proc p
+                      WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+                        AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                            WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
+                        AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+                            WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                              AND d.objid = p.oid AND d.deptype = 'e')
+                      ORDER BY p.proname LIMIT 10) n), '-') END)
 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS v(rolname)
 LEFT JOIN pg_catalog.pg_roles r ON r.rolname = v.rolname
 UNION ALL
@@ -340,6 +388,30 @@ mod tests {
             assert!(
                 !DB_ACCESS_STATE_SQL.contains(fragment),
                 "件数だけを出し値・利用者は出さない: {fragment}"
+            );
+        }
+    }
+
+    #[test]
+    fn db_access_state_reports_leftover_function_breakdown() {
+        for fragment in [
+            "function_leftover_grants",
+            "pg_depend",
+            "classid",
+            "deptype = 'e'",
+            "privilege_type = 'EXECUTE'",
+            "owners=",
+            "names=",
+        ] {
+            assert!(
+                DB_ACCESS_STATE_SQL.contains(fragment),
+                "残った関数の内訳行を出す: {fragment}"
+            );
+        }
+        for fragment in ["GRANT ", "REVOKE ", "SECURITY DEFINER"] {
+            assert!(
+                !DB_ACCESS_STATE_SQL.contains(fragment),
+                "内訳の取得は読み取りだけで権限は変えない: {fragment}"
             );
         }
     }
