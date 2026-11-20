@@ -2525,3 +2525,80 @@ async fn supabase_roles_revoked_including_future_objects() {
         .unwrap();
     apply_revoke_migration(&admin).await;
 }
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn supabase_roles_revoked_as_superuser_including_unhandled_owner() {
+    async fn apply_revoke_migration(pool: &Db) {
+        let tx = pool.begin().await.unwrap();
+        (&tx)
+            .batch_execute(include_str!("../migrations/0125_revoke_supabase_roles.sql"))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+    }
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             CREATE ROLE extowner2 NOLOGIN;
+             GRANT CREATE ON SCHEMA public TO extowner2;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             CREATE TABLE public.supabase_probe_super (id bigint PRIMARY KEY);
+             CREATE FUNCTION public.supabase_probe_super_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             ALTER FUNCTION public.supabase_probe_super_fn() OWNER TO app_price_target_executor;",
+        )
+        .await
+        .unwrap();
+    let ext_tx = admin.begin().await.unwrap();
+    (&ext_tx)
+        .batch_execute(
+            "SET ROLE extowner2;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO authenticated;
+             CREATE FUNCTION public.supabase_probe_ext2_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    ext_tx.commit().await.unwrap();
+    apply_revoke_migration(&admin).await;
+    let revoked = default_privilege_grant_counts(&admin).await;
+    assert_eq!(revoked.len(), 3);
+    for (role, table, view, function, sequence) in &revoked {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "superuser の移行では扱えない所有者の分も 0 件になるはず: {role}"
+        );
+    }
+    admin
+        .batch_execute(
+            "DROP FUNCTION public.supabase_probe_super_fn();
+             DROP FUNCTION public.supabase_probe_ext2_fn();
+             DROP TABLE public.supabase_probe_super;
+             DROP OWNED BY extowner2;
+             DROP ROLE extowner2;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    apply_revoke_migration(&admin).await;
+}

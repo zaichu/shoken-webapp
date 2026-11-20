@@ -13,6 +13,7 @@ DECLARE
     me oid;
     leftover_own integer;
     leftover_other integer;
+    leftover_sample text;
     handled_oids oid[];
     did_set boolean;
 BEGIN
@@ -124,7 +125,32 @@ BEGIN
           AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee = r.oid)
     ) AS remaining_other;
     IF leftover_other > 0 THEN
-        RAISE NOTICE '扱えない所有者の supabase 3 ロールへの権限が % 件残っている', leftover_other;
+        SELECT COALESCE(string_agg(sample, ', '), '') INTO leftover_sample FROM (
+            SELECT format(
+                '%s.%s(owner=%s,grantee=%s)',
+                n.nspname, c.relname, o.rolname, r.rolname
+            ) AS sample
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_catalog.pg_roles o ON o.oid = c.relowner
+            JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+            WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+              AND c.relowner <> ALL (handled_oids)
+              AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a WHERE a.grantee = r.oid)
+            UNION ALL
+            SELECT format(
+                '%s.%s(%s)(owner=%s,grantee=%s)',
+                'public', p.proname, pg_catalog.oidvectortypes(p.proargtypes), o.rolname, r.rolname
+            )
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_roles o ON o.oid = p.proowner
+            JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+            WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+              AND p.proowner <> ALL (handled_oids)
+              AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee = r.oid)
+            LIMIT 10
+        ) AS samples;
+        RAISE NOTICE '扱えない所有者の supabase 3 ロールへの権限が % 件残っている(例: %)', leftover_other, leftover_sample;
     END IF;
 END
 $$;
