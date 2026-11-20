@@ -1,6 +1,5 @@
--- 無操作期限の迂回防止・認証の1回化・上限・掃除の expand(#2126 の 6・7・8・15)。
--- 古い期限付き認証関数(auth_session_user_by_token_with_idle_timeout など)の削除は
--- 別 PR の contract で行う(デプロイ中の旧 Worker が使うため)。login_notify_*_by_token の消去は 0124 で行う。
+-- 無操作期限の迂回防止・認証の1回化・上限・掃除の expand。
+-- 古い期限付き認証関数の削除は別 PR の contract で行う(デプロイ中の旧 Worker が使うため)。未使用トークン関数の消去は 0124 で行う。
 SET LOCAL lock_timeout = '5s';
 
 CREATE FUNCTION public.auth_session_user_by_token_v2(p_token_hash bytea)
