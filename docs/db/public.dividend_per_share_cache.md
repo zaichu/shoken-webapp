@@ -22,8 +22,8 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
-| dividend_per_share_cache_dividend_check | CHECK | CHECK (((dividend_per_share IS NULL) OR (dividend_per_share >= (0)::numeric))) NOT VALID |
-| dividend_per_share_cache_status_check | CHECK | CHECK (((status)::text = ANY ((ARRAY['ok'::character varying, 'zero'::character varying, 'error'::character varying, 'pending'::character varying])::text[]))) NOT VALID |
+| dividend_per_share_cache_dividend_check | CHECK | CHECK (((dividend_per_share IS NULL) OR (dividend_per_share >= (0)::numeric))) |
+| dividend_per_share_cache_status_check | CHECK | CHECK (((status)::text = ANY ((ARRAY['ok'::character varying, 'zero'::character varying, 'error'::character varying, 'pending'::character varying])::text[]))) |
 | dividend_per_share_cache_pkey | PRIMARY KEY | PRIMARY KEY (security_code) |
 
 ## Indexes

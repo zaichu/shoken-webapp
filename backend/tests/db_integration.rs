@@ -4737,6 +4737,130 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     assert_eq!(dividend_count, 1);
 }
 
+/// 数量 0 の行を含む CSV は、その行だけ行エラーになり残りは取り込まれる(#2112)。
+/// DB の CHECK 違反で取込全体が HTTP 500 にならないことと、プレビューでも行エラーになることを確かめる。
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn csv_upload_zero_shares_is_row_error_and_keeps_valid_rows() {
+    use backend::services::dividend::DividendDomain;
+    use backend::services::domestic_stock::DomesticStockDomain;
+    use backend::services::mutualfund::MutualfundDomain;
+
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    let dividend_csv = concat!(
+        "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8592\",\"テスト配当\",\"円\",\"90.00\",\"200\",\"18000\",\"3656\",\"14344\"\n",
+        "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"8593\",\"テスト配当ゼロ\",\"円\",\"90.00\",\"0\",\"18000\",\"3656\",\"14344\""
+    );
+    let preview =
+        DividendDomain::preview_csv(dividend_csv.as_bytes()).expect("配当プレビューは通る");
+    assert_eq!(
+        (
+            preview.total_rows,
+            preview.valid_rows,
+            preview.errors.len(),
+            preview
+                .errors
+                .first()
+                .is_some_and(|error| error.message.contains("0より大きい値")),
+        ),
+        (2, 1, 1, true)
+    );
+    let res = DividendDomain::upload_csv(
+        &pool,
+        user_id,
+        dividend_csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("配当は0行があっても部分成功する");
+    assert_eq!((res.inserted, res.errors.len()), (1, 1));
+    let (count,): (i64,) = db::query(
+        "SELECT COUNT(*) FROM dividends WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one::<(i64,), _>(&pool)
+    .await
+    .expect("dividends の件数取得に失敗");
+    assert_eq!(count, 1);
+
+    let domestic_csv = concat!(
+        "約定日,受渡日,銘柄コード,銘柄名,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]\n",
+        "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"10000\"\n",
+        "\"2026/02/09\",\"2026/02/12\",\"9903\",\"架空ゼロ\",\"特定\",\"-\",\"売付\",\"0\",\"1500.0\",\"150000\",\"1400.00\",\"10000\""
+    );
+    let preview = DomesticStockDomain::preview_csv(domestic_csv.as_bytes())
+        .expect("国内株式プレビューは通る");
+    assert_eq!(
+        (
+            preview.total_rows,
+            preview.valid_rows,
+            preview.errors.len(),
+            preview
+                .errors
+                .first()
+                .is_some_and(|error| error.message.contains("0より大きい値")),
+        ),
+        (2, 1, 1, true)
+    );
+    let res = DomesticStockDomain::upload_csv(
+        &pool,
+        user_id,
+        domestic_csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("国内株式は0行があっても部分成功する");
+    assert_eq!((res.inserted, res.errors.len()), (1, 1));
+    let (count,): (i64,) = db::query(
+        "SELECT COUNT(*) FROM domestic_stocks WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one::<(i64,), _>(&pool)
+    .await
+    .expect("domestic_stocks の件数取得に失敗");
+    assert_eq!(count, 1);
+
+    let mutualfund_csv = concat!(
+        "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n",
+        "\"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"再投資型\",\"特定\",\"解約\",\"1000\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\"\n",
+        "\"2022/10/28\",\"2022/11/2\",\"架空ゼロファンド\",\"再投資型\",\"特定\",\"解約\",\"0\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\""
+    );
+    let preview =
+        MutualfundDomain::preview_csv(mutualfund_csv.as_bytes()).expect("投信プレビューは通る");
+    assert_eq!(
+        (
+            preview.total_rows,
+            preview.valid_rows,
+            preview.errors.len(),
+            preview
+                .errors
+                .first()
+                .is_some_and(|error| error.message.contains("0より大きい値")),
+        ),
+        (2, 1, 1, true)
+    );
+    let res = MutualfundDomain::upload_csv(
+        &pool,
+        user_id,
+        mutualfund_csv.as_bytes(),
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("投信は0行があっても部分成功する");
+    assert_eq!((res.inserted, res.errors.len()), (1, 1));
+    let (count,): (i64,) = db::query(
+        "SELECT COUNT(*) FROM mutualfunds WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one::<(i64,), _>(&pool)
+    .await
+    .expect("mutualfunds の件数取得に失敗");
+    assert_eq!(count, 1);
+}
+
 /// (基準日, 試行時刻) の取得用ヘルパー。価格更新cronの選択・循環確認に使う
 async fn price_row(pool: &Db, code: &str) -> Option<(Option<Date>, time::OffsetDateTime)> {
     db::query(

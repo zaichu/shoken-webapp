@@ -31,6 +31,7 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| domestic_stocks_shares_check | CHECK | CHECK ((shares > (0)::numeric)) |
 | domestic_stocks_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE |
 | domestic_stocks_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

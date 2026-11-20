@@ -258,7 +258,7 @@ fn transform_mutualfund_row(
         )?,
         dividends,
         account,
-        shares: util::parse_required_number(row, "数量[口]", row_num)?,
+        shares: util::parse_required_positive_number(row, "数量[口]", row_num)?,
         exchange_rate: util::parse_required_number(row, "為替レート［円］", row_num)?,
         cancellation_unit_price_yen: util::parse_required_number(row, "解約単価［円］", row_num)?,
         cancellation_amount_yen: util::parse_required_number(row, "解約額［円］", row_num)?,
@@ -305,5 +305,31 @@ mod tests {
             (preview.valid_rows, preview.rows[0].dividends.is_none()),
             (1, true)
         );
+    }
+
+    #[test]
+    fn test_preview_csv_rejects_nonpositive_shares() {
+        // 数量が 0 以下は DB の CHECK 制約に当たるため行エラーにする
+        // (一括登録全体の失敗にせず原因の行番号を返す)
+        for shares in ["0", "-5"] {
+            let csv = format!(
+                "約定日,受渡日,ファンド名,分配金,口座,取引,数量[口],為替レート［円］,解約単価［円］,解約額［円］,平均取得価額［円］,実現損益［円］\n\
+                 \"2022/10/28\",\"2022/11/2\",\"架空インデックス 米国株式\",\"再投資型\",\"特定\",\"解約\",\"{shares}\",\"1\",\"12000\",\"12000000\",\"10000\",\"600000\""
+            );
+            let preview = MutualfundDomain::preview_csv(csv.as_bytes()).unwrap();
+            assert_eq!(
+                (
+                    preview.total_rows,
+                    preview.valid_rows,
+                    preview.errors.len(),
+                    preview
+                        .errors
+                        .first()
+                        .is_some_and(|error| error.message.contains("0より大きい値")),
+                ),
+                (1, 0, 1, true),
+                "shares={shares}"
+            );
+        }
     }
 }
