@@ -162,6 +162,16 @@ fn step_month_moves_within_this_year() {
 }
 
 #[test]
+fn click_keeps_hovered_month_but_toggles_on_touch() {
+    assert_eq!(next_selected(Some(3), 3, true), Some(3));
+    assert_eq!(next_selected(None, 3, true), Some(3));
+    assert_eq!(next_selected(Some(2), 3, true), Some(3));
+    assert_eq!(next_selected(Some(3), 3, false), None);
+    assert_eq!(next_selected(None, 3, false), Some(3));
+    assert_eq!(next_selected(Some(2), 3, false), Some(3));
+}
+
+#[test]
 fn table_monthly_text_hides_future_months() {
     let monthly = [
         0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 3_000.0, 0.0, 0.0, 0.0, 0.0,

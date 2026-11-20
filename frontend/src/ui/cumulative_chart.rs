@@ -102,6 +102,19 @@ pub fn month_for_position(x: f64, width: f64, current_month: u32) -> u32 {
         .unwrap_or(max)
 }
 
+/// クリック後の選択。ホバー可能なPCではホバーが既に同じ月を選んでいるため、
+/// 同じ月のクリックでも表示を維持する。タッチでは同月タップで開閉する
+pub fn next_selected(current: Option<u32>, month: u32, hover: bool) -> Option<u32> {
+    if hover {
+        return Some(month);
+    }
+    if current == Some(month) {
+        None
+    } else {
+        Some(month)
+    }
+}
+
 /// スライダーのキー操作で月を1つ動かす。範囲外は端に寄せる
 pub fn step_month(month: u32, delta: i32, current_month: u32) -> u32 {
     let max = current_month.clamp(1, 12);
@@ -344,8 +357,9 @@ pub fn CumulativeChart(
                             rect.width(),
                             current_month,
                         );
+                        let hover = hover_capable();
                         selected.update(|state| {
-                            *state = if *state == Some(month) { None } else { Some(month) };
+                            *state = next_selected(*state, month, hover);
                         });
                     }
                     on:pointermove=move |event| {
