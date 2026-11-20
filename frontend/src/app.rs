@@ -402,7 +402,7 @@ pub fn App() -> impl IntoView {
         let authed = session.user.get().is_some();
         let current = path.get();
         if protected_path(&current) && !authed && session.connection_error.get().is_none() {
-            save_return_path(&current);
+            save_return_path(&current_location());
             navigate(path, "/login", true);
         } else if route.get() == Route::Login && authed {
             navigate(

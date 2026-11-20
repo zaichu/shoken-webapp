@@ -12,9 +12,16 @@ ALTER TABLE public.sessions
 
 COMMENT ON COLUMN public.sessions.last_used_at IS '最後に利用した時刻。セッション作成時に開始し、API利用時に最大1分ごとに更新';
 
-DROP FUNCTION public.auth_session_user_by_token(bytea);
+CREATE FUNCTION public.auth_session_last_used_at(p_token_hash bytea) RETURNS timestamptz
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+    SELECT last_used_at FROM public.sessions WHERE token_hash = p_token_hash
+$$;
 
-CREATE FUNCTION public.auth_session_user_by_token(
+REVOKE ALL ON FUNCTION public.auth_session_last_used_at(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auth_session_last_used_at(bytea) TO app_restricted;
+
+CREATE FUNCTION public.auth_session_user_by_token_with_idle_timeout(
     p_token_hash bytea,
     p_idle_cutoff timestamptz,
     p_touch_session boolean
@@ -50,12 +57,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.auth_session_user_by_token(bytea, timestamptz, boolean) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auth_session_user_by_token(bytea, timestamptz, boolean) TO app_restricted;
+REVOKE ALL ON FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) TO app_restricted;
 
-DROP FUNCTION public.auth_lookup_user_id_by_session(bytea);
-
-CREATE FUNCTION public.auth_lookup_user_id_by_session(
+CREATE FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(
     p_token_hash bytea,
     p_idle_cutoff timestamptz
 ) RETURNS uuid
@@ -67,5 +72,30 @@ AS $$
       AND last_used_at > p_idle_cutoff
 $$;
 
-REVOKE ALL ON FUNCTION public.auth_lookup_user_id_by_session(bytea, timestamptz) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auth_lookup_user_id_by_session(bytea, timestamptz) TO app_restricted;
+REVOKE ALL ON FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) TO app_restricted;
+
+CREATE OR REPLACE FUNCTION public.auth_session_user_by_token(p_token_hash bytea)
+RETURNS TABLE(id uuid, google_id text, email text, name text, picture_url text, created_at timestamptz, updated_at timestamptz)
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+    SELECT * FROM public.auth_session_user_by_token_with_idle_timeout(
+        p_token_hash,
+        NOW() - INTERVAL '30 minutes',
+        false
+    )
+$$;
+
+CREATE OR REPLACE FUNCTION public.auth_lookup_user_id_by_session(p_token_hash bytea) RETURNS uuid
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+    SELECT public.auth_lookup_user_id_by_session_with_idle_timeout(
+        p_token_hash,
+        NOW() - INTERVAL '30 minutes'
+    )
+$$;
+
+REVOKE ALL ON FUNCTION public.auth_session_user_by_token(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auth_session_user_by_token(bytea) TO app_restricted;
+REVOKE ALL ON FUNCTION public.auth_lookup_user_id_by_session(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auth_lookup_user_id_by_session(bytea) TO app_restricted;

@@ -15,8 +15,8 @@ pub const DEFAULT_USER_ROW_LIMIT: RowLimit = RowLimit::new(100_000);
 pub const SESSION_IDLE_TIMEOUT: time::Duration = time::Duration::minutes(30);
 pub const SESSION_TOUCH_INTERVAL: time::Duration = time::Duration::minutes(1);
 
-pub fn session_cutoffs(now: OffsetDateTime) -> (OffsetDateTime, OffsetDateTime) {
-    (now - SESSION_IDLE_TIMEOUT, now - SESSION_TOUCH_INTERVAL)
+pub fn session_idle_cutoff(now: OffsetDateTime) -> OffsetDateTime {
+    now - SESSION_IDLE_TIMEOUT
 }
 
 pub fn session_deadline_valid(
@@ -42,6 +42,7 @@ mod session_deadline_tests {
     #[test]
     fn session_deadline_and_touch_boundaries() {
         let expires = at(7 * 24 * 60);
+        assert_eq!(session_idle_cutoff(at(30)), at(0));
         assert!(session_deadline_valid(expires, at(0), at(29)));
         assert!(!session_deadline_valid(expires, at(0), at(30)));
         assert!(!session_deadline_valid(expires, at(0), at(31)));
@@ -57,16 +58,6 @@ mod session_deadline_tests {
             at(7 * 24 * 60 - 30),
             expires
         ));
-        assert!(!should_touch_session(
-            at(29) + time::Duration::seconds(1),
-            at(30)
-        ));
-        assert!(should_touch_session(at(29), at(30)));
-        assert_eq!(session_cutoffs(at(30)), (at(0), at(29)));
-    }
-
-    #[test]
-    fn touch_decision_uses_one_minute_interval() {
         assert!(!should_touch_session(
             at(29) + time::Duration::seconds(1),
             at(30)
