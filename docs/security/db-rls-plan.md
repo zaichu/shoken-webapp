@@ -372,7 +372,8 @@ Hyperdrive のクエリ枠に対しては、一覧1回あたりの送信数が�
 
 | 関数 | 引数 | 戻り値 | 揮発性 | 用途 |
 |---|---|---|---|---|
-| `auth_lookup_user_id_by_session(bytea)` | `token_hash` | `uuid` または NULL | `STABLE` | 全認証要求の入口と管理者判定の再照合 |
+| `auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)` | token_hash・idle timeout・last-used 更新有無 | 利用者の最小列 | `VOLATILE` | 無操作期限を確認する通常認証 |
+| `auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz)` | token_hash・idle timeout | `uuid` または NULL | `STABLE` | 無操作期限を確認する利用者特定 |
 | `auth_delete_session_by_token(bytea)` | `token_hash` | `void` | `VOLATILE` | ログアウトの冪等な消去 |
 | `login_notify_peek_by_token(bytea)` | `token_hash` | `(user_id uuid, expires_at timestamptz)` | `STABLE` | 通知設定の token 照会 |
 | `login_notify_consume_by_token(bytea)` | `token_hash` | `user_id uuid` または NULL | `VOLATILE` | 通知設定の token 消費(`used_at` 更新を含む) |
@@ -746,6 +747,19 @@ Issue #1608 の最新計測メモでは scheduled の DB 往復は p50 195ms、f
   性能基準 +50ms 以内の追加なし。
 - 戻し方はコードの revert が正本。0032 の関数は残しても所有者の挙動を変えず、
   取り消す場合は新しい増分 migration で `DROP FUNCTION` を行う。
+
+## 28. 旧 Worker 互換の一引数認証関数の削除(#2102)
+
+- PR #2100 の本番デプロイ完了後、現行 Worker は `auth_session_user_by_token_with_idle_timeout` と
+  `auth_lookup_user_id_by_session_with_idle_timeout` のみを呼ぶ。旧 Worker が一引数関数を使わないことを
+  main のバックエンドコード検索で確認した。
+- `0109_drop_compat_auth_functions.sql` は `SET LOCAL lock_timeout = '5s'` を設定し、
+  互換ラッパー2関数だけを DROP する。実行権限は関数とともに消えるため REVOKE は追加しない。
+- `login_rls` と `db_integration` は旧関数が存在しないこと、期限付き照会関数を `app_restricted` から
+  呼び出して認証できることを使い捨て PostgreSQL で確認する。
+- 初回デプロイ前に PR #2100 の Worker 配信完了と、Cloudflare Dashboard の Deployments で最新の
+  Worker version が有効であることを確認する。旧 version が残っていないことと認証エラーのログがないことを
+  確認してから DROP を適用する。migration は関数 DROP 2つだけである。
 
 ## 24. 第五段階(5e-2)の記録(#1957)
 

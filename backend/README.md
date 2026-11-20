@@ -113,6 +113,10 @@ make migrate-local
 CI は `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test`、
 Worker ビルド（`worker-build --release`）を実行します。
 
+認証のセッション照会は `auth_session_user_by_token_with_idle_timeout` と
+`auth_lookup_user_id_by_session_with_idle_timeout` を使います。旧 Worker 向け一引数関数は
+0109 で削除します。権限・運用の詳細は [`../docs/security/db-rls-plan.md`](../docs/security/db-rls-plan.md) を参照してください。
+
 ### 新規 DB で `stock` を投入する（銘柄検索の初期化）
 
 新規 DB（`make migrate-local` 直後）では `stock` は空で、銘柄検索

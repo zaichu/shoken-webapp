@@ -181,8 +181,6 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         .batch_execute(
             "ALTER FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) OWNER TO postgres;
-             ALTER FUNCTION public.auth_lookup_user_id_by_session(bytea) OWNER TO postgres;
-             ALTER FUNCTION public.auth_session_user_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_last_used_at(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
@@ -1430,8 +1428,6 @@ async fn auth_paths_use_limited_functions() {
     for signature in [
         "public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)",
         "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz)",
-        "public.auth_session_user_by_token(bytea)",
-        "public.auth_lookup_user_id_by_session(bytea)",
         "public.auth_session_last_used_at(bytea)",
         "public.auth_delete_session_by_token(bytea)",
     ] {
@@ -1459,6 +1455,19 @@ async fn auth_paths_use_limited_functions() {
         .await
         .unwrap();
         assert!(is_definer, "{signature} は DEFINER のはず");
+    }
+    for signature in [
+        "public.auth_session_user_by_token(bytea)",
+        "public.auth_lookup_user_id_by_session(bytea)",
+    ] {
+        let exists = db::query_scalar::<bool>(
+            "SELECT to_regprocedure($1) IS NOT NULL",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!exists, "{signature} は存在しないはず");
     }
     let volatile = db::query_scalar::<String>(
         "SELECT provolatile::text FROM pg_proc WHERE oid = 'public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)'::regprocedure",
