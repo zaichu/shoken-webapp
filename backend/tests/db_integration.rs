@@ -7374,6 +7374,7 @@ async fn stage5b_definer_functions_and_app_enter() {
 
     for signature in [
         "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea,timestamptz)",
+        "public.auth_lookup_user_id_by_session_v2(bytea)",
         "public.auth_delete_session_by_token(bytea)",
         "public.auth_rotate_session(uuid, bytea, bytea)",
         "public.auth_upsert_user(text, text, text, text)",
@@ -7403,31 +7404,19 @@ async fn stage5b_definer_functions_and_app_enter() {
         .expect("関数定義の取得に失敗");
         assert!(is_definer, "{signature} は DEFINER のはず");
     }
-    // 旧 login_notify_*_by_token は *_v2 への移行済みで app_restricted の EXECUTE を外している。
-    // 関数は残るが、app_restricted からは実行できない
+    // 旧 login_notify_*_by_token は削除済みで存在しない
     for signature in [
         "public.login_notify_peek_by_token(bytea)",
         "public.login_notify_consume_by_token(bytea)",
     ] {
-        let executable = db::query_scalar::<bool>(
-            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
-            vec![],
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("関数権限の取得に失敗");
-        assert!(
-            !executable,
-            "{signature} は app_restricted から実行できないはず"
-        );
-        let is_definer = db::query_scalar::<bool>(
-            "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
+        let exists = db::query_scalar::<bool>(
+            "SELECT to_regprocedure($1) IS NOT NULL",
             vec![Bind::from(signature)],
         )
         .fetch_one(&pool)
         .await
         .expect("関数定義の取得に失敗");
-        assert!(is_definer, "{signature} は DEFINER のはず");
+        assert!(!exists, "{signature} は存在しないはず");
     }
     for signature in [
         "public.auth_session_user_by_token(bytea)",
@@ -7476,9 +7465,9 @@ async fn stage5b_definer_functions_and_app_enter() {
             "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea,timestamp with time zone)",
             "s",
         ),
+        ("public.auth_lookup_user_id_by_session_v2(bytea)", "s"),
+        ("public.auth_session_user_by_token_v2(bytea)", "v"),
         ("public.auth_delete_session_by_token(bytea)", "v"),
-        ("public.login_notify_peek_by_token(bytea)", "s"),
-        ("public.login_notify_consume_by_token(bytea)", "v"),
         ("public.auth_rotate_session(uuid, bytea, bytea)", "v"),
         ("public.auth_upsert_user(text, text, text, text)", "v"),
     ] {

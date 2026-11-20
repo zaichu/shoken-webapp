@@ -126,11 +126,17 @@ fn query_tag(sql: &str) -> &'static str {
             Some(s) if s.starts_with("auth_lookup_user_id_by_session_with_idle_timeout(") => {
                 "auth_lookup_user_id_by_session_with_idle_timeout"
             }
+            Some(s) if s.starts_with("auth_lookup_user_id_by_session_v2(") => {
+                "auth_lookup_user_id_by_session_v2"
+            }
             Some(s) if s.starts_with("auth_delete_session_by_token(") => {
                 "auth_delete_session_by_token"
             }
             Some(s) if s.starts_with("* FROM auth_session_user_by_token_with_idle_timeout(") => {
                 "auth_session_user_by_token_with_idle_timeout"
+            }
+            Some(s) if s.starts_with("* FROM auth_session_user_by_token_v2(") => {
+                "auth_session_user_by_token_v2"
             }
             _ => "SELECT",
         },
@@ -1431,12 +1437,20 @@ mod tests {
                 "auth_lookup_user_id_by_session_with_idle_timeout",
             ),
             (
+                "SELECT auth_lookup_user_id_by_session_v2($1)",
+                "auth_lookup_user_id_by_session_v2",
+            ),
+            (
                 "SELECT auth_delete_session_by_token($1)",
                 "auth_delete_session_by_token",
             ),
             (
                 "SELECT * FROM auth_session_user_by_token_with_idle_timeout($1, $2, $3)",
                 "auth_session_user_by_token_with_idle_timeout",
+            ),
+            (
+                "SELECT * FROM auth_session_user_by_token_v2($1)",
+                "auth_session_user_by_token_v2",
             ),
             ("INSERT INTO users (id) VALUES ($1)", "INSERT"),
             ("UPDATE users SET email = $1", "UPDATE"),

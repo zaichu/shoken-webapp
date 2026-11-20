@@ -15,7 +15,7 @@ use axum::{
     operation_id = "v1_admin_logins_list",
     params(
         ("page" = Option<i64>, Query, description = "ページ番号（既定: 1）"),
-        ("per_page" = Option<i64>, Query, description = "取得件数（既定: 200、最大: 1000）"),
+        ("per_page" = Option<i64>, Query, description = "取得件数（既定: 200、最大: 200）"),
         ("q" = Option<String>, Query, description = "メール・場所の部分一致（空白区切り AND）"),
         ("email" = Option<String>, Query, description = "メールの部分一致"),
         ("place" = Option<String>, Query, description = "国・地域の部分一致"),
@@ -118,7 +118,7 @@ mod tests {
                         .unwrap();
                 assert_eq!(
                     (body["page"].as_i64(), body["per_page"].as_i64()),
-                    (Some(1), Some(1000))
+                    (Some(1), Some(200))
                 );
                 assert_eq!(
                     body["data"].as_array().unwrap().as_slice(),

@@ -109,8 +109,16 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         include_str!("../../migrations/0122_narrow_app_restricted_grants.sql"),
     ),
     (
-        "0123_revoke_supabase_roles",
-        include_str!("../../migrations/0123_revoke_supabase_roles.sql"),
+        "0123_auth_fixed_idle_and_prune",
+        include_str!("../../migrations/0123_auth_fixed_idle_and_prune.sql"),
+    ),
+    (
+        "0124_drop_unused_login_notify",
+        include_str!("../../migrations/0124_drop_unused_login_notify.sql"),
+    ),
+    (
+        "0125_revoke_supabase_roles",
+        include_str!("../../migrations/0125_revoke_supabase_roles.sql"),
     ),
 ];
 

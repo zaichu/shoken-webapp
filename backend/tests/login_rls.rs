@@ -181,11 +181,12 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         .batch_execute(
             "ALTER FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) OWNER TO postgres;
+             ALTER FUNCTION public.auth_lookup_user_id_by_session_v2(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_session_user_by_token_v2(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_last_used_at(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
-             ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;
-             ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO postgres",
+             ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;",
         )
         .await
         .unwrap();
@@ -1464,6 +1465,8 @@ async fn auth_paths_use_limited_functions() {
         "public.auth_delete_session_by_token(bytea)",
         "public.auth_rotate_session(uuid, bytea, bytea)",
         "public.auth_upsert_user(text, text, text, text)",
+        "public.auth_session_user_by_token_v2(bytea)",
+        "public.auth_lookup_user_id_by_session_v2(bytea)",
         "public.login_notify_peek_v2(bytea)",
         "public.login_notify_consume_v2(bytea)",
     ] {
@@ -1492,22 +1495,19 @@ async fn auth_paths_use_limited_functions() {
         .unwrap();
         assert!(is_definer, "{signature} は DEFINER のはず");
     }
-    // 旧 login_notify_*_by_token は *_v2 への移行済みで EXECUTE を外している
+    // 旧 login_notify_*_by_token は削除済みで存在しない
     for signature in [
         "public.login_notify_peek_by_token(bytea)",
         "public.login_notify_consume_by_token(bytea)",
     ] {
-        let executable = db::query_scalar::<bool>(
-            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
-            vec![],
+        let exists = db::query_scalar::<bool>(
+            "SELECT to_regprocedure($1) IS NOT NULL",
+            vec![Bind::from(signature)],
         )
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert!(
-            !executable,
-            "{signature} は app_restricted から実行できないはず"
-        );
+        assert!(!exists, "{signature} は存在しないはず");
     }
     for signature in [
         "public.auth_session_user_by_token(bytea)",
@@ -1544,6 +1544,22 @@ async fn auth_paths_use_limited_functions() {
         config.contains(&("search_path=public, pg_temp".to_string(),)),
         "照会関数は search_path を固定するはず"
     );
+    for signature in [
+        "public.auth_session_user_by_token_v2(bytea)",
+        "public.auth_lookup_user_id_by_session_v2(bytea)",
+    ] {
+        let args = db::query_scalar::<String>(
+            "SELECT pg_get_function_arguments($1::regprocedure)",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            args, "p_token_hash bytea",
+            "{signature} は期限の引数を取らないはず"
+        );
+    }
 
     let mut info = GoogleUserInfo {
         sub: "auth-paths-google".into(),
