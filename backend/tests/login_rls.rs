@@ -2240,3 +2240,154 @@ async fn default_privilege_grants_counts_roles_present_and_missing() {
         );
     }
 }
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn supabase_roles_revoked_including_future_objects() {
+    async fn has_table_privilege(pool: &Db, role: &str, object: &str, privilege: &str) -> bool {
+        db::query_scalar::<bool>(
+            "SELECT has_table_privilege($1, $2, $3)",
+            vec![Bind::from(role), Bind::from(object), Bind::from(privilege)],
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+    async fn apply_revoke_migration(pool: &Db) {
+        let tx = pool.begin().await.unwrap();
+        (&tx)
+            .batch_execute(include_str!("../migrations/0123_revoke_supabase_roles.sql"))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+    }
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+
+    for (role, object, privilege) in [
+        ("app_restricted", "public.users", "SELECT"),
+        ("app_restricted", "public.users", "INSERT"),
+        ("app_worker", "public.stock", "SELECT"),
+        ("app_worker", "public.fund_codes", "SELECT"),
+    ] {
+        assert!(
+            has_table_privilege(&admin, role, object, privilege).await,
+            "{role} の {object} {privilege} は残るはず"
+        );
+    }
+    let executable = db::query_scalar::<bool>(
+        "SELECT has_function_privilege('app_restricted', 'public.fund_name_normalize(text)', 'EXECUTE')",
+        vec![],
+    )
+    .fetch_one(&admin)
+    .await
+    .unwrap();
+    assert!(executable, "app_restricted の関数の EXECUTE は残るはず");
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+             GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+             GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+             CREATE TABLE public.supabase_probe_before (id bigint PRIMARY KEY);
+             CREATE SEQUENCE public.supabase_probe_before_seq;
+             CREATE FUNCTION public.supabase_probe_before_fn() RETURNS bigint LANGUAGE sql RETURN 1;",
+        )
+        .await
+        .unwrap();
+    let before = default_privilege_grant_counts(&admin).await;
+    assert!(
+        grant_count(&before, "anon").0 >= 1,
+        "再現した既定権限で anon に表が付くはず: {before:?}"
+    );
+    assert!(
+        grant_count(&before, "authenticated").3 >= 1,
+        "再現した既定権限で authenticated にシーケンスが付くはず: {before:?}"
+    );
+    assert!(
+        grant_count(&before, "service_role").2 >= 1,
+        "再現した既定権限で service_role に関数が付くはず: {before:?}"
+    );
+
+    apply_revoke_migration(&admin).await;
+    apply_revoke_migration(&admin).await;
+    let revoked = default_privilege_grant_counts(&admin).await;
+    assert_eq!(revoked.len(), 3);
+    for (role, table, view, function, sequence) in &revoked {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "3 ロールの権限は 0 件になるはず: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "CREATE TABLE public.supabase_probe_after (id bigint PRIMARY KEY);
+             CREATE SEQUENCE public.supabase_probe_after_seq;
+             CREATE FUNCTION public.supabase_probe_after_fn() RETURNS bigint LANGUAGE sql RETURN 1;",
+        )
+        .await
+        .unwrap();
+    let after_new = default_privilege_grant_counts(&admin).await;
+    for (role, table, view, function, sequence) in &after_new {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "新しく作った表・関数に付かないはず: {role}"
+        );
+    }
+    for (role, object) in [
+        ("anon", "public.supabase_probe_after"),
+        ("authenticated", "public.supabase_probe_after"),
+        ("service_role", "public.supabase_probe_after"),
+    ] {
+        assert!(
+            !has_table_privilege(&admin, role, object, "SELECT").await,
+            "{role} の {object} SELECT は付かないはず"
+        );
+    }
+    for (role, object, privilege) in [
+        ("app_restricted", "public.users", "SELECT"),
+        ("app_worker", "public.stock", "SELECT"),
+    ] {
+        assert!(
+            has_table_privilege(&admin, role, object, privilege).await,
+            "{role} の {object} {privilege} は残るはず"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "DROP FUNCTION public.supabase_probe_before_fn();
+             DROP FUNCTION public.supabase_probe_after_fn();
+             DROP TABLE public.supabase_probe_before;
+             DROP TABLE public.supabase_probe_after;
+             DROP SEQUENCE public.supabase_probe_before_seq;
+             DROP SEQUENCE public.supabase_probe_after_seq;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    apply_revoke_migration(&admin).await;
+}

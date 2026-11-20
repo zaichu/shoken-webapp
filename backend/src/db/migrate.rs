@@ -108,6 +108,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0122_narrow_app_restricted_grants",
         include_str!("../../migrations/0122_narrow_app_restricted_grants.sql"),
     ),
+    (
+        "0123_revoke_supabase_roles",
+        include_str!("../../migrations/0123_revoke_supabase_roles.sql"),
+    ),
 ];
 
 /// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版
