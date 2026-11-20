@@ -122,7 +122,7 @@
           {
             "name": "per_page",
             "in": "query",
-            "description": "取得件数（既定: 200、最大: 1000）",
+            "description": "取得件数（既定: 200、最大: 200）",
             "required": false,
             "schema": {
               "type": "integer",

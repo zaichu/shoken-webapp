@@ -10,6 +10,7 @@ pub enum CronStep {
     FundPrice,
     StockMaster,
     LoginEvents,
+    LoginNotifyViews,
     OperationLogs,
 }
 
@@ -21,6 +22,7 @@ impl CronStep {
             Self::FundPrice => "fund_price",
             Self::StockMaster => "stock_master",
             Self::LoginEvents => "login_events",
+            Self::LoginNotifyViews => "login_notify_views",
             Self::OperationLogs => "operation_logs",
         }
     }
@@ -182,6 +184,7 @@ mod tests {
             CronStep::FundPrice,
             CronStep::StockMaster,
             CronStep::LoginEvents,
+            CronStep::LoginNotifyViews,
             CronStep::OperationLogs,
         ];
         assert_eq!(
@@ -192,6 +195,7 @@ mod tests {
                 "fund_price",
                 "stock_master",
                 "login_events",
+                "login_notify_views",
                 "operation_logs"
             ]
         );
@@ -233,6 +237,7 @@ mod tests {
             CronStep::FundPrice,
             CronStep::StockMaster,
             CronStep::LoginEvents,
+            CronStep::LoginNotifyViews,
             CronStep::OperationLogs,
         ] {
             let log = format_cron_step(step, usize::MAX, u64::MAX);

@@ -115,9 +115,11 @@ pub async fn record_view(pool: &Db, user_id: UserId) -> Result<(), ApiError> {
     Ok(())
 }
 
+const MAX_ADMIN_LOGIN_PER_PAGE: i64 = 200;
+
 fn page_info(params: &AdminLoginQuery) -> Result<(i64, i64, i64), ApiError> {
     let page = params.search.page();
-    let per_page = params.search.per_page();
+    let per_page = params.search.per_page().min(MAX_ADMIN_LOGIN_PER_PAGE);
     let offset = (page - 1)
         .checked_mul(per_page)
         .ok_or_else(|| ApiError::Validation("page の値が大きすぎます".into()))?;
@@ -432,6 +434,64 @@ mod tests {
             qb.sql(),
             "SELECT 1 FROM login_events le JOIN users u ON u.id = le.user_id WHERE TRUE"
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn search_data_limit_is_clamped_to_200_in_database() {
+        use crate::models::common::PaginationParams;
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('admin-limit', 'admin-limit@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        db::query(
+            "INSERT INTO login_events (user_id, result, device_hash)
+             SELECT $1, 'success', $2 FROM generate_series(1, 250)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![7; 32])],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let response = search(
+            &pool,
+            AdminLoginQuery {
+                search: SearchQueryParams {
+                    pagination: PaginationParams {
+                        page: Some(1),
+                        per_page: Some(1000),
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.total, 250);
+        assert_eq!(response.data.len(), 200);
+        assert_eq!((response.page, response.per_page), (1, 200));
+        let second = search(
+            &pool,
+            AdminLoginQuery {
+                search: SearchQueryParams {
+                    pagination: PaginationParams {
+                        page: Some(2),
+                        per_page: Some(1000),
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(second.total, 250);
+        assert_eq!(second.data.len(), 50);
+        assert_eq!((second.page, second.per_page), (2, 200));
     }
 
     #[tokio::test]
