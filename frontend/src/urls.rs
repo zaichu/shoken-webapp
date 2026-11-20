@@ -5,7 +5,7 @@ pub(crate) const FUND_HOLDINGS_PREFIX: &str = "/assetbalance/funds/";
 
 /// 詳細パスから ID だけを抜く。空・2段目は受け付けない
 pub(crate) fn detail_id<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
-    let id = path.strip_prefix(prefix)?;
+    let id = path.strip_prefix(prefix)?.split('#').next()?;
     (!id.is_empty() && !id.contains('/')).then_some(id)
 }
 
@@ -51,6 +51,14 @@ mod tests {
         );
         assert_eq!(
             detail_id("/assetbalance/funds/fund-1", FUND_HOLDINGS_PREFIX),
+            Some("fund-1")
+        );
+        assert_eq!(
+            detail_id("/assetbalance/holdings/abc-123#summary", HOLDINGS_PREFIX),
+            Some("abc-123")
+        );
+        assert_eq!(
+            detail_id("/assetbalance/funds/fund-1#details", FUND_HOLDINGS_PREFIX),
             Some("fund-1")
         );
     }

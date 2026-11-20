@@ -3122,6 +3122,63 @@ async fn legacy_database_records_baseline_without_applying() {
     assert_eq!(migration_versions(&pool).await, expected);
 }
 
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn session_migration_keeps_existing_old_sessions_valid_immediately() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+
+    apply_legacy_migrations(&pool, legacy_last_version()).await;
+    let user_id = create_test_user(&pool).await;
+    let token = SessionToken::new();
+    db::query(
+        "INSERT INTO sessions (user_id, token_hash, created_at, expires_at)
+         VALUES ($1, $2, NOW() - INTERVAL '1 day', NOW() + INTERVAL '6 days')",
+        vec![Bind::from(user_id), Bind::Bytes(token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .expect("旧形式のセッションを作成");
+
+    run_migrations(&pool).await.expect("0107 を適用");
+
+    let last_used_at = db::query_scalar::<time::OffsetDateTime>(
+        "SELECT last_used_at FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("migration後の最終利用時刻を取得");
+    let migration_recent = db::query_scalar::<bool>(
+        "SELECT last_used_at > NOW() - INTERVAL '30 minutes'
+         FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("最終利用時刻を確認");
+    assert!(migration_recent, "既存行は migration 時刻で初期化される");
+    assert!(
+        last_used_at > time::OffsetDateTime::now_utc() - time::Duration::minutes(30),
+        "作成から1日経った既存セッションでも migration 直後は有効"
+    );
+    assert!(
+        auth_svc::select_user_by_session(&pool, token)
+            .await
+            .expect("migration後の認証照会")
+            .is_some(),
+        "migration直後は既存セッションで認証できる"
+    );
+}
+
 /// 旧 migration が途中までの DB は、続きを当てられないため状態と対処を示して止める
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]

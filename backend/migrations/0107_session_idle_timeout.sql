@@ -4,7 +4,7 @@ ALTER TABLE public.sessions
     ADD COLUMN last_used_at timestamp with time zone;
 
 UPDATE public.sessions
-SET last_used_at = created_at;
+SET last_used_at = now();
 
 ALTER TABLE public.sessions
     ALTER COLUMN last_used_at SET DEFAULT now(),
