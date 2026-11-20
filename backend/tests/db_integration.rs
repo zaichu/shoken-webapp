@@ -6969,8 +6969,7 @@ async fn app_restricted_role_has_least_privilege() {
     for privileges in by_table.values_mut() {
         privileges.sort();
     }
-    let personal = [
-        "users",
+    let full_tables = [
         "sessions",
         "dividends",
         "domestic_stocks",
@@ -6978,11 +6977,8 @@ async fn app_restricted_role_has_least_privilege() {
         "asset_balances",
         "fund_balances",
         "csv_import_history",
-        "login_events",
-        "login_notify_tokens",
-        "admin_login_views",
     ];
-    for table in personal {
+    for table in full_tables {
         let expected: Vec<String> = ["DELETE", "INSERT", "SELECT", "UPDATE"]
             .iter()
             .map(|privilege| (*privilege).to_string())
@@ -6991,6 +6987,39 @@ async fn app_restricted_role_has_least_privilege() {
             by_table.get(table),
             Some(&expected),
             "{table} は本人表の読み書きだけのはず"
+        );
+    }
+    for (table, expected) in [
+        ("users", vec!["DELETE", "INSERT", "SELECT"]),
+        ("login_events", vec!["DELETE", "INSERT", "SELECT"]),
+        ("login_notify_tokens", vec!["INSERT", "SELECT"]),
+        ("admin_login_views", vec!["INSERT", "SELECT"]),
+    ] {
+        let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
+        assert_eq!(
+            by_table.get(table),
+            Some(&expected),
+            "{table} は絞った操作だけのはず"
+        );
+    }
+    for (column, expected) in [
+        ("login_notify_enabled", true),
+        ("updated_at", true),
+        ("email", false),
+        ("google_id", false),
+        ("name", false),
+        ("picture_url", false),
+    ] {
+        let updatable = db::query_scalar::<bool>(
+            "SELECT has_column_privilege('app_restricted', 'public.users', $1, 'UPDATE')",
+            vec![Bind::from(column)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("列権限の取得に失敗");
+        assert_eq!(
+            updatable, expected,
+            "users.{column} の UPDATE は {expected} のはず"
         );
     }
     let shared = [
@@ -7181,6 +7210,39 @@ async fn app_restricted_role_has_least_privilege() {
         "権限不足のはず(stock): {err:?}"
     );
     tx.rollback().await.expect("rollback に失敗");
+
+    let mut tx = restricted_tx_with_user(&pool, user_a).await;
+    let updated = db::query(
+        "UPDATE users SET login_notify_enabled = NOT login_notify_enabled, updated_at = NOW() WHERE id = $1",
+        vec![Bind::from(user_a)],
+    )
+    .execute(&mut tx)
+    .await
+    .expect("通知設定の列の更新は通るはず");
+    assert_eq!(updated, 1, "自分の通知設定 1 件が更新されるはず");
+    tx.rollback().await.expect("rollback に失敗");
+
+    for sql in [
+        "UPDATE users SET email = 'narrowed@example.com' WHERE id = '00000000-0000-0000-0000-000000000000'",
+        "UPDATE users SET google_id = 'narrowed' WHERE id = '00000000-0000-0000-0000-000000000000'",
+        "UPDATE login_events SET result = 'success' WHERE user_id = '00000000-0000-0000-0000-000000000000'",
+        "UPDATE login_notify_tokens SET used_at = NOW() WHERE user_id = '00000000-0000-0000-0000-000000000000'",
+        "UPDATE admin_login_views SET occurred_at = NOW() WHERE user_id = '00000000-0000-0000-0000-000000000000'",
+        "DELETE FROM login_notify_tokens WHERE user_id = '00000000-0000-0000-0000-000000000000'",
+        "DELETE FROM admin_login_views WHERE user_id = '00000000-0000-0000-0000-000000000000'",
+    ] {
+        let mut tx = restricted_tx_with_user(&pool, user_a).await;
+        let err = db::query(sql, vec![])
+            .execute(&mut tx)
+            .await
+            .expect_err("絞った権限の外の操作は失敗するはず");
+        assert!(
+            err.sql_state()
+                .is_some_and(|s| s == db::SqlState::INSUFFICIENT_PRIVILEGE),
+            "権限不足のはず({sql}): {err:?}"
+        );
+        tx.rollback().await.expect("rollback に失敗");
+    }
 
     let current = db::query_scalar::<String>("SELECT current_user", vec![])
         .fetch_one(&pool)
