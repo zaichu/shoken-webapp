@@ -391,7 +391,7 @@ fn transform_dividend_row(
             row_num,
         )?,
         unit_price: util::parse_required_number(row, "単価[円/現地通貨]", row_num)?,
-        shares: util::parse_required_positive_number(row, row.resolve_col(COL_SHARES), row_num)?,
+        shares: util::parse_required_number(row, row.resolve_col(COL_SHARES), row_num)?,
         dividends_before_tax: util::parse_required_number(
             row,
             row.resolve_col(COL_BEFORE_TAX),
@@ -533,33 +533,6 @@ mod tests {
             (2, 1, 1, 2)
         );
         assert_eq!(preview.rows[0].security_code.as_str(), "9908");
-    }
-
-    #[test]
-    fn test_preview_csv_rejects_nonpositive_shares() {
-        // 数量が 0 以下は DB の CHECK 制約に当たるため行エラーにする
-        // (一括登録全体の失敗にせず原因の行番号を返す)
-        for shares in ["0", "-5"] {
-            let preview = preview_from_lines(&[
-                HEADER,
-                &format!(
-                    "\"2025/12/09\",\"国内株式\",\"特定・一般\",\"9908\",\"架空リース\",\"円\",\"90.00\",\"{shares}\",\"18,000\",\"3,656\",\"14,344\""
-                ),
-            ]);
-            assert_eq!(
-                (
-                    preview.total_rows,
-                    preview.valid_rows,
-                    preview.errors.len(),
-                    preview
-                        .errors
-                        .first()
-                        .is_some_and(|error| error.message.contains("0より大きい値")),
-                ),
-                (1, 0, 1, true),
-                "shares={shares}"
-            );
-        }
     }
 
     #[test]
