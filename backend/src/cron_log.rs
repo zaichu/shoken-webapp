@@ -45,6 +45,10 @@ pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
 
 /// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
 /// 出すのはロール名・表名・関数名・真偽値・件数だけ
+/// 末尾の range_check_violations は 0119 の CHECK 制約(#2112 で VALIDATE 予定)の
+/// 違反件数だけを出す(値・利用者は出さない)。
+/// 個人表への直接参照は権限のないロールで検査自体が落ちるため、
+/// 件数の取得は SECURITY DEFINER の range_check_violation_counts_v2 に閉じ込める
 pub const DB_ACCESS_STATE_SQL: &str = r"
 SELECT pg_catalog.format('session current_user=%s rolbypassrls=%s rolsuper=%s',
            r.rolname, r.rolbypassrls::text, r.rolsuper::text)
@@ -100,6 +104,8 @@ SELECT CASE WHEN o.oid IS NULL THEN 'role_owner postgres member=- can_set=-'
            pg_catalog.pg_has_role(current_user, o.oid, 'SET')::text) END
 FROM (SELECT 1) AS dummy
 LEFT JOIN pg_catalog.pg_roles o ON o.rolname = 'postgres'
+UNION ALL
+SELECT pg_catalog.format('range_check_violations %s', public.range_check_violation_counts_v2())
 ";
 
 /// BulkTimer と同じ方式の計測。wasm では Instant が未対応のため epoch ミリ秒で保持する
@@ -251,5 +257,26 @@ mod tests {
             !DB_ACCESS_STATE_SQL.contains("pg_has_role(current_user, 'postgres'"),
             "名前指定の pg_has_role はロール不在で例外になるため pg_roles 経由で解決する"
         );
+    }
+
+    #[test]
+    fn db_access_state_reports_range_check_violations_without_personal_data() {
+        // #2112 の VALIDATE 前に本番の違反件数を cron ログで確かめるための行
+        assert!(
+            DB_ACCESS_STATE_SQL.contains("range_check_violations"),
+            "CHECK 違反の件数行を出す"
+        );
+        for fragment in [
+            "user_id",
+            "email",
+            "token_hash",
+            "device_hash",
+            "security_code",
+        ] {
+            assert!(
+                !DB_ACCESS_STATE_SQL.contains(fragment),
+                "件数だけを出し値・利用者は出さない: {fragment}"
+            );
+        }
     }
 }

@@ -1812,6 +1812,198 @@ async fn mutualfund_bulk_create_keeps_duplicate_rows_in_same_batch() {
     assert_eq!(second.skipped, 2);
 }
 
+/// 0116・0117 の backfill(md5 式)と取り込み(bulk_create 側の md5 式)が一致すること。
+/// 0115 相当に戻して旧い経路で端の値の行を入れ、migration を当て直して backfill し、
+/// 同じ行を bulk_create で取り込むと 0 件挿入になる(式が1文字でも違うと別物と見なされ二重に入る)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividends_mutualfunds_backfill_hash_matches_bulk_create() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 0116・0117 を取り消して旧い形に戻す(旧一意キーも戻す)
+    pool.batch_execute(
+        "DROP INDEX IF EXISTS public.idx_dividends_hash_occurrence; \
+         DROP INDEX IF EXISTS public.idx_mutualfunds_hash_occurrence; \
+         ALTER TABLE public.dividends DROP COLUMN IF EXISTS content_hash, DROP COLUMN IF EXISTS occurrence_index; \
+         ALTER TABLE public.mutualfunds DROP COLUMN IF EXISTS content_hash, DROP COLUMN IF EXISTS occurrence_index;",
+    )
+    .await
+    .expect("0116・0117 の取り消しに失敗");
+    pool.batch_execute(
+        "CREATE UNIQUE INDEX idx_dividends_unique ON public.dividends USING btree (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account); \
+         CREATE UNIQUE INDEX idx_mutualfunds_unique ON public.mutualfunds USING btree (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account);",
+    )
+    .await
+    .expect("旧一意キーの復元に失敗");
+    db::query(
+        "DELETE FROM _sqlx_migrations WHERE version IN (116, 117)",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("migration 記録の取り消しに失敗");
+
+    // 旧い経路で端の値の行を入れる(小数・0円・NULL・全角名)
+    let div_items = vec![
+        CreateDividendRequest {
+            settlement_date: Date::from_calendar_date(2024, time::Month::March, 25).unwrap(),
+            product: "国内株式".to_string(),
+            account: "特定".parse().unwrap(),
+            security_code: "9934".to_string(),
+            security_name: "銘柄_9934".to_string(),
+            unit_price: dec!(12.5),
+            shares: dec!(100.0),
+            dividends_before_tax: dec!(1000.0),
+            taxes: dec!(0),
+            net_amount_received: dec!(1000.0),
+        },
+        CreateDividendRequest {
+            settlement_date: Date::from_calendar_date(2024, time::Month::June, 10).unwrap(),
+            product: "投資信託".to_string(),
+            account: "NISA".parse().unwrap(),
+            security_code: String::new(),
+            security_name: "ＡＢＣ　投信".to_string(),
+            unit_price: dec!(1),
+            shares: dec!(0.5),
+            dividends_before_tax: dec!(2500.75),
+            taxes: dec!(508.25),
+            net_amount_received: dec!(1992.5),
+        },
+    ];
+    for item in &div_items {
+        let row = db::query(
+            "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
+             security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
+             ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account) \
+             DO NOTHING RETURNING 1",
+            vec![
+                Bind::from(user_id),
+                Bind::from(item.settlement_date),
+                Bind::from(item.product.as_str()),
+                Bind::from(item.account.as_str()),
+                Bind::from(item.security_code.as_str()),
+                Bind::from(item.security_name.as_str()),
+                Bind::from(item.unit_price),
+                Bind::from(item.shares),
+                Bind::from(item.dividends_before_tax),
+                Bind::from(item.taxes),
+                Bind::from(item.net_amount_received),
+            ],
+        )
+        .fetch_optional::<(i32,), _>(&pool)
+        .await
+        .expect("旧い経路の配当挿入に失敗");
+        assert!(row.is_some(), "旧い経路で配当が入るはず");
+    }
+    let mf_items = vec![
+        CreateMutualfundRequest {
+            trade_date: Date::from_calendar_date(2024, time::Month::March, 20).unwrap(),
+            settlement_date: Date::from_calendar_date(2024, time::Month::March, 25).unwrap(),
+            fund_name: "ＭＵＦＧ　日本株オープン".to_string(),
+            dividends: None,
+            account: "特定".parse().unwrap(),
+            shares: dec!(1000.0),
+            exchange_rate: dec!(1),
+            cancellation_unit_price_yen: dec!(12000.0),
+            cancellation_amount_yen: dec!(12000000.0),
+            average_acquisition_price_yen: dec!(10000.0),
+            realized_profit_and_loss: dec!(2000000.0),
+            taxes: dec!(0),
+            realized_profit_and_loss_after_tax: dec!(2000000.0),
+        },
+        CreateMutualfundRequest {
+            trade_date: Date::from_calendar_date(2024, time::Month::May, 1).unwrap(),
+            settlement_date: Date::from_calendar_date(2024, time::Month::May, 8).unwrap(),
+            fund_name: "架空投信D".to_string(),
+            dividends: Some("再投資型".to_string()),
+            account: "NISA".parse().unwrap(),
+            shares: dec!(1500.5),
+            exchange_rate: dec!(150.25),
+            cancellation_unit_price_yen: dec!(12500.5),
+            cancellation_amount_yen: dec!(18750750.25),
+            average_acquisition_price_yen: dec!(10000.0),
+            realized_profit_and_loss: dec!(600000.0),
+            taxes: dec!(121818.0),
+            realized_profit_and_loss_after_tax: dec!(478182.0),
+        },
+    ];
+    for item in &mf_items {
+        let row = db::query(
+            "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends, \
+             account, shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+             average_acquisition_price_yen, realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) \
+             ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account) \
+             DO NOTHING RETURNING 1",
+            vec![
+                Bind::from(user_id),
+                Bind::from(item.trade_date),
+                Bind::from(item.settlement_date),
+                Bind::from(item.fund_name.as_str()),
+                Bind::from(item.dividends.clone()),
+                Bind::from(item.account.as_str()),
+                Bind::from(item.shares),
+                Bind::from(item.exchange_rate),
+                Bind::from(item.cancellation_unit_price_yen),
+                Bind::from(item.cancellation_amount_yen),
+                Bind::from(item.average_acquisition_price_yen),
+                Bind::from(item.realized_profit_and_loss),
+                Bind::from(item.taxes),
+                Bind::from(item.realized_profit_and_loss_after_tax),
+            ],
+        )
+        .fetch_optional::<(i32,), _>(&pool)
+        .await
+        .expect("旧い経路の投信挿入に失敗");
+        assert!(row.is_some(), "旧い経路で投信が入るはず");
+    }
+
+    // migration を当て直して backfill する
+    run_migrations(&pool).await.expect("migrations failed");
+
+    // backfill の中身を確認する
+    let backfilled = db::query(
+        "SELECT occurrence_index FROM dividends WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all::<(i32,), _>(&pool)
+    .await
+    .expect("backfill の確認に失敗");
+    assert_eq!(backfilled.len(), 2);
+    assert!(
+        backfilled.iter().all(|(index,)| *index == 0),
+        "既存行は occurrence_index=0: {backfilled:?}"
+    );
+    let null_hash: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM dividends WHERE user_id = $1 AND content_hash IS NULL",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("backfill の NULL 確認に失敗");
+    assert_eq!(null_hash, 0, "backfill で content_hash が埋まるはず");
+
+    // 同じ行を bulk_create で取り込むと 0 件挿入になる
+    let div_res = dividend_svc::bulk_create(&pool, user_id, &div_items, RowLimit::new(i64::MAX))
+        .await
+        .expect("dividend re-upload failed");
+    assert_eq!(
+        (div_res.inserted, div_res.skipped),
+        (0, 2),
+        "backfill と式が一致すれば再取込は増えない"
+    );
+    let mf_res = mutualfund_svc::bulk_create(&pool, user_id, &mf_items, RowLimit::new(i64::MAX))
+        .await
+        .expect("mutualfund re-upload failed");
+    assert_eq!(
+        (mf_res.inserted, mf_res.skipped),
+        (0, 2),
+        "backfill と式が一致すれば再取込は増えない"
+    );
+}
+
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
 async fn mutualfund_csv_keeps_same_trade_in_different_accounts() {

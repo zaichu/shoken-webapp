@@ -420,6 +420,37 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         state_lines.contains(&"role_owner postgres member=false can_set=false".to_string()),
         "{state_lines:?}"
     );
+    // 0119 の CHECK 制約(#2112 で VALIDATE 予定)の違反件数。監視用 DEFINER 関数経由のため
+    // app_worker からも読め、投入した行は制約内のためすべて 0
+    let violations = state_lines
+        .iter()
+        .find(|line| line.starts_with("range_check_violations "))
+        .expect("CHECK 違反の件数が出る");
+    assert!(
+        violations.contains("dividends_shares_nonpositive=0")
+            && violations.contains("domestic_stocks_shares_nonpositive=0")
+            && violations.contains("mutualfunds_shares_nonpositive=0"),
+        "個人表の違反は 0: {violations}"
+    );
+    assert!(
+        violations.contains("status_other=0") && violations.contains("dividend_negative=0"),
+        "キャッシュ表の違反は 0: {violations}"
+    );
+    for (role, executable) in [("app_worker", true), ("public", false)] {
+        let granted = db::query_scalar::<bool>(
+            format!(
+                "SELECT has_function_privilege('{role}', 'public.range_check_violation_counts_v2()', 'EXECUTE')"
+            ),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            granted, executable,
+            "range_check_violation_counts_v2 の {role} の実行可否"
+        );
+    }
     // 利用者の残高読み取りは app_restricted 経由の経路だけを使い、app_worker 直には付与しない。
     for view in ["public.asset_balances_view", "public.fund_balances_view"] {
         let readable = db::query_scalar::<bool>(
