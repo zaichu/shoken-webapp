@@ -104,6 +104,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0121_range_checks_and_validate",
         include_str!("../../migrations/0121_range_checks_and_validate.sql"),
     ),
+    (
+        "0122_narrow_app_restricted_grants",
+        include_str!("../../migrations/0122_narrow_app_restricted_grants.sql"),
+    ),
 ];
 
 /// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版
