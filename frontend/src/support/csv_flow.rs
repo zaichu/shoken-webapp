@@ -1,5 +1,6 @@
 use crate::api::dto::{CsvPreviewResponse, CsvUploadResponse};
 use crate::api::{ApiClient, ApiError};
+use crate::session::Generation;
 use rust_decimal::prelude::ToPrimitive;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -36,6 +37,29 @@ impl CsvTabState {
     pub fn set_delete_result(&mut self, result: Result<(), ApiError>) {
         self.finish_delete(result.map_err(|error| error.message()));
     }
+}
+
+/// 世代付きの CSV タブ状態。ログアウト・ユーザー切替で世代が進むと古い値は読まない
+pub type CsvSlot = Option<(Generation, CsvTabState)>;
+
+pub fn csv_state(slot: &CsvSlot, generation: Generation) -> Option<&CsvTabState> {
+    slot.as_ref()
+        .filter(|(cached, _)| *cached == generation)
+        .map(|(_, state)| state)
+}
+
+pub fn csv_state_mut(slot: &mut CsvSlot, generation: Generation) -> &mut CsvTabState {
+    if csv_state(slot, generation).is_none() {
+        *slot = Some((generation, CsvTabState::default()));
+    }
+    match slot {
+        Some((_, state)) => state,
+        None => unreachable!("csv slot holds the current generation after reset"),
+    }
+}
+
+pub fn csv_meta(slot: &CsvSlot, generation: Generation) -> CsvTabState {
+    csv_state(slot, generation).cloned().unwrap_or_default()
 }
 
 fn csv_form_data(file: &web_sys::File) -> Result<web_sys::FormData, ApiError> {
