@@ -1,5 +1,5 @@
+use super::asset_columns;
 use super::day_change::day_change_cell;
-use super::sort_header::{sort_header, sort_header_titled};
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::holdings;
 use crate::features::asset_balance::holdings::HoldingView;
@@ -29,18 +29,9 @@ pub fn AssetHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     let price_date_rep = price_date_rep.clone();
-    let date_outliers = balance_format::price_date_outliers(
-        &views
-            .iter()
-            .map(|view| view.price_as_of.clone())
-            .collect::<Vec<_>>(),
-        price_date_rep.as_deref(),
-    );
-    // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let average_price_decimals =
-        format::unit_price_decimals(views.iter().map(|view| view.average_price));
-    let current_price_decimals =
-        format::unit_price_decimals(views.iter().map(|view| view.current_price));
+    let date_outliers = asset_columns::stock_date_outliers(&views, price_date_rep.as_deref());
+    let (average_price_decimals, current_price_decimals, dividend_decimals) =
+        asset_columns::stock_table_decimals(&views, &dividends.get());
     let row_dividends: Vec<_> = views
         .iter()
         .map(|view| {
@@ -52,54 +43,11 @@ pub fn AssetHoldingsTable(
             )
         })
         .collect();
-    let dividend_decimals = format::unit_price_decimals(
-        row_dividends
-            .iter()
-            .filter_map(|dividend| dividend.per_share),
-    );
     view! {
         <div data-testid="asset-holdings-table">
             <table class="asset-table">
                 <thead>
-                    <tr>
-                        <th scope="col" class="col-text">{labels::CODE_COLUMN}</th>
-                        <th scope="col" class="col-text">{labels::NAME_COLUMN}</th>
-                        <th scope="col" class="col-text">{labels::ACCOUNT}</th>
-                        <th scope="col" class="col-num">{labels::QUANTITY}</th>
-                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::AVERAGE_PRICE}</th>
-                        <th scope="col" class="col-num">{labels::CURRENT_PRICE}</th>
-                        // 1行にすると1280で表がはみ出すため単位だけ改行する。
-                        // 読み上げ名は変わらない(「前日比 (1株あたり)」)
-                        <th scope="col" class="col-num">
-                            {labels::DAY_CHANGE}
-                            <br />
-                            {labels::PER_SHARE_UNIT}
-                        </th>
-                        {sort_header(labels::MARKET_VALUE, SortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header(
-                            labels::VALUATION_PROFIT_LOSS,
-                            SortKey::ProfitLoss,
-                            sort_key,
-                            sort_order,
-                        )}
-                        <th scope="col" class="col-num hidden xl:table-cell print:table-cell">{labels::PER_SHARE_DIVIDEND}</th>
-                        {sort_header_titled(
-                            labels::ANNUAL_DIVIDEND_HEAD,
-                            None,
-                            Some(labels::ANNUAL_DIVIDEND_NOTE),
-                            SortKey::Dividend,
-                            sort_key,
-                            sort_order,
-                        )}
-                        {sort_header_titled(
-                            labels::ACQUISITION_YIELD,
-                            None,
-                            Some(labels::ACQUISITION_YIELD_NOTE),
-                            SortKey::Yield,
-                            sort_key,
-                            sort_order,
-                        )}
-                    </tr>
+                    {asset_columns::stock_table_head(sort_key, sort_order)}
                 </thead>
                 <tbody>
                     {views
