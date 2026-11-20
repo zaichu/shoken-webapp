@@ -30,6 +30,7 @@ use backend::{
     services::fund_price::{self, FundNav},
     services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
+    services::price_cron,
     services::stock_master,
     services::stock_price::{self, ClosePrice},
     state::{AppState, Secrets},
@@ -5839,6 +5840,25 @@ async fn fund_price_refresh_records_failure_and_marks_attempted() {
         OffsetDateTime::now_utc(),
     )
     .await;
+
+    let selected = price_cron::select_targets(
+        &pool,
+        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
+        "SELECT public.scheduled_fund_price_mark_attempted_v2($1)",
+        today,
+        30,
+    )
+    .await
+    .expect("対象の選定に失敗");
+    assert_eq!(selected, ["90000051".to_string()]);
+    let marked: (Option<String>,) = db::query(
+        "SELECT fetch_error FROM fund_prices WHERE association_fund_cd = $1",
+        vec![Bind::from("90000051")],
+    )
+    .fetch_one::<(Option<String>,), _>(&pool)
+    .await
+    .expect("試行時刻の前進の確認に失敗");
+    assert_eq!(marked.0, None);
 
     let fetched = fund_price::refresh_fund_prices(&pool, None)
         .await
