@@ -189,7 +189,7 @@ async fn fetch_fund_nav(
 /// 取得した基準価額を共有の fund_prices 行へ適用する(1コード1行)。
 /// 保存済みの基準日より新しい取得日のときだけ更新し、日付の新しいほうを残す。
 /// まだ行がないコードは挿入する
-// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+// tests/db_price.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub async fn apply_fund_nav(
     pool: &Db,

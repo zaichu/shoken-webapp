@@ -174,7 +174,7 @@ async fn fetch_close_price(
 /// 取得した終値を共有の security_prices 行へ適用する(1銘柄1行)。
 /// 保存済みの基準日より新しい取得日のときだけ更新し、日付の新しいほうを残す。
 /// まだ行がない銘柄(マイグレーションとデプロイの隙間に取り込まれた保有など)は挿入する
-// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+// tests/db_price.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub async fn apply_close_price(
     pool: &Db,

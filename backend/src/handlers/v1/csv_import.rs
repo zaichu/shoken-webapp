@@ -183,7 +183,7 @@ mod tests {
         State(pool): State<Db>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, ApiError> {
-        // DBなしで回す単体テストでは履歴書込を経由しない。履歴の有無は db_integration の csv_* で見る
+        // DBなしで回す単体テストでは履歴書込を経由しない。履歴の有無は db_csv の csv_* で見る
         let bytes = read_csv_file_bytes(multipart).await?;
         let response =
             TestCsvImport::upload_csv(&pool, UserId::default(), &bytes, RowLimit::new(100_000))

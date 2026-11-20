@@ -204,7 +204,7 @@ PR に理由を書く。
 cd backend && cargo fmt --check
 cd backend && cargo clippy --all-targets -- -D warnings
 cd backend && cargo test
-cd backend && make test-ignored          # Docker の結合テスト(login_rls・db_integration など)
+cd backend && make test-ignored          # Docker の結合テスト(login_rls・db_* など)
 scripts/check-migration-baseline.sh      # 本番と同じ形の DB と新しい DB の一致(Docker の postgres:17)
 ```
 
