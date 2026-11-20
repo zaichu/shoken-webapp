@@ -128,12 +128,20 @@ pub const fn tip_edge(month: u32, narrow: bool) -> &'static str {
     }
 }
 
+/// 吹き出しの高さの概算(px)。上に収まるかの判定に使う。実測で約98px(3行)のため余裕を見て100px
+const TIP_HEIGHT_PX: f64 = 100.0;
+/// 描画域の高さ(px)。`h-55`(style/input.css)。狭い画面は `max-sm:h-28` で112px
+const PLOT_HEIGHT_PX: f64 = 220.0;
+const PLOT_HEIGHT_NARROW_PX: f64 = 112.0;
+/// 吹き出しの下端から丸までの間隔(px)。`calc(… + 8px)` と `.home-cum-tip` の `mb-2` で計16px。
+/// 上の行との間は `mt-1` の4pxだけなので、丸が `TIP_HEIGHT_PX + 12px` より上にあるときだけ上に収まる
+const TIP_ABOVE_MARGIN_PX: f64 = 12.0;
+
 /// 吹き出しを点の下に出すか。点の少し上を基本にし、上の丸より上に
-/// 吹き出しが入らないときは下の丸の少し下に出す。
-/// 今年・前年の丸をどちらも隠さないよう、上下の丸の両方を基準にする
-pub fn tip_below(current_top: f64, previous_top: Option<f64>) -> bool {
-    let highest = previous_top.map_or(current_top, |previous| current_top.min(previous));
-    highest < 50.0
+/// 吹き出しの高さが入らないときは下の丸の少し下に出す。
+/// 今年・前年の丸をどちらも隠さないよう、上下の丸のうち上の方を基準にする
+pub fn tip_below(anchor_top_percent: f64, plot_height_px: f64) -> bool {
+    anchor_top_percent / 100.0 * plot_height_px < TIP_HEIGHT_PX + TIP_ABOVE_MARGIN_PX
 }
 
 /// スライダーのキー操作で月を1つ動かす。範囲外は端に寄せる
@@ -519,8 +527,16 @@ pub fn CumulativeChart(
                         // 吹き出しは点の近くに出す。上の丸の少し上を基本にし、
                         // 上に入らないときは下の丸の少し下に出す。
                         // 端の月は吹き出しを内側に寄せる
-                        let edge = tip_edge(month, narrow_screen());
-                        let tip_below = tip_below(dot_top, previous_top);
+                        let narrow = narrow_screen();
+                        let edge = tip_edge(month, narrow);
+                        let highest_top = previous_top
+                            .map_or(dot_top, |previous| dot_top.min(previous));
+                        let plot_height_px = if narrow {
+                            PLOT_HEIGHT_NARROW_PX
+                        } else {
+                            PLOT_HEIGHT_PX
+                        };
+                        let tip_below = tip_below(highest_top, plot_height_px);
                         // 上の丸も下の丸も隠さないよう、上下それぞれの丸を基準にする
                         let tip_anchor = previous_top.map_or(dot_top, |previous| {
                             if tip_below {

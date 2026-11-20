@@ -172,12 +172,16 @@ fn click_keeps_hovered_month_but_toggles_on_touch() {
 }
 
 #[test]
-fn tip_goes_below_only_when_no_room_above_either_dot() {
-    assert!(!tip_below(60.0, None));
-    assert!(tip_below(40.0, None));
-    assert!(!tip_below(60.0, Some(70.0)));
-    assert!(tip_below(60.0, Some(20.0)));
-    assert!(tip_below(20.0, Some(60.0)));
+fn tip_goes_below_when_tip_does_not_fit_above() {
+    // デスクトップ(220px): 上に112px以上あれば上に出す
+    assert!(!tip_below(100.0, 220.0));
+    assert!(!tip_below(51.0, 220.0));
+    assert!(tip_below(50.0, 220.0));
+    assert!(tip_below(0.0, 220.0));
+    // スマホ(112px): 下端付近の丸だけ上に出し、それ以外は下に出す
+    assert!(!tip_below(100.0, 112.0));
+    assert!(tip_below(99.0, 112.0));
+    assert!(tip_below(30.0, 112.0));
 }
 
 #[test]

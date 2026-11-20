@@ -399,9 +399,9 @@ test('吹き出しは点の近くに出て丸と重ならず横にはみ出さ�
   const xFor = (month: number) => (box!.width * (month - 0.5)) / 12;
   const summaryBox = (await summary.boundingBox())!;
 
-  // 端の月(1月・12月)と累計が最大の月(6月)。中段の月は点の上下どちらにも
+  // 端の月(1月・12月)と累計が最大の月(6月・12月)。中段の月は点の上下どちらにも
   // 吹き出しが収まらない配置があり、そのときは下に出して点と上の行を優先する
-  for (const month of [1, 6, 12]) {
+  for (const month of [1, 3, 6, 12]) {
     await plot.hover({ position: { x: xFor(month), y: box!.height / 2 } });
     const tip = chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
     await expect(tip).toBeVisible();
@@ -482,8 +482,8 @@ test.describe('タッチ操作', () => {
     const box = await plot.boundingBox();
     const summaryBox = (await summary.boundingBox())!;
 
-    // 端の月(1月・12月)。PC と同じ位置の決め方のため、点の近く・横収まり・上の行回避を確かめる
-    for (const month of [1, 12]) {
+    // 端の月(1月・12月)と中段の月(2〜5月)。PC と同じ位置の決め方のため、点の近く・横収まり・上の行回避を確かめる
+    for (const month of [1, 2, 3, 4, 5, 12]) {
       await page.touchscreen.tap(
         box!.x + (box!.width * (month - 0.5)) / 12,
         box!.y + box!.height / 2,
