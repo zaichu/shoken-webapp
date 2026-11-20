@@ -240,7 +240,7 @@ pub async fn bulk_create(
                                        base_price_day_change, base_price_month_change,
                                        market_value, profit_loss, profit_loss_rate, total_return,
                                        price_as_of)
-            SELECT *, (now() AT TIME ZONE 'Asia/Tokyo')::date FROM UNNEST(
+            SELECT *, public.fund_expected_nav_date(now()) FROM UNNEST(
                 $1::uuid[], $2::text[], $3::text[], $4::text[],
                 $5::numeric[], $6::numeric[], $7::numeric[], $8::numeric[],
                 $9::numeric[], $10::numeric[], $11::numeric[], $12::numeric[],

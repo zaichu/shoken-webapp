@@ -6015,6 +6015,71 @@ async fn fund_expected_nav_date_matches_rust_mirror() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn fund_balance_import_uses_expected_nav_date() {
+    let (pool, _node) = start_test_pool().await;
+    for (ts, expected) in [
+        ("2026-11-21T10:00:00+09:00", "2026-11-20"),
+        ("2026-11-22T12:00:00+09:00", "2026-11-20"),
+        ("2026-10-20T09:00:00+09:00", "2026-10-19"),
+        ("2026-10-20T23:01:00+09:00", "2026-10-20"),
+        ("2026-10-26T09:00:00+09:00", "2026-10-23"),
+        ("2026-11-03T10:00:00+09:00", "2026-11-02"),
+    ] {
+        let now = OffsetDateTime::parse(ts, &Rfc3339).unwrap();
+        let want = Date::parse(
+            expected,
+            time::macros::format_description!("[year]-[month]-[day]"),
+        )
+        .unwrap();
+        let (got,): (Date,) = db::query(
+            "SELECT fund_expected_nav_date($1::timestamptz)",
+            vec![Bind::from(now)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("fund_expected_nav_date");
+        assert_eq!(got, want, "{ts}");
+    }
+
+    let user_id = create_test_user(&pool).await;
+    backend::services::fund_balance::bulk_create(
+        &pool,
+        user_id,
+        &[backend::models::fund_balance::CreateFundBalanceRequest {
+            fund_name: "架空基準日ファンド".to_string(),
+            account: shared::value::Account::try_from("特定").unwrap(),
+            dividends_course: None,
+            shares: dec!(10000),
+            average_purchase_price: dec!(10000),
+            total_purchase_amount: dec!(100000),
+            base_price: dec!(10500),
+            base_price_day_change: Some(dec!(5)),
+            base_price_month_change: None,
+            market_value: dec!(105000),
+            profit_loss: dec!(5000),
+            profit_loss_rate: None,
+            total_return: None,
+        }],
+        RowLimit::new(i64::MAX),
+    )
+    .await
+    .expect("bulk_create");
+    let (price_as_of,): (Date,) = db::query(
+        "SELECT price_as_of FROM fund_balances WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("price_as_of");
+    let (expected_now,): (Date,) = db::query("SELECT fund_expected_nav_date(now())", vec![])
+        .fetch_one(&pool)
+        .await
+        .expect("expected now");
+    assert_eq!(price_as_of, expected_now);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn csv_kind_stats_queries_all_five_tables() {
     let (pool, _node) = start_test_pool().await;
     let user_id = UserId::from(Uuid::new_v4());
