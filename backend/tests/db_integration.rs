@@ -4737,7 +4737,7 @@ async fn asset_balance_csv_upload_rejects_invalid_or_empty() {
     assert_eq!(dividend_count, 1);
 }
 
-/// 数量 0 の行を含む CSV は、その行だけ行エラーになり残りは取り込まれる(#2112)。
+/// 数量 0 の行を含む CSV は、その行だけ行エラーになり残りは取り込まれる。
 /// DB の CHECK 違反で取込全体が HTTP 500 にならないことと、プレビューでも行エラーになることを確かめる。
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
