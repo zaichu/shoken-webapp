@@ -6,8 +6,9 @@
 #
 # 使い方: scripts/check-migration-baseline.sh [ダンプの保存先]
 #   POSTGRES_IMAGE  比べる Postgres(既定は本番と同じ 17)
-#   MODES           移行ロールの種類。superuser(既定の postgres)と owner(本番と同じ非 superuser の
-#                   CREATEROLE ロール)。既定は両方
+#   MODES           移行ロールの種類。superuser(既定の postgres)と owner(新しい環境と同じ条件の
+#                   非 superuser ロール: NOSUPERUSER BYPASSRLS CREATEROLE。土台 0100 が BYPASSRLS の
+#                   限定関数所有ロールを作るため)。既定は両方
 set -euo pipefail
 
 ROOT="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
