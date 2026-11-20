@@ -20,6 +20,10 @@ pub struct HistoryQuery {
     pub offset: Option<i64>,
 }
 
+fn is_current_device(current_hash: &[u8], device_hash: &[u8]) -> bool {
+    current_hash == device_hash
+}
+
 /// 自分のログイン履歴を新しい順に返す（v1）
 #[utoipa::path(
     get,
@@ -128,23 +132,14 @@ pub async fn delete_device(
         login_event::revoke_device(&state.pool, auth_user.id(), &id, &current.hash())
             .await?
             .ok_or(ApiError::NotFound)?;
+    let mut response = Json(MessageResponse {
+        message: "端末を解除しました".to_string(),
+    })
+    .into_response();
     if revoked_current {
-        let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
-            state.config.secure_cookie,
-        ));
-        return Ok((
-            jar,
-            Json(MessageResponse {
-                message: "端末を解除しました".to_string(),
-            }),
-        ));
+        oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)?;
     }
-    Ok((
-        jar,
-        Json(MessageResponse {
-            message: "端末を解除しました".to_string(),
-        }),
-    ))
+    Ok(response)
 }
 
 /// すべての端末をログアウトする（v1）
@@ -161,19 +156,18 @@ pub async fn delete_device(
 pub async fn delete_all_sessions(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
-    jar: CookieJar,
+    _jar: CookieJar,
 ) -> Result<impl IntoResponse, ApiError> {
     auth_service::delete_all_sessions(&state.pool, auth_user.id()).await?;
-    let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
-        state.config.secure_cookie,
-    ));
-    Ok((
+    let mut response = (
         StatusCode::OK,
-        jar,
         Json(MessageResponse {
             message: "すべての端末からログアウトしました".to_string(),
         }),
-    ))
+    )
+        .into_response();
+    oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)?;
+    Ok(response)
 }
 
 /// 自分のログイン通知設定を取得する（v1）

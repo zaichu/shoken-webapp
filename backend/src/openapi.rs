@@ -128,7 +128,7 @@ impl utoipa::Modify for SecurityAddon {
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "cookieAuth",
-                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("session_token"))),
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("__Host-session_token"))),
             );
         }
     }
@@ -154,7 +154,7 @@ mod tests {
         let scheme = &doc["components"]["securitySchemes"]["cookieAuth"];
         assert_eq!(scheme["type"], "apiKey");
         assert_eq!(scheme["in"], "cookie");
-        assert_eq!(scheme["name"], "session_token");
+        assert_eq!(scheme["name"], "__Host-session_token");
     }
 
     #[test]

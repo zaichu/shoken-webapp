@@ -1,7 +1,7 @@
 use crate::db::DbError;
 use crate::errors::ApiError;
 use crate::models::user::User;
-use crate::services::auth::{self as auth_service, SessionToken};
+use crate::services::auth as auth_service;
 use crate::state::AppState;
 use axum::extract::FromRef;
 use axum_extra::extract::CookieJar;
@@ -47,13 +47,7 @@ where
             .await
             .map_err(|_| ApiError::Unauthorized("Cookieの取得に失敗しました"))?;
 
-        let cookie = jar
-            .get(auth_service::SESSION_COOKIE_NAME)
-            .ok_or_else(|| ApiError::Unauthorized("ログインが必要です"))?;
-        let token: SessionToken = cookie
-            .value()
-            .parse()
-            .map_err(|_| ApiError::Unauthorized("無効なセッショントークンです"))?;
+        let token = crate::handlers::v1::auth::oauth::get_session_id_from_jar(&jar)?;
         // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
         let user = auth_service::select_user_by_session(&app_state.pool, token)
             .await
@@ -74,7 +68,6 @@ mod tests {
             errors::ApiError,
             models::user::User,
             services::auth,
-            services::auth::SessionToken,
             state::{AppState, Secrets},
         },
         axum::extract::FromRequestParts,
@@ -108,15 +101,23 @@ mod tests {
         let request = axum::http::Request::builder()
             .header(
                 axum::http::header::COOKIE,
-                format!("{}={}", auth::SESSION_COOKIE_NAME, SessionToken::default()),
+                format!(
+                    "{}={}",
+                    auth::SESSION_COOKIE_NAME,
+                    crate::services::auth::SessionToken::default()
+                ),
             )
             .body(())
             .expect("request should be built");
         let (mut parts, ()) = request.into_parts();
 
-        let error = AuthenticatedUser::from_request_parts(&mut parts, &state)
-            .await
-            .expect_err("database connection failure should reject extraction");
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            AuthenticatedUser::from_request_parts(&mut parts, &state),
+        )
+        .await
+        .expect("session lookup should not wait indefinitely")
+        .expect_err("database connection failure should reject extraction");
 
         assert!(matches!(error, ApiError::Database(_)));
         assert_eq!(error.status(), StatusCode::INTERNAL_SERVER_ERROR);
