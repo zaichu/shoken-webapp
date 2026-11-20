@@ -5809,6 +5809,52 @@ async fn fund_nav_status_without_failure_has_no_reason() {
     );
 }
 
+/// ホストでは投信情報APIに触れないため取得は必ず失敗し、前回値を残したまま
+/// 失敗理由だけが残る。対象の選定と試行時刻の前進(price_cron へ寄せた部分)を確かめる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_price_refresh_records_failure_and_marks_attempted() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000051', $1",
+        vec![Bind::from("更新試行ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "更新試行ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        OffsetDateTime::now_utc(),
+    )
+    .await;
+
+    let fetched = fund_price::refresh_fund_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    assert_eq!(fetched, 0);
+
+    let row: (Option<String>,) = db::query(
+        "SELECT fetch_error FROM fund_prices WHERE association_fund_cd = $1",
+        vec![Bind::from("90000051")],
+    )
+    .fetch_one::<(Option<String>,), _>(&pool)
+    .await
+    .expect("失敗記録の取得に失敗");
+    assert_eq!(row.0.as_deref(), Some("取得エラー"));
+}
+
 /// 失敗が複数あるときは fetch_failed_at の新しい理由を返す(NULL は最後)。
 /// 同じファンドを口座違いで持っても件数は重ねず、別ユーザーの失敗は混ざらない
 #[tokio::test]
