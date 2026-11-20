@@ -4,6 +4,7 @@
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
+use crate::services::price_cron;
 use rust_decimal::{Decimal, prelude::Signed};
 use serde::Deserialize;
 use std::str::FromStr;
@@ -19,9 +20,6 @@ const API_BASE_URL: &str = "https://developer.am.mufg.jp/fund_information_latest
 /// cron 1回で処理する協会コード数の上限。無料枠の CPU 時間に収まるよう絞る。
 /// 残りは次回の cron に委ねる（最終試行時刻が古い順に処理するため循環する）
 const MAX_CODES_PER_RUN: i64 = 30;
-
-/// ファンド間の待ち時間。公式 API への負荷を抑えるために少し間を空ける
-const FETCH_GAP_MS: u64 = 500;
 
 /// wasm は tracing subscriber を持たないため、Worker 上では console 系へ出す
 #[cfg(target_arch = "wasm32")]
@@ -139,15 +137,8 @@ pub fn parse_mufg_nav(body: &str) -> Result<Option<FundNav>, ApiError> {
     }))
 }
 
-/// 2xx 以外の応答をエラーに写す。429 はレート制限として区別する
 #[cfg(any(target_arch = "wasm32", test))]
-fn nav_status_error(status: u16, body: String) -> ApiError {
-    if status == 429 {
-        UpstreamError::RateLimited.into()
-    } else {
-        UpstreamError::Http { status, body }.into()
-    }
-}
+use price_cron::upstream_status_error as nav_status_error;
 
 /// 投信情報APIから基準価額を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_mufg_nav / apply_fund_nav を直接検証する）
@@ -220,55 +211,25 @@ pub async fn apply_fund_nav(
     u64::try_from(affected).map_err(|_| ApiError::Internal("基準価額更新件数が負の値です"))
 }
 
-/// 取得失敗の理由と時刻を共有値の行に残す。直前の失敗理由を上書きする。
-/// 記録に失敗しても他のファンドの取得は止めない(ログに残すだけ)
 async fn record_fetch_failure(pool: &Db, association_fund_cd: &str, reason: &str) {
-    if let Err(e) = crate::db::query(
+    price_cron::record_failure(
+        pool,
         "SELECT public.scheduled_fund_price_record_failure_v2($1, $2)",
-        vec![Bind::from(association_fund_cd), Bind::from(reason)],
+        "基準価額",
+        association_fund_cd,
+        reason,
     )
-    .execute(pool)
-    .await
-    {
-        svc_log!(
-            error,
-            "基準価額の失敗記録に失敗: cd={}, err={}",
-            association_fund_cd,
-            e
-        );
-    }
+    .await;
 }
 
-/// 失敗記録を消す。取得できたとき・対象外のとき使う
 async fn clear_fetch_error(pool: &Db, association_fund_cd: &str) {
-    if let Err(e) = crate::db::query(
+    price_cron::clear_failure(
+        pool,
         "SELECT public.scheduled_fund_price_clear_failure_v2($1)",
-        vec![Bind::from(association_fund_cd)],
+        "基準価額",
+        association_fund_cd,
     )
-    .execute(pool)
-    .await
-    {
-        svc_log!(
-            warn,
-            "基準価額の失敗記録の削除に失敗: cd={}, err={}",
-            association_fund_cd,
-            e
-        );
-    }
-}
-
-/// 失敗の理由。ユーザーに見せる短い文に丸める。URL・応答本文・内部 Details は出さない
-fn short_failure_reason(error: &ApiError) -> String {
-    match error {
-        ApiError::Upstream(UpstreamError::Http { status, .. }) => format!("HTTP {status}"),
-        ApiError::Upstream(UpstreamError::RateLimited) => "レート制限".to_string(),
-        ApiError::Upstream(UpstreamError::Invalid(_)) => "検証エラー".to_string(),
-        ApiError::Upstream(UpstreamError::Decode(_)) => "応答の解析に失敗".to_string(),
-        #[cfg(target_arch = "wasm32")]
-        ApiError::Upstream(UpstreamError::Transport(_)) => "通信エラー".to_string(),
-        ApiError::Database(_) => "保存エラー".to_string(),
-        _ => "取得エラー".to_string(),
-    }
+    .await;
 }
 
 /// 「いま公表済みのはずの、直近の基準価額の日」(E)。JST 23:00 を過ぎた平日は当日、
@@ -309,29 +270,14 @@ fn nav_publication_date(now: OffsetDateTime) -> Date {
 /// 戻り値は取得に成功したコード数（ログ用）
 pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let target = nav_publication_date(OffsetDateTime::now_utc());
-    let mut tx = pool.begin().await?;
-    let codes: Vec<String> = crate::db::query(
+    let codes: Vec<String> = price_cron::select_targets(
+        pool,
         "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
-        vec![Bind::from(target), Bind::from(MAX_CODES_PER_RUN)],
+        "SELECT public.scheduled_fund_price_mark_attempted_v2($1)",
+        target,
+        MAX_CODES_PER_RUN,
     )
-    .fetch_all::<(String,), _>(&mut tx)
-    .await?
-    .into_iter()
-    .map(|(code,)| code)
-    .collect();
-    tx.commit().await?;
-
-    // 選んだコードの試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
-    // 連続して失敗するコードが後続の更新を永久に塞ぐことを防ぐ。
-    // 未取得(行なし)のコードには値なしの行を作り、次回以降も対象のままにする
-    if !codes.is_empty() {
-        crate::db::query(
-            "SELECT public.scheduled_fund_price_mark_attempted_v2($1)",
-            vec![Bind::from(codes.clone())],
-        )
-        .execute(pool)
-        .await?;
-    }
+    .await?;
 
     let base_url = base_url.unwrap_or_else(|| API_BASE_URL.to_string());
     let mut fetched = 0;
@@ -339,7 +285,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
     let mut failed = 0;
     for (i, code) in codes.iter().enumerate() {
         if i > 0 {
-            crate::services::dividend_cache::sleep_millis(FETCH_GAP_MS).await;
+            crate::services::dividend_cache::sleep_millis(price_cron::FETCH_GAP_MS).await;
         }
         match fetch_fund_nav(&base_url, code).await {
             Ok(Some(nav)) => {
@@ -360,7 +306,8 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
                     }
                     Err(e) => {
                         failed += 1;
-                        record_fetch_failure(pool, code, &short_failure_reason(&e)).await;
+                        record_fetch_failure(pool, code, &price_cron::short_failure_reason(&e))
+                            .await;
                         svc_log!(error, "基準価額の反映に失敗: cd={}, err={}", code, e);
                     }
                 }
@@ -373,7 +320,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
             }
             Err(e) => {
                 failed += 1;
-                record_fetch_failure(pool, code, &short_failure_reason(&e)).await;
+                record_fetch_failure(pool, code, &price_cron::short_failure_reason(&e)).await;
                 svc_log!(
                     warn,
                     "基準価額の取得に失敗（前回値を維持）: cd={}, err={}",
@@ -392,7 +339,7 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
         excluded,
         failed
     );
-    if !codes.is_empty() && fetched + excluded == 0 {
+    if price_cron::none_succeeded(codes.len(), fetched + excluded) {
         // 1件も正常な応答がない = 個別障害ではなく取得元の応答・エンドポイント変更を疑う
         svc_log!(
             error,
@@ -404,14 +351,11 @@ pub async fn refresh_fund_prices(pool: &Db, base_url: Option<String>) -> Result<
 
 /// 予定時刻（UTC エポックミリ秒）が JST 20:00/23:00 ちょうどなら基準価額更新を
 /// 実行するかを返す。cron は1分おきに飛ぶため、回りすぎないよう1日2回の時刻に絞る
-// JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
-#[expect(clippy::cast_possible_truncation)]
 pub fn should_fund_refresh_at(scheduled_ms: f64) -> bool {
-    OffsetDateTime::from_unix_timestamp_nanos(i128::from(scheduled_ms as i64) * 1_000_000)
-        .is_ok_and(|t| {
-            let jst = t + time::Duration::hours(9);
-            matches!(jst.hour(), 20 | 23) && jst.minute() == 0
-        })
+    price_cron::scheduled_time_ms(scheduled_ms).is_some_and(|t| {
+        let jst = t + time::Duration::hours(9);
+        matches!(jst.hour(), 20 | 23) && jst.minute() == 0
+    })
 }
 
 #[cfg(test)]
@@ -550,14 +494,14 @@ mod tests {
             ),
         ];
         for (error, expected) in cases {
-            let reason = short_failure_reason(&error);
+            let reason = price_cron::short_failure_reason(&error);
             assert_eq!(reason, expected);
             // 応答本文・URL・検証の内部 Details を含めない
             assert!(!reason.contains("example.invalid"), "{reason}");
             assert!(!reason.contains("nav が"), "{reason}");
         }
         // 想定外のエラーでも空や詳細の無い文言になる
-        let fallback = short_failure_reason(&ApiError::NotFound);
+        let fallback = price_cron::short_failure_reason(&ApiError::NotFound);
         assert_ne!(fallback, "");
         assert!(!fallback.contains("Not found"));
     }
