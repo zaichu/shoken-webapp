@@ -7553,6 +7553,56 @@ async fn rls_5c_writes_via_app_enter() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn operation_log_services_record_list_and_prune() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+    run_migrations(&pool).await.expect("migrations failed");
+    let user = create_test_user(&pool).await;
+    let mut tx = pool.begin_with_user(user).await.expect("Tx 開始");
+    backend::services::operation_log::record(&mut tx, user, "logout_all", "sessions", 3)
+        .await
+        .expect("記録追加");
+    tx.commit().await.expect("Tx commit");
+
+    let entries = backend::services::operation_log::list(&pool, user, 10, 0)
+        .await
+        .expect("記録一覧");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].operation, "logout_all");
+    assert_eq!(entries[0].target, "sessions");
+    assert_eq!(entries[0].count, 3);
+
+    db::query(
+        "UPDATE operation_logs SET occurred_at = NOW() - INTERVAL '2 years' WHERE user_id = $1",
+        vec![Bind::from(user)],
+    )
+    .execute(&pool)
+    .await
+    .expect("古い記録の準備");
+    assert_eq!(
+        backend::services::operation_log::prune(&pool)
+            .await
+            .expect("掃除"),
+        1
+    );
+    assert!(
+        backend::services::operation_log::list(&pool, user, 10, 0)
+            .await
+            .expect("掃除後一覧")
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn rls_5d_reads_via_app_enter() {
     let node = Postgres::default()
         .with_tag(POSTGRES_TAG)

@@ -326,7 +326,7 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             .map(|count| Some(usize::try_from(count).unwrap_or(usize::MAX)))
             .map_err(|e| Error::RustError(e.to_string()));
         ran |= log_cron_outcome(
-            CronStep::LoginEvents,
+            CronStep::OperationLogs,
             "操作記録削除",
             outcome,
             timer.elapsed_ms(),
