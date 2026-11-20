@@ -13,9 +13,9 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 | [public.login_events](public.login_events.md) | 9 | ログインの記録(端末IDはハッシュのみ。IPは保存しない) | BASE TABLE |
 | [public.admin_login_views](public.admin_login_views.md) | 3 | 管理者によるログイン一覧の閲覧監査（閲覧者と日時のみ） | BASE TABLE |
 | [public.login_notify_tokens](public.login_notify_tokens.md) | 6 | ログイン通知メール内の全端末ログアウト用使い捨てトークン(平文は保存しない) | BASE TABLE |
-| [public.dividends](public.dividends.md) | 14 | 配当・分配金の受取明細(CSV 取込) | BASE TABLE |
+| [public.dividends](public.dividends.md) | 16 | 配当・分配金の受取明細(CSV 取込) | BASE TABLE |
 | [public.domestic_stocks](public.domestic_stocks.md) | 18 | 国内株式の売買明細(CSV 取込) | BASE TABLE |
-| [public.mutualfunds](public.mutualfunds.md) | 17 | 投資信託の取引明細(CSV 取込) | BASE TABLE |
+| [public.mutualfunds](public.mutualfunds.md) | 19 | 投資信託の取引明細(CSV 取込) | BASE TABLE |
 | [public.csv_import_history](public.csv_import_history.md) | 3 | ユーザー・CSV種類ごとの最終取り込み成功時刻 | BASE TABLE |
 | [public.stock](public.stock.md) | 7 | 上場銘柄のマスタ(共有) | BASE TABLE |
 | [public.security_prices](public.security_prices.md) | 5 | 銘柄ごとの共有株価 | BASE TABLE |
@@ -104,6 +104,8 @@ erDiagram
   numeric net_amount_received
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.domestic_stocks" {
   uuid id
@@ -143,6 +145,8 @@ erDiagram
   numeric realized_profit_and_loss_after_tax
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.csv_import_history" {
   uuid user_id FK

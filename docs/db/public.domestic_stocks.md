@@ -40,7 +40,6 @@
 | ---- | ---------- |
 | domestic_stocks_pkey | CREATE UNIQUE INDEX domestic_stocks_pkey ON public.domestic_stocks USING btree (id) |
 | idx_domestic_stocks_hash_occurrence | CREATE UNIQUE INDEX idx_domestic_stocks_hash_occurrence ON public.domestic_stocks USING btree (user_id, content_hash, occurrence_index) |
-| idx_domestic_stocks_security_name_trgm | CREATE INDEX idx_domestic_stocks_security_name_trgm ON public.domestic_stocks USING gin (security_name gin_trgm_ops) |
 | idx_domestic_stocks_user_account | CREATE INDEX idx_domestic_stocks_user_account ON public.domestic_stocks USING btree (user_id, account) |
 | idx_domestic_stocks_user_security_code | CREATE INDEX idx_domestic_stocks_user_security_code ON public.domestic_stocks USING btree (user_id, security_code) |
 | idx_domestic_stocks_user_security_name | CREATE INDEX idx_domestic_stocks_user_security_name ON public.domestic_stocks USING btree (user_id, security_name) |

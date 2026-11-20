@@ -30,7 +30,6 @@
 | sessions_pkey | CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id) |
 | idx_sessions_expires_at | CREATE INDEX idx_sessions_expires_at ON public.sessions USING btree (expires_at) |
 | idx_sessions_token_hash | CREATE UNIQUE INDEX idx_sessions_token_hash ON public.sessions USING btree (token_hash) |
-| idx_sessions_user_id | CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id) |
 | idx_sessions_user_device | CREATE INDEX idx_sessions_user_device ON public.sessions USING btree (user_id, device_hash) |
 
 ## Relations

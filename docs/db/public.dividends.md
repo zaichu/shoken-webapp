@@ -22,6 +22,8 @@
 | net_amount_received | numeric |  | false |  |  |  |
 | created_at | timestamp with time zone | now() | false |  |  |  |
 | updated_at | timestamp with time zone | now() | false |  |  |  |
+| content_hash | text |  | false |  |  |  |
+| occurrence_index | integer |  | false |  |  |  |
 
 ## Constraints
 
@@ -35,13 +37,12 @@
 | Name | Definition |
 | ---- | ---------- |
 | dividends_pkey | CREATE UNIQUE INDEX dividends_pkey ON public.dividends USING btree (id) |
-| idx_dividends_security_name_trgm | CREATE INDEX idx_dividends_security_name_trgm ON public.dividends USING gin (security_name gin_trgm_ops) |
-| idx_dividends_unique | CREATE UNIQUE INDEX idx_dividends_unique ON public.dividends USING btree (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account) |
 | idx_dividends_user_account | CREATE INDEX idx_dividends_user_account ON public.dividends USING btree (user_id, account) |
 | idx_dividends_user_product | CREATE INDEX idx_dividends_user_product ON public.dividends USING btree (user_id, product) |
 | idx_dividends_user_security_code | CREATE INDEX idx_dividends_user_security_code ON public.dividends USING btree (user_id, security_code) |
 | idx_dividends_user_security_name | CREATE INDEX idx_dividends_user_security_name ON public.dividends USING btree (user_id, security_name) |
 | idx_dividends_user_settlement_date_id | CREATE INDEX idx_dividends_user_settlement_date_id ON public.dividends USING btree (user_id, settlement_date DESC, id DESC) |
+| idx_dividends_hash_occurrence | CREATE UNIQUE INDEX idx_dividends_hash_occurrence ON public.dividends USING btree (user_id, content_hash, occurrence_index) |
 
 ## Relations
 
@@ -65,6 +66,8 @@ erDiagram
   numeric net_amount_received
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.users" {
   uuid id

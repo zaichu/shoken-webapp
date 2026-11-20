@@ -25,6 +25,8 @@
 | realized_profit_and_loss_after_tax | numeric |  | false |  |  |  |
 | created_at | timestamp with time zone | now() | false |  |  |  |
 | updated_at | timestamp with time zone | now() | false |  |  |  |
+| content_hash | text |  | false |  |  |  |
+| occurrence_index | integer |  | false |  |  |  |
 
 ## Constraints
 
@@ -38,12 +40,11 @@
 | Name | Definition |
 | ---- | ---------- |
 | mutualfunds_pkey | CREATE UNIQUE INDEX mutualfunds_pkey ON public.mutualfunds USING btree (id) |
-| idx_mutualfunds_fund_name_trgm | CREATE INDEX idx_mutualfunds_fund_name_trgm ON public.mutualfunds USING gin (fund_name gin_trgm_ops) |
-| idx_mutualfunds_unique | CREATE UNIQUE INDEX idx_mutualfunds_unique ON public.mutualfunds USING btree (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account) |
 | idx_mutualfunds_user_account | CREATE INDEX idx_mutualfunds_user_account ON public.mutualfunds USING btree (user_id, account) |
 | idx_mutualfunds_user_dividends | CREATE INDEX idx_mutualfunds_user_dividends ON public.mutualfunds USING btree (user_id, dividends) |
 | idx_mutualfunds_user_fund_name | CREATE INDEX idx_mutualfunds_user_fund_name ON public.mutualfunds USING btree (user_id, fund_name) |
 | idx_mutualfunds_user_trade_date_id | CREATE INDEX idx_mutualfunds_user_trade_date_id ON public.mutualfunds USING btree (user_id, trade_date DESC, id DESC) |
+| idx_mutualfunds_hash_occurrence | CREATE UNIQUE INDEX idx_mutualfunds_hash_occurrence ON public.mutualfunds USING btree (user_id, content_hash, occurrence_index) |
 
 ## Relations
 
@@ -70,6 +71,8 @@ erDiagram
   numeric realized_profit_and_loss_after_tax
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.users" {
   uuid id

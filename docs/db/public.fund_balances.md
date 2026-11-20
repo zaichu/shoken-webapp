@@ -40,7 +40,6 @@
 | Name | Definition |
 | ---- | ---------- |
 | fund_balances_pkey | CREATE UNIQUE INDEX fund_balances_pkey ON public.fund_balances USING btree (id) |
-| idx_fund_balances_fund_name_trgm | CREATE INDEX idx_fund_balances_fund_name_trgm ON public.fund_balances USING gin (fund_name gin_trgm_ops) |
 | idx_fund_balances_user_fund_name | CREATE INDEX idx_fund_balances_user_fund_name ON public.fund_balances USING btree (user_id, fund_name) |
 | idx_fund_balances_user_account | CREATE INDEX idx_fund_balances_user_account ON public.fund_balances USING btree (user_id, account) |
 

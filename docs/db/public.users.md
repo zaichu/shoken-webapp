@@ -106,6 +106,8 @@ erDiagram
   numeric net_amount_received
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.domestic_stocks" {
   uuid id
@@ -145,6 +147,8 @@ erDiagram
   numeric realized_profit_and_loss_after_tax
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
+  text content_hash
+  integer occurrence_index
 }
 "public.csv_import_history" {
   uuid user_id FK

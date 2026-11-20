@@ -1564,6 +1564,28 @@ async fn dividend_bulk_create_skips_duplicates() {
 
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
+async fn dividend_bulk_create_keeps_duplicate_rows_in_same_batch() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    // 同じ内容の行が CSV に2行あると2行とも入る(occurrence_index で区別)
+    let items = vec![make_dividend_item("9934"), make_dividend_item("9934")];
+
+    let first = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("duplicate dividend bulk_create failed");
+    assert_eq!(first.inserted, 2);
+    assert_eq!(first.skipped, 0);
+
+    // 同じ2行の再取込では増えない
+    let second = dividend_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("duplicate dividend re-upload failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 2);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
 async fn dividend_csv_keeps_same_detail_in_different_accounts() {
     let (pool, _node) = start_test_pool().await;
     let user_id = create_test_user(&pool).await;
@@ -1763,6 +1785,223 @@ async fn mutualfund_bulk_create_skips_duplicates() {
         .expect("second mutualfund bulk_create failed");
     assert_eq!(second.inserted, 0);
     assert_eq!(second.skipped, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn mutualfund_bulk_create_keeps_duplicate_rows_in_same_batch() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    // 同じ内容の行が CSV に2行あると2行とも入る(occurrence_index で区別)
+    let items = vec![
+        make_mutualfund_item("テスト投信C"),
+        make_mutualfund_item("テスト投信C"),
+    ];
+
+    let first = mutualfund_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("duplicate mutualfund bulk_create failed");
+    assert_eq!(first.inserted, 2);
+    assert_eq!(first.skipped, 0);
+
+    // 同じ2行の再取込では増えない
+    let second = mutualfund_svc::bulk_create(&pool, user_id, &items, RowLimit::new(i64::MAX))
+        .await
+        .expect("duplicate mutualfund re-upload failed");
+    assert_eq!(second.inserted, 0);
+    assert_eq!(second.skipped, 2);
+}
+
+/// 0116・0117 の backfill(md5 式)と取り込み(bulk_create 側の md5 式)が一致すること。
+/// 0115 相当に戻して旧い経路で端の値の行を入れ、migration を当て直して backfill し、
+/// 同じ行を bulk_create で取り込むと 0 件挿入になる(式が1文字でも違うと別物と見なされ二重に入る)
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn dividends_mutualfunds_backfill_hash_matches_bulk_create() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+
+    // 0116・0117 を取り消して旧い形に戻す(旧一意キーも戻す)
+    pool.batch_execute(
+        "DROP INDEX IF EXISTS public.idx_dividends_hash_occurrence; \
+         DROP INDEX IF EXISTS public.idx_mutualfunds_hash_occurrence; \
+         ALTER TABLE public.dividends DROP COLUMN IF EXISTS content_hash, DROP COLUMN IF EXISTS occurrence_index; \
+         ALTER TABLE public.mutualfunds DROP COLUMN IF EXISTS content_hash, DROP COLUMN IF EXISTS occurrence_index;",
+    )
+    .await
+    .expect("0116・0117 の取り消しに失敗");
+    pool.batch_execute(
+        "CREATE UNIQUE INDEX idx_dividends_unique ON public.dividends USING btree (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account); \
+         CREATE UNIQUE INDEX idx_mutualfunds_unique ON public.mutualfunds USING btree (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account);",
+    )
+    .await
+    .expect("旧一意キーの復元に失敗");
+    db::query(
+        "DELETE FROM _sqlx_migrations WHERE version IN (116, 117)",
+        vec![],
+    )
+    .execute(&pool)
+    .await
+    .expect("migration 記録の取り消しに失敗");
+
+    // 旧い経路で端の値の行を入れる(小数・0円・NULL・全角名)
+    let div_items = vec![
+        CreateDividendRequest {
+            settlement_date: Date::from_calendar_date(2024, time::Month::March, 25).unwrap(),
+            product: "国内株式".to_string(),
+            account: "特定".parse().unwrap(),
+            security_code: "9934".to_string(),
+            security_name: "銘柄_9934".to_string(),
+            unit_price: dec!(12.5),
+            shares: dec!(100.0),
+            dividends_before_tax: dec!(1000.0),
+            taxes: dec!(0),
+            net_amount_received: dec!(1000.0),
+        },
+        CreateDividendRequest {
+            settlement_date: Date::from_calendar_date(2024, time::Month::June, 10).unwrap(),
+            product: "投資信託".to_string(),
+            account: "NISA".parse().unwrap(),
+            security_code: String::new(),
+            security_name: "ＡＢＣ　投信".to_string(),
+            unit_price: dec!(1),
+            shares: dec!(0.5),
+            dividends_before_tax: dec!(2500.75),
+            taxes: dec!(508.25),
+            net_amount_received: dec!(1992.5),
+        },
+    ];
+    for item in &div_items {
+        let row = db::query(
+            "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
+             security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
+             ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account) \
+             DO NOTHING RETURNING 1",
+            vec![
+                Bind::from(user_id),
+                Bind::from(item.settlement_date),
+                Bind::from(item.product.as_str()),
+                Bind::from(item.account.as_str()),
+                Bind::from(item.security_code.as_str()),
+                Bind::from(item.security_name.as_str()),
+                Bind::from(item.unit_price),
+                Bind::from(item.shares),
+                Bind::from(item.dividends_before_tax),
+                Bind::from(item.taxes),
+                Bind::from(item.net_amount_received),
+            ],
+        )
+        .fetch_optional::<(i32,), _>(&pool)
+        .await
+        .expect("旧い経路の配当挿入に失敗");
+        assert!(row.is_some(), "旧い経路で配当が入るはず");
+    }
+    let mf_items = vec![
+        CreateMutualfundRequest {
+            trade_date: Date::from_calendar_date(2024, time::Month::March, 20).unwrap(),
+            settlement_date: Date::from_calendar_date(2024, time::Month::March, 25).unwrap(),
+            fund_name: "ＭＵＦＧ　日本株オープン".to_string(),
+            dividends: None,
+            account: "特定".parse().unwrap(),
+            shares: dec!(1000.0),
+            exchange_rate: dec!(1),
+            cancellation_unit_price_yen: dec!(12000.0),
+            cancellation_amount_yen: dec!(12000000.0),
+            average_acquisition_price_yen: dec!(10000.0),
+            realized_profit_and_loss: dec!(2000000.0),
+            taxes: dec!(0),
+            realized_profit_and_loss_after_tax: dec!(2000000.0),
+        },
+        CreateMutualfundRequest {
+            trade_date: Date::from_calendar_date(2024, time::Month::May, 1).unwrap(),
+            settlement_date: Date::from_calendar_date(2024, time::Month::May, 8).unwrap(),
+            fund_name: "架空投信D".to_string(),
+            dividends: Some("再投資型".to_string()),
+            account: "NISA".parse().unwrap(),
+            shares: dec!(1500.5),
+            exchange_rate: dec!(150.25),
+            cancellation_unit_price_yen: dec!(12500.5),
+            cancellation_amount_yen: dec!(18750750.25),
+            average_acquisition_price_yen: dec!(10000.0),
+            realized_profit_and_loss: dec!(600000.0),
+            taxes: dec!(121818.0),
+            realized_profit_and_loss_after_tax: dec!(478182.0),
+        },
+    ];
+    for item in &mf_items {
+        let row = db::query(
+            "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends, \
+             account, shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+             average_acquisition_price_yen, realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) \
+             ON CONFLICT (user_id, trade_date, fund_name, shares, cancellation_amount_yen, account) \
+             DO NOTHING RETURNING 1",
+            vec![
+                Bind::from(user_id),
+                Bind::from(item.trade_date),
+                Bind::from(item.settlement_date),
+                Bind::from(item.fund_name.as_str()),
+                Bind::from(item.dividends.clone()),
+                Bind::from(item.account.as_str()),
+                Bind::from(item.shares),
+                Bind::from(item.exchange_rate),
+                Bind::from(item.cancellation_unit_price_yen),
+                Bind::from(item.cancellation_amount_yen),
+                Bind::from(item.average_acquisition_price_yen),
+                Bind::from(item.realized_profit_and_loss),
+                Bind::from(item.taxes),
+                Bind::from(item.realized_profit_and_loss_after_tax),
+            ],
+        )
+        .fetch_optional::<(i32,), _>(&pool)
+        .await
+        .expect("旧い経路の投信挿入に失敗");
+        assert!(row.is_some(), "旧い経路で投信が入るはず");
+    }
+
+    // migration を当て直して backfill する
+    run_migrations(&pool).await.expect("migrations failed");
+
+    // backfill の中身を確認する
+    let backfilled = db::query(
+        "SELECT occurrence_index FROM dividends WHERE user_id = $1",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all::<(i32,), _>(&pool)
+    .await
+    .expect("backfill の確認に失敗");
+    assert_eq!(backfilled.len(), 2);
+    assert!(
+        backfilled.iter().all(|(index,)| *index == 0),
+        "既存行は occurrence_index=0: {backfilled:?}"
+    );
+    let null_hash: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM dividends WHERE user_id = $1 AND content_hash IS NULL",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("backfill の NULL 確認に失敗");
+    assert_eq!(null_hash, 0, "backfill で content_hash が埋まるはず");
+
+    // 同じ行を bulk_create で取り込むと 0 件挿入になる
+    let div_res = dividend_svc::bulk_create(&pool, user_id, &div_items, RowLimit::new(i64::MAX))
+        .await
+        .expect("dividend re-upload failed");
+    assert_eq!(
+        (div_res.inserted, div_res.skipped),
+        (0, 2),
+        "backfill と式が一致すれば再取込は増えない"
+    );
+    let mf_res = mutualfund_svc::bulk_create(&pool, user_id, &mf_items, RowLimit::new(i64::MAX))
+        .await
+        .expect("mutualfund re-upload failed");
+    assert_eq!(
+        (mf_res.inserted, mf_res.skipped),
+        (0, 2),
+        "backfill と式が一致すれば再取込は増えない"
+    );
 }
 
 #[tokio::test]
@@ -3893,8 +4132,9 @@ async fn trading_tables_rls_isolates_restricted_role() {
     }
     db::query(
         "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
-         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
-         VALUES ($1, '2024-04-01', '国内株式', '特定', '9921', '架空自己配当', 100, 50, 5000, 1015, 3985)",
+         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, \
+         content_hash, occurrence_index) \
+         VALUES ($1, '2024-04-01', '国内株式', '特定', '9921', '架空自己配当', 100, 50, 5000, 1015, 3985, 'rls-own-div-hash-a', 0)",
         vec![Bind::from(user_a)],
     )
     .execute(&mut tx)
@@ -3915,8 +4155,8 @@ async fn trading_tables_rls_isolates_restricted_role() {
         "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, account, shares, \
          exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
          average_acquisition_price_yen, realized_profit_and_loss, taxes, \
-         realized_profit_and_loss_after_tax) VALUES ($1, '2024-03-20', '2024-03-25', \
-         '架空自己投信A', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940)",
+         realized_profit_and_loss_after_tax, content_hash, occurrence_index) VALUES ($1, '2024-03-20', '2024-03-25', \
+         '架空自己投信A', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940, 'rls-own-mf-hash-a', 0)",
         vec![Bind::from(user_a)],
     )
     .execute(&mut tx)
@@ -3942,8 +4182,9 @@ async fn trading_tables_rls_isolates_restricted_role() {
     .expect("自分の行の書き込みは通るはず");
     let err = db::query(
         "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, \
-         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) \
-         VALUES ($1, '2024-04-01', '国内株式', '特定', '9922', '架空他人配当', 100, 50, 5000, 1015, 3985)",
+         security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, \
+         content_hash, occurrence_index) \
+         VALUES ($1, '2024-04-01', '国内株式', '特定', '9922', '架空他人配当', 100, 50, 5000, 1015, 3985, 'rls-other-div-hash-b', 0)",
         vec![Bind::from(user_b)],
     )
     .execute(&mut tx)
@@ -3972,8 +4213,8 @@ async fn trading_tables_rls_isolates_restricted_role() {
             "INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, account, shares, \
              exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
              average_acquisition_price_yen, realized_profit_and_loss, taxes, \
-             realized_profit_and_loss_after_tax) VALUES ($1, '2024-03-20', '2024-03-25', \
-             '架空他人投信B', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940)",
+             realized_profit_and_loss_after_tax, content_hash, occurrence_index) VALUES ($1, '2024-03-20', '2024-03-25', \
+             '架空他人投信B', '特定', 1000, 1, 12000, 12000000, 10000, 2000000, 406060, 1593940, 'rls-other-mf-hash-b', 0)",
         ),
         (
             "asset_balances",
@@ -6184,17 +6425,26 @@ async fn csv_import_perf_10k_reports_timing() {
     );
 
     let plans: Vec<(String,)> = db::query(
-        "EXPLAIN (ANALYZE, BUFFERS) SELECT security_code AS value, \
-         (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] AS label, \
-         COUNT(*) AS count FROM dividends WHERE user_id = $1 \
-         GROUP BY security_code ORDER BY security_code",
+        "EXPLAIN (ANALYZE, BUFFERS) SELECT slot, value, value AS label, count FROM (SELECT CASE WHEN GROUPING(product) = 0 THEN 0 WHEN GROUPING(account) = 0 THEN 1 WHEN GROUPING(security_code) = 0 THEN 2 ELSE 5 END AS slot, COALESCE(product, account, security_code) AS value, COUNT(*) AS count FROM dividends WHERE user_id = $1 \
+         GROUP BY GROUPING SETS ((product), (account), (security_code), ())) AS aggregates ORDER BY slot, value",
         vec![Bind::from(user_id)],
     )
     .fetch_all(&pool)
     .await
-    .expect("EXPLAIN securities");
+    .expect("EXPLAIN aggregates");
     for (line,) in &plans {
-        eprintln!("plan(securities): {line}");
+        eprintln!("plan(aggregates): {line}");
+    }
+
+    let plans: Vec<(String,)> = db::query(
+        "EXPLAIN (ANALYZE, BUFFERS) SELECT DISTINCT ON (security_code) security_code, security_name FROM dividends WHERE user_id = $1 ORDER BY security_code, settlement_date DESC, id DESC",
+        vec![Bind::from(user_id)],
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("EXPLAIN latest names");
+    for (line,) in &plans {
+        eprintln!("plan(latest_names): {line}");
     }
 
     let plans: Vec<(String,)> = db::query(
@@ -6212,10 +6462,9 @@ async fn csv_import_perf_10k_reports_timing() {
     let plans: Vec<(String,)> = db::query(
         "EXPLAIN (ANALYZE, BUFFERS) INSERT INTO dividends (user_id, settlement_date, product, \
          account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, \
-         net_amount_received) SELECT $1::uuid, $2::date, $3::text, $4::text, $5::text, $6::text, \
-         $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::numeric \
-         ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, \
-         dividends_before_tax, product, account) DO NOTHING",
+         net_amount_received, content_hash, occurrence_index) SELECT $1::uuid, $2::date, $3::text, $4::text, $5::text, $6::text, \
+         $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::numeric, 'dummyhash', 99 \
+         ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING",
         vec![
             Bind::from(user_id),
             Bind::from(base),
@@ -6879,8 +7128,6 @@ async fn stage5b_definer_functions_and_app_enter() {
     for signature in [
         "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea,timestamptz)",
         "public.auth_delete_session_by_token(bytea)",
-        "public.login_notify_peek_by_token(bytea)",
-        "public.login_notify_consume_by_token(bytea)",
         "public.auth_rotate_session(uuid, bytea, bytea)",
         "public.auth_upsert_user(text, text, text, text)",
     ] {
@@ -6900,6 +7147,32 @@ async fn stage5b_definer_functions_and_app_enter() {
         .await
         .expect("関数権限の取得に失敗");
         assert!(!public, "{signature} は public から実行できないはず");
+        let is_definer = db::query_scalar::<bool>(
+            "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数定義の取得に失敗");
+        assert!(is_definer, "{signature} は DEFINER のはず");
+    }
+    // 旧 login_notify_*_by_token は *_v2 への移行済みで app_restricted の EXECUTE を外している。
+    // 関数は残るが、app_restricted からは実行できない
+    for signature in [
+        "public.login_notify_peek_by_token(bytea)",
+        "public.login_notify_consume_by_token(bytea)",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数権限の取得に失敗");
+        assert!(
+            !executable,
+            "{signature} は app_restricted から実行できないはず"
+        );
         let is_definer = db::query_scalar::<bool>(
             "SELECT prosecdef FROM pg_proc WHERE oid = $1::regprocedure",
             vec![Bind::from(signature)],
@@ -7052,7 +7325,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     .expect("照会関数の呼び出しに失敗");
     assert_eq!(unknown, None, "未知のハッシュでは他人の行を返さないはず");
     let peeked = db::query(
-        "SELECT * FROM login_notify_peek_by_token($1)",
+        "SELECT * FROM login_notify_peek_v2($1)",
         vec![Bind::Bytes(hash_plain_b.clone())],
     )
     .fetch_optional::<(UserId, OffsetDateTime), _>(&mut tx)
@@ -7064,7 +7337,7 @@ async fn stage5b_definer_functions_and_app_enter() {
         "所有するトークンでは本人の利用者 ID が返るはず"
     );
     let missing = db::query(
-        "SELECT * FROM login_notify_peek_by_token($1)",
+        "SELECT * FROM login_notify_peek_v2($1)",
         vec![Bind::Bytes(vec![92u8; 32])],
     )
     .fetch_optional::<(UserId, OffsetDateTime), _>(&mut tx)
@@ -7072,7 +7345,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     .expect("参照関数の呼び出しに失敗");
     assert!(missing.is_none(), "未知のハッシュでは行を返さないはず");
     let consumed = db::query_scalar::<Option<UserId>>(
-        "SELECT login_notify_consume_by_token($1)",
+        "SELECT login_notify_consume_v2($1)",
         vec![Bind::Bytes(hash_plain_a.clone())],
     )
     .fetch_one(&mut tx)
@@ -7080,7 +7353,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     .expect("消費関数の呼び出しに失敗");
     assert_eq!(consumed, Some(user_a), "所有するトークンを消費できるはず");
     let consumed_again = db::query_scalar::<Option<UserId>>(
-        "SELECT login_notify_consume_by_token($1)",
+        "SELECT login_notify_consume_v2($1)",
         vec![Bind::Bytes(hash_plain_a.clone())],
     )
     .fetch_one(&mut tx)
