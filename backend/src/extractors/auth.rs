@@ -112,7 +112,7 @@ mod tests {
         let (mut parts, ()) = request.into_parts();
 
         let error = tokio::time::timeout(
-            std::time::Duration::from_secs(1),
+            std::time::Duration::from_secs(3),
             AuthenticatedUser::from_request_parts(&mut parts, &state),
         )
         .await

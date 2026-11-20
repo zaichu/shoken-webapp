@@ -160,19 +160,29 @@ fn pathname_of_strips_query_and_hash() {
 }
 
 #[test]
-fn hash_only_change_detects_fragment_append() {
-    assert!(hash_only_change("/receipts", "/receipts#list"));
-    assert!(hash_only_change("/receipts?t=1", "/receipts?t=1#list"));
-    assert!(!hash_only_change("/receipts", "/receipts"));
-    assert!(!hash_only_change("/receipts", "/receipts/other#x"));
-    assert!(!hash_only_change("/receipts", "/search#x"));
-}
-
-#[test]
 fn strip_hash_keeps_query() {
     assert_eq!(strip_hash("/receipts#list"), "/receipts");
     assert_eq!(strip_hash("/search?code=9904#x"), "/search?code=9904");
     assert_eq!(strip_hash("/receipts"), "/receipts");
+}
+
+#[test]
+fn same_route_path_ignores_fragment_but_keeps_query_changes() {
+    assert!(same_route_path("/settings#account", "/settings#data"));
+    assert!(same_route_path("/?tab=all#main-content", "/?tab=all"));
+    assert!(!same_route_path("/?tab=all", "/?tab=funds"));
+    assert!(!same_route_path("/settings", "/receipts"));
+}
+
+#[test]
+fn hash_only_change_detects_fragment_changes_and_same_path_fragments() {
+    assert!(hash_only_change("/", "/#main-content"));
+    assert!(hash_only_change("/settings#account", "/settings#data"));
+    assert!(!hash_only_change(
+        "/settings?tab=all",
+        "/settings?tab=funds"
+    ));
+    assert!(!hash_only_change("/settings", "/receipts#list"));
 }
 
 #[test]

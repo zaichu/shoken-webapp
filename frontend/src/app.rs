@@ -166,12 +166,16 @@ fn spa_href(anchor: &web_sys::Element) -> Option<String> {
     )
 }
 
-fn hash_only_change(from: &str, to: &str) -> bool {
-    to.len() > from.len() && to.starts_with(from) && to.as_bytes()[from.len()] == b'#'
-}
-
 fn strip_hash(path: &str) -> &str {
     path.split('#').next().unwrap_or(path)
+}
+
+fn same_route_path(left: &str, right: &str) -> bool {
+    strip_hash(left) == strip_hash(right)
+}
+
+fn hash_only_change(from: &str, to: &str) -> bool {
+    same_route_path(from, to) && from != to
 }
 
 // 本文は main がスクロールする。ページ遷移ではそのコンテナを先頭に戻す
@@ -251,7 +255,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
         };
         let _ = result;
     }
-    path.set(strip_hash(to).to_string());
+    path.set(to.to_string());
     if let Some(fragment) = to.split_once('#').map(|(_, fragment)| fragment.to_string()) {
         // 遷移先の描画を待ってから該当セクションへ移る(アカウントメニューの「データをエクスポート」等)
         let window = window.clone();
@@ -314,7 +318,7 @@ pub fn App() -> impl IntoView {
         let Some(to) = spa_href(&anchor) else {
             return;
         };
-        // #要素 への移動はブラウザの既定のスクロールに任せる
+        // ハッシュ遷移はブラウザの既定のスクロールに任せる
         if hash_only_change(&path.get_untracked(), &to) {
             return;
         }
@@ -332,7 +336,7 @@ pub fn App() -> impl IntoView {
     let on_popstate = window_event_listener(ev::popstate, move |_| {
         // #フラグメント遷移でも popstate は発火するので、パスが変わらない限り再描画しない
         let next = current_location();
-        if path.get_untracked() == next {
+        if same_route_path(&path.get_untracked(), &next) {
             return;
         }
         path.set(next);
