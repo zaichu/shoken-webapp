@@ -16,8 +16,8 @@ exclude_re = [
     # レート制限クリーンアップのバックグラウンド spawn(タイミング依存)
     "spawn_keyed_limiter_cleanup",
     # DB 接続リトライ・マイグレーション(実 DB 前提。
-    # wait_for_pool_with_retry は tests/db_integration.rs::wait_for_pool_with_retry_succeeds_and_fails
-    # で成功/失敗両経路を検証済み。run_migrations は全統合テストが経由するため実質検証済み)
+    # 接続リトライは tests/db_migration.rs の接続・マイグレーション系テスト
+    # で検証。run_migrations は全統合テストが経由するため実質検証済み)
     "wait_for_pool_with_retry",
     "run_migrations",
     # Google OAuth 外部境界(JWKS 取得・トークン交換・セッション永続化はいずれも
@@ -28,7 +28,7 @@ exclude_re = [
     "replace google_callback",
     # DB 前提のセッション/アカウント操作(services/auth.rs に限定。
     # 同名のハンドラは 401/認証テストで評価できるため除外しない。
-    # 振る舞いは tests/db_integration.rs::auth_session_upsert_rotate_and_delete で検証済み)
+    # 振る舞いは tests/db_auth_session.rs::auth_session_upsert_rotate_and_delete で検証済み)
     "backend/src/services/auth\\.rs.*upsert_user_and_rotate_session",
     "backend/src/services/auth\\.rs.*select_user_by_session",
     "backend/src/services/auth\\.rs.*select_user_id_by_session",
@@ -36,13 +36,13 @@ exclude_re = [
     "backend/src/services/auth\\.rs.*delete_session",
     "backend/src/services/auth\\.rs.*delete_account",
     # 操作記録・セッション削除・端末解除はDB Tx境界。
-    # 振る舞いはDocker統合テスト(db_integration)で検証する。
+    # 振る舞いはDocker統合テスト(db_auth_session・db_rls)で検証する。
     "backend/src/services/auth\\.rs.*delete_all_sessions",
     "backend/src/services/auth\\.rs.*delete_device_sessions",
     "backend/src/services/operation_log\\.rs.*list",
     "backend/src/services/login_event/devices\\.rs.*revoke_device",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
-    # 振る舞いは tests/db_integration.rs の service_coverage_all_domains /
+    # 振る舞いは tests/db_bulk.rs の service_coverage_all_domains /
     # search_facets_group_by_domain_fields で検証済み。
     # models の should_include_facets や handlers の delete_all は評価可能なため
     # services/ の関数に限定する)
@@ -52,14 +52,14 @@ exclude_re = [
     "backend/src/services/domestic_stock\\.rs.*fetch_summary",
     # 配当の集計 fetch_aggregates は DB 境界(結合テストは #[ignore] のため --lib 評価では観測不可。
     # ARRAY_AGG 除去後の DISTINCT ON 分割の等価性は使い捨て DB での新旧 SQL 比較と
-    # tests/db_integration.rs::search_facets_group_by_domain_fields(Docker)で検証済み)
+    # tests/db_bulk.rs::search_facets_group_by_domain_fields(Docker)で検証済み)
     "backend/src/services/dividend\\.rs.*fetch_aggregates",
     "backend/src/services/.*delete_all ->",
     "delete ! in bulk_create",
     "delete_all_for_user",
     # dividend キャッシュ: DB + 外部 API( J-Quants )前提。
     # get_batch/acquire_rate_slot/update_cache_error* の DB 経路は
-    # tests/db_integration.rs::dividend_cache_persistence_and_rate_slot で検証済み。
+    # tests/db_price.rs::dividend_cache_persistence_and_rate_slot で検証済み。
     # fetch_and_cache は J-Quants 外部境界、push_rate_control_cooldown は
     # 429 時専用の内部関数で到達に外部失敗が必要なため除外維持
     "get_batch",
@@ -98,7 +98,7 @@ exclude_re = [
     "backend/src/worker_entry\\.rs",
     # 株価・基準価額 cron の DB 境界(結合テストは #[ignore] のため --lib 評価では観測不可。
     # 対象選定・試行時刻の前進・失敗記録の SQL 実行は実 DB 前提。
-    # 振る舞いは tests/db_integration.rs::stock_price_refresh_cycles_past_failing_codes /
+    # 振る舞いは tests/db_price.rs::stock_price_refresh_cycles_past_failing_codes /
     # fund_price_refresh_records_failure_and_marks_attempted(Docker)で検証済み。
     # 純粋な判定(none_succeeded/scheduled_time_ms/upstream_status_error/
     # short_failure_reason のホスト系)は services/price_cron.rs の単体テストで評価するため除外しない)
