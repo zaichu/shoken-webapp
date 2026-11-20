@@ -7379,7 +7379,7 @@ async fn rls_5c_writes_via_app_enter() {
         .expect("端末解除の記録があるはず");
     assert_eq!(device_log.target, "device");
     assert_eq!(device_log.count, 1);
-    let (removed_again, _) =
+    let removed_again =
         backend::services::login_event::revoke_device(&pool, user_a, &device_id, &[82u8; 32])
             .await
             .expect("再解除");
