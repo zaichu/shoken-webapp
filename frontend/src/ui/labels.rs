@@ -165,8 +165,6 @@ pub const PER_10K_UNIT: &str = "(1万口あたり)";
 pub const BASE_PRICE_MONTH_CHANGE: &str = "基準価額(前月比)";
 /// 基準価額の基準日
 pub const BASE_PRICE_AS_OF: &str = "基準価額の基準日";
-/// CSV を取り込んだ日
-pub const CSV_IMPORTED_AT: &str = "CSV 取込日";
 /// トータルリターン(投資信託の累積の損益)
 pub const TOTAL_RETURN: &str = "トータルリターン";
 /// 値が無いときの表示
