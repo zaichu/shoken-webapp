@@ -236,8 +236,6 @@ pub fn AssetHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
-            // 算出条件は表の下に1行で添える
-            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
         </div>
     }
 }
