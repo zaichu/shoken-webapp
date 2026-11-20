@@ -360,6 +360,87 @@ test('PCではホバーだけで月の金額が出て、外に出ると消える
   await expect(tipFor(probeMonth)).toBeHidden();
 });
 
+// 12月決め打ちで端の月(1月・12月)と最大値の月を選べるようにする。
+// 実機の日付に依存しないよう、アプリ側の Date だけ12月に固定する
+async function mockDecember(page: Page) {
+  await page.addInitScript((fixedTime: number) => {
+    const RealDate = Date;
+    class FixedDate extends RealDate {
+      constructor(...args: unknown[]) {
+        // @ts-expect-error 時計固定のため引数なしだけ差し替える
+        super(...(args.length === 0 ? [fixedTime] : args));
+      }
+      static now() {
+        return fixedTime;
+      }
+    }
+    // @ts-expect-error 時計固定のため Date を差し替える
+    window.Date = FixedDate;
+  }, new Date(THIS_YEAR, 11, 15, 12, 0, 0).getTime());
+}
+
+type Box = { x: number; y: number; width: number; height: number };
+
+function overlaps(a: Box, b: Box) {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+test('吹き出しは点の近くに出て丸と重ならず横にはみ出さない', async ({ page }) => {
+  await mockDecember(page);
+  await setupHomeMocks(page);
+  await page.goto('/');
+
+  const dividend = page.getByTestId('home-dividend-card');
+  const chart = dividend.locator('.home-chart').first();
+  const plot = chart.locator('.home-chart-plot');
+  const summary = dividend.locator('.home-cum-summary');
+  await expect(plot).toHaveAttribute('aria-valuemax', '12');
+  const box = await plot.boundingBox();
+  const xFor = (month: number) => (box!.width * (month - 0.5)) / 12;
+  const summaryBox = (await summary.boundingBox())!;
+
+  // 端の月(1月・12月)と累計が最大の月(6月)。中段の月は点の上下どちらにも
+  // 吹き出しが収まらない配置があり、そのときは下に出して点と上の行を優先する
+  for (const month of [1, 6, 12]) {
+    await plot.hover({ position: { x: xFor(month), y: box!.height / 2 } });
+    const tip = chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
+    await expect(tip).toBeVisible();
+    const tipBox = (await tip.boundingBox())!;
+    const plotBox = (await plot.boundingBox())!;
+    const currentBox = (await chart
+      .locator('.home-cum-col')
+      .nth(month - 1)
+      .locator('.home-cum-dot-current')
+      .boundingBox())!;
+    const previousBox = await chart
+      .locator('.home-cum-col')
+      .nth(month - 1)
+      .locator('.home-cum-dot-previous')
+      .boundingBox();
+    // 今年・前年の丸を隠さない
+    expect(overlaps(tipBox, currentBox)).toBe(false);
+    if (previousBox) {
+      expect(overlaps(tipBox, previousBox)).toBe(false);
+    }
+    // 左右はグラフの内側に収める
+    expect(tipBox.x).toBeGreaterThanOrEqual(plotBox.x - 1);
+    expect(tipBox.x + tipBox.width).toBeLessThanOrEqual(plotBox.x + plotBox.width + 1);
+    // 上の「配当金 / 進捗」の行に被せない
+    expect(tipBox.y).toBeGreaterThanOrEqual(summaryBox.y + summaryBox.height - 1);
+  }
+
+  // 端の月は上下もグラフの内側に収まる
+  for (const month of [1, 12]) {
+    await plot.hover({ position: { x: xFor(month), y: box!.height / 2 } });
+    const tip = chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
+    await expect(tip).toBeVisible();
+    const tipBox = (await tip.boundingBox())!;
+    const plotBox = (await plot.boundingBox())!;
+    expect(tipBox.y).toBeGreaterThanOrEqual(plotBox.y - 1);
+    expect(tipBox.y + tipBox.height).toBeLessThanOrEqual(plotBox.y + plotBox.height + 1);
+  }
+});
+
 test.describe('タッチ操作', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
@@ -387,6 +468,48 @@ test.describe('タッチ操作', () => {
     const head = await dividend.locator('h2').first().boundingBox();
     await page.touchscreen.tap(head!.x + head!.width / 2, head!.y + head!.height / 2);
     await expect(tip).toBeHidden();
+  });
+
+  test('スマホのタップでも吹き出しは丸と重ならず横にはみ出さない', async ({ page }) => {
+    await mockDecember(page);
+    await setupHomeMocks(page);
+    await page.goto('/');
+
+    const dividend = page.getByTestId('home-dividend-card');
+    const chart = dividend.locator('.home-chart').first();
+    const plot = chart.locator('.home-chart-plot');
+    const summary = dividend.locator('.home-cum-summary');
+    const box = await plot.boundingBox();
+    const summaryBox = (await summary.boundingBox())!;
+
+    // 端の月(1月・12月)。PC と同じ位置の決め方のため、点の近く・横収まり・上の行回避を確かめる
+    for (const month of [1, 12]) {
+      await page.touchscreen.tap(
+        box!.x + (box!.width * (month - 0.5)) / 12,
+        box!.y + box!.height / 2,
+      );
+      const tip = chart.locator('.home-cum-col').nth(month - 1).locator('.home-cum-tip');
+      await expect(tip).toBeVisible();
+      const tipBox = (await tip.boundingBox())!;
+      const plotBox = (await plot.boundingBox())!;
+      const currentBox = (await chart
+        .locator('.home-cum-col')
+        .nth(month - 1)
+        .locator('.home-cum-dot-current')
+        .boundingBox())!;
+      const previousBox = await chart
+        .locator('.home-cum-col')
+        .nth(month - 1)
+        .locator('.home-cum-dot-previous')
+        .boundingBox();
+      expect(overlaps(tipBox, currentBox)).toBe(false);
+      if (previousBox) {
+        expect(overlaps(tipBox, previousBox)).toBe(false);
+      }
+      expect(tipBox.x).toBeGreaterThanOrEqual(plotBox.x - 1);
+      expect(tipBox.x + tipBox.width).toBeLessThanOrEqual(plotBox.x + plotBox.width + 1);
+      expect(tipBox.y).toBeGreaterThanOrEqual(summaryBox.y + summaryBox.height - 1);
+    }
   });
 });
 

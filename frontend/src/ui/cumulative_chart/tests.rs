@@ -172,6 +172,29 @@ fn click_keeps_hovered_month_but_toggles_on_touch() {
 }
 
 #[test]
+fn tip_goes_below_only_when_no_room_above_either_dot() {
+    assert!(!tip_below(60.0, None));
+    assert!(tip_below(40.0, None));
+    assert!(!tip_below(60.0, Some(70.0)));
+    assert!(tip_below(60.0, Some(20.0)));
+    assert!(tip_below(20.0, Some(60.0)));
+}
+
+#[test]
+fn tip_edge_keeps_tip_inside_on_narrow_screens() {
+    assert_eq!(tip_edge(1, false), "left");
+    assert_eq!(tip_edge(2, false), "");
+    assert_eq!(tip_edge(3, false), "");
+    assert_eq!(tip_edge(10, false), "right");
+    assert_eq!(tip_edge(12, false), "right");
+    assert_eq!(tip_edge(1, true), "left");
+    assert_eq!(tip_edge(2, true), "left");
+    assert_eq!(tip_edge(3, true), "left");
+    assert_eq!(tip_edge(4, true), "");
+    assert_eq!(tip_edge(12, true), "right");
+}
+
+#[test]
 fn table_monthly_text_hides_future_months() {
     let monthly = [
         0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 3_000.0, 0.0, 0.0, 0.0, 0.0,

@@ -115,6 +115,27 @@ pub fn next_selected(current: Option<u32>, month: u32, hover: bool) -> Option<u3
     }
 }
 
+/// 吹き出しの横位置。端の月はグラフの内側に寄せる。
+/// 狭い画面では中央の月でも吹き出しが柱より広いため、左の3か月を左寄せにする。
+/// 640未満は Tailwind の max-sm と同じ境目
+pub const fn tip_edge(month: u32, narrow: bool) -> &'static str {
+    if month == 1 || (narrow && month <= 3) {
+        "left"
+    } else if month >= 10 {
+        "right"
+    } else {
+        ""
+    }
+}
+
+/// 吹き出しを点の下に出すか。点の少し上を基本にし、上の丸より上に
+/// 吹き出しが入らないときは下の丸の少し下に出す。
+/// 今年・前年の丸をどちらも隠さないよう、上下の丸の両方を基準にする
+pub fn tip_below(current_top: f64, previous_top: Option<f64>) -> bool {
+    let highest = previous_top.map_or(current_top, |previous| current_top.min(previous));
+    highest < 50.0
+}
+
 /// スライダーのキー操作で月を1つ動かす。範囲外は端に寄せる
 pub fn step_month(month: u32, delta: i32, current_month: u32) -> u32 {
     let max = current_month.clamp(1, 12);
@@ -143,6 +164,14 @@ fn hover_capable() -> bool {
                 .flatten()
         })
         .is_some_and(|query| query.matches())
+}
+
+// Tailwind の max-sm と同じ境目(640px 未満)で吹き出しの寄せを切り替える
+fn narrow_screen() -> bool {
+    web_sys::window()
+        .and_then(|window| window.inner_width().ok())
+        .and_then(|width| width.as_f64())
+        .is_some_and(|width| width < 640.0)
 }
 
 fn y_percent(value: f64, top: f64) -> f64 {
@@ -480,22 +509,33 @@ pub fn CumulativeChart(
                         let previous_value = previous_cum
                             .as_ref()
                             .and_then(|sums| sums.get(month as usize - 1).copied());
+                        let previous_top = previous_value.map(|value| y_percent(value, top));
                         let current_text = format::format_currency(current_value);
                         let previous_text = previous_value.map(format::format_currency);
                         let month_label = labels::receipt_month_label(month);
                         let current_cell = current_label.clone();
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
-                        // 端の月は吹き出しを内側に寄せ、点より上にあるときは
-                        // 直接ラベルに被せないよう点の下に出す
-                        let edge = if month == 1 {
-                            "left"
-                        } else if month >= 10 {
-                            "right"
+                        // 吹き出しは点の近くに出す。上の丸の少し上を基本にし、
+                        // 上に入らないときは下の丸の少し下に出す。
+                        // 端の月は吹き出しを内側に寄せる
+                        let edge = tip_edge(month, narrow_screen());
+                        let tip_below = tip_below(dot_top, previous_top);
+                        // 上の丸も下の丸も隠さないよう、上下それぞれの丸を基準にする
+                        let tip_anchor = previous_top.map_or(dot_top, |previous| {
+                            if tip_below {
+                                dot_top.max(previous)
+                            } else {
+                                dot_top.min(previous)
+                            }
+                        });
+                        let tip_top =
+                            tip_below.then(|| format!("calc({tip_anchor:.2}% + 12px)"));
+                        let tip_bottom = if tip_below {
+                            "auto".to_string()
                         } else {
-                            ""
+                            format!("calc({:.2}% + 8px)", 100.0 - tip_anchor)
                         };
-                        let tip_below = dot_top < 50.0;
                         let is_current = month == current_month;
                         view! {
                             <div
@@ -512,9 +552,8 @@ pub fn CumulativeChart(
                                 <div
                                     class="home-cum-tip"
                                     aria-hidden="true"
-                                    style:top=tip_below
-                                        .then(|| format!("calc({dot_top}% + 12px)"))
-                                    style:bottom=tip_below.then(|| "auto".to_string())
+                                    style:top=tip_top
+                                    style:bottom=tip_bottom
                                 >
                                     <p class="font-bold text-text">{month_label}</p>
                                     <dl class="mt-1 space-y-0.5">
