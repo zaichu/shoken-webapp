@@ -20,10 +20,6 @@ pub struct HistoryQuery {
     pub offset: Option<i64>,
 }
 
-fn is_current_device(current_hash: &[u8], device_hash: &[u8]) -> bool {
-    current_hash == device_hash
-}
-
 /// 自分のログイン履歴を新しい順に返す（v1）
 #[utoipa::path(
     get,
