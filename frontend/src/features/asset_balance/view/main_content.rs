@@ -1,6 +1,6 @@
-use super::all_list::{
-    AssetMergedList, AssetMergedTable, UnifiedRow, sort_unified, unified_from_fund,
-    unified_from_stock,
+use super::all_list::{AssetMergedList, AssetMergedTable};
+use super::asset_columns::{
+    UnifiedRow, mark_stock_date_outliers, sort_unified, unified_from_fund, unified_from_stock,
 };
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
@@ -465,12 +465,7 @@ fn AllContent(
             .iter()
             .map(|view| unified_from_stock(view, &dividend_maps))
             .collect();
-        for row in &mut rows {
-            row.date_outlier = format::price_date_is_outlier(
-                row.price_as_of.as_deref(),
-                stock_date_rep.as_deref(),
-            );
-        }
+        mark_stock_date_outliers(&mut rows, stock_date_rep.as_deref());
         let fund_rows: Vec<UnifiedRow> =
             fund::filter_fund_rows(&fund_rows_for_search, &text_search)
                 .into_iter()

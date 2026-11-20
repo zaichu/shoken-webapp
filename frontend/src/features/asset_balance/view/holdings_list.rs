@@ -1,98 +1,16 @@
+use super::asset_columns::holding_detail_cells;
 use crate::features::asset_balance::format as balance_format;
-use crate::features::asset_balance::holdings;
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model;
 use crate::features::asset_balance::model::ValuationInput;
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::badge::AccountBadge;
-use crate::ui::detail_dialog::{DetailCell, DetailDialog};
+use crate::ui::detail_dialog::DetailDialog;
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
 use leptos::prelude::*;
-
-pub(crate) fn holding_detail_cells(
-    view: &HoldingView,
-    dividends: &DividendMaps,
-) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let valuation = model::holding_valuation(&ValuationInput::from(view));
-    let market_text = balance_format::format_row_valuation_amount(valuation.market_value);
-    let pnl_text = balance_format::format_signed_row_valuation_amount(valuation.profit_loss.amount);
-    let pnl_rate = balance_format::format_signed_valuation_rate(valuation.profit_loss.rate, 1);
-    let pnl_negative = balance_format::is_negative_valuation(valuation.profit_loss.amount);
-    let pnl_positive = balance_format::is_positive_valuation(valuation.profit_loss.amount);
-    let (day_text, day_negative, day_positive) = (
-        balance_format::format_signed_row_valuation_amount(view.day_change),
-        balance_format::is_negative_valuation(view.day_change),
-        balance_format::is_positive_valuation(view.day_change),
-    );
-    let dividend =
-        holdings::holding_dividend(&view.code, view.shares, view.average_price, dividends);
-    let current_text = format::format_currency(view.current_price);
-    let average_text = format::format_currency(view.average_price);
-    let purchase_text = format::format_currency(view.purchase);
-    let shares_text = labels::stock_shares_label(&format::format_number_value(view.shares));
-    let per_share = holdings::format_dividend_per_share(&dividend, 0);
-    let annual = holdings::format_dividend_annual(&dividend);
-    let yield_text = holdings::format_dividend_yield(&dividend);
-    let as_of = labels::stock_price_point_value(view.price_as_of.as_deref());
-    let left = vec![
-        DetailCell::with_sub(
-            labels::CURRENT_PRICE.to_string(),
-            current_text,
-            day_text,
-            day_negative,
-            day_positive,
-        ),
-        DetailCell::plain(labels::AVERAGE_PRICE.to_string(), average_text),
-        DetailCell {
-            label: labels::ACQUISITION_YIELD.to_string(),
-            value: yield_text,
-            sub: None,
-            sub_rate: None,
-            sub_rate_negative: false,
-            sub_rate_positive: false,
-            negative: balance_format::is_negative_rate(dividend.yield_value),
-            positive: balance_format::is_positive_rate(dividend.yield_value),
-            bold: false,
-            kind: AmountKind::Delta,
-        },
-        DetailCell {
-            label: labels::PER_SHARE_DIVIDEND.to_string(),
-            value: per_share,
-            sub: None,
-            sub_rate: None,
-            sub_rate_negative: false,
-            sub_rate_positive: false,
-            negative: balance_format::is_negative_rate(dividend.per_share),
-            positive: balance_format::is_positive_rate(dividend.per_share),
-            bold: false,
-            kind: AmountKind::Delta,
-        },
-    ];
-    let mut market_cell = match valuation.profit_loss.amount {
-        Some(_) => DetailCell::strong_sub(
-            labels::MARKET_VALUE.to_string(),
-            market_text,
-            pnl_text,
-            pnl_negative,
-            pnl_positive,
-        ),
-        None => DetailCell::plain(labels::MARKET_VALUE.to_string(), market_text),
-    };
-    market_cell.sub_rate = valuation.profit_loss.rate.map(|_| pnl_rate);
-    market_cell.sub_rate_negative = balance_format::is_negative_rate(valuation.profit_loss.rate);
-    market_cell.sub_rate_positive = balance_format::is_positive_rate(valuation.profit_loss.rate);
-    let right = vec![
-        DetailCell::plain(labels::QUANTITY.to_string(), shares_text),
-        DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
-        market_cell,
-        DetailCell::plain(labels::ANNUAL_EXPECTED_DIVIDEND.to_string(), annual),
-        DetailCell::plain(labels::STOCK_PRICE.to_string(), as_of),
-    ];
-    (left, right)
-}
 
 #[component]
 pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) -> impl IntoView {
@@ -209,7 +127,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
 
 #[cfg(test)]
 mod tests {
-    use super::holding_detail_cells;
+    use super::super::asset_columns::holding_detail_cells;
     use crate::features::asset_balance::holdings::HoldingView;
     use crate::features::dividend_per_share::DividendMaps;
     use crate::ui::amount::AmountKind;

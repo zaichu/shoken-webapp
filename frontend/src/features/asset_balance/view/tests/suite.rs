@@ -779,7 +779,7 @@ fn price_date_outliers_flags_only_rows_different_from_the_representative() {
 #[test]
 fn unified_row_carries_account_course_and_day_change_into_columns() {
     let fund =
-        super::all_list::unified_from_fund(&crate::features::asset_balance::fund::FundView {
+        super::asset_columns::unified_from_fund(&crate::features::asset_balance::fund::FundView {
             id: Some("fund-1".to_string()),
             name: "ファンドA".to_string(),
             account: "NISA成長投資枠".to_string(),
@@ -812,8 +812,10 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     // 国内株式は分配金が無い(表では「—」)。口座は行が持っていれば札で出す
     let mut stock_row = balance_row(9904);
     stock_row.account = Some("特定".parse().unwrap());
-    let stock =
-        super::all_list::unified_from_stock(&holding_view(&stock_row), &DividendMaps::default());
+    let stock = super::asset_columns::unified_from_stock(
+        &holding_view(&stock_row),
+        &DividendMaps::default(),
+    );
     assert_eq!(stock.code.as_deref(), Some("9904"));
     assert_eq!(stock.account.as_deref(), Some("特定"));
     assert_eq!(stock.sub, "9904");
@@ -822,7 +824,7 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
     assert_eq!(stock.price_as_of.as_deref(), Some("2024-01-16"));
 
     // 口座を持たない行(旧データ)は表・行メタとも「—」相当
-    let stock = super::all_list::unified_from_stock(
+    let stock = super::asset_columns::unified_from_stock(
         &holding_view(&balance_row(9904)),
         &DividendMaps::default(),
     );
@@ -840,7 +842,7 @@ fn unified_row_carries_account_course_and_day_change_into_columns() {
         status: HashMap::new(),
         responded: true,
     };
-    let stock = super::all_list::unified_from_stock(&holding_view(&balance_row(9904)), &maps);
+    let stock = super::asset_columns::unified_from_stock(&holding_view(&balance_row(9904)), &maps);
     let dividend = stock.dividend.as_ref().expect("株式の行は1株配当を持つ");
     assert_eq!(dividend.per_share, Some(50.0));
     assert_eq!(dividend.annual, Some(5000.0));
@@ -889,7 +891,7 @@ fn unified_row_hides_day_change_and_marks_pending_for_stale_fund_nav() {
         Some("2026-10-10".to_string()),
         Some("2026-10-17".to_string()),
     );
-    let row = super::all_list::unified_from_fund(&view);
+    let row = super::asset_columns::unified_from_fund(&view);
     assert!(row.nav_pending);
     assert_eq!(row.day_change, None);
     assert!(row.day_change_title.unwrap().contains("更新待ち"));
