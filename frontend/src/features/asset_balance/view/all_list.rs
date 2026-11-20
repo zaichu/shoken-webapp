@@ -1,9 +1,6 @@
 //! 「すべて」タブ。国内株式と投資信託を同じ一覧に並べる
 
-use super::asset_columns::{
-    UnifiedRow, day_change_rate_cell, merged_dividend_decimals, merged_table_head, sort_unified,
-    unified_day_change_rate, unified_detail_cells,
-};
+use super::asset_columns::{self, UnifiedRow};
 use super::day_change::pending_day_change_cell;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::FundSortKey;
@@ -24,9 +21,9 @@ pub fn AssetMergedTable(
     sort_key: RwSignal<FundSortKey>,
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
-    let dividend_decimals = merged_dividend_decimals(&rows);
+    let dividend_decimals = asset_columns::merged_dividend_decimals(&rows);
     let sorted = Memo::new(move |_| {
-        sort_unified(&rows, sort_key.get(), sort_order.get())
+        asset_columns::sort_unified(&rows, sort_key.get(), sort_order.get())
             .into_iter()
             .map(|index| rows[index].clone())
             .collect::<Vec<_>>()
@@ -35,7 +32,7 @@ pub fn AssetMergedTable(
         <div data-testid="asset-merged-table">
             <table class="asset-table">
                 <thead>
-                    {merged_table_head(sort_key, sort_order)}
+                    {asset_columns::merged_table_head(sort_key, sort_order)}
                 </thead>
                 <tbody>
                     {move || {
@@ -116,8 +113,8 @@ pub fn AssetMergedTable(
                                             {if row.nav_pending {
                                                 pending_day_change_cell().into_any()
                                             } else {
-                                                day_change_rate_cell(
-                                                        unified_day_change_rate(row),
+                                                asset_columns::day_change_rate_cell(
+                                                        asset_columns::unified_day_change_rate(row),
                                                         outlier_date,
                                                     )
                                                     .into_any()
@@ -190,7 +187,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
                     let dialog_row = row.clone();
                     let open = RwSignal::new(false);
                     let open_for_dialog = open;
-                    let (left, right) = unified_detail_cells(&dialog_row);
+                    let (left, right) = asset_columns::unified_detail_cells(&dialog_row);
                     view! {
                         <li class="list-row-item" data-testid="asset-compact-row">
                             <ListRowButton
@@ -272,10 +269,7 @@ pub fn AssetMergedList(rows: Vec<UnifiedRow>) -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    use super::super::asset_columns::{
-        UnifiedRow, unified_day_change_rate, unified_detail_cells, unified_from_fund,
-        unified_from_stock,
-    };
+    use super::super::asset_columns::{self, UnifiedRow};
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
     use crate::features::asset_balance::holdings::HoldingView;
@@ -322,8 +316,8 @@ mod tests {
 
     #[test]
     fn merged_dialog_uses_row_basis_and_order() {
-        let stock = unified_from_stock(&sample_stock(), &DividendMaps::default());
-        let (left, right) = unified_detail_cells(&stock);
+        let stock = asset_columns::unified_from_stock(&sample_stock(), &DividendMaps::default());
+        let (left, right) = asset_columns::unified_detail_cells(&stock);
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
@@ -336,8 +330,8 @@ mod tests {
         );
         assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
 
-        let fund = unified_from_fund(&sample_fund());
-        let (left, right) = unified_detail_cells(&fund);
+        let fund = asset_columns::unified_from_fund(&sample_fund());
+        let (left, right) = asset_columns::unified_detail_cells(&fund);
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
@@ -357,13 +351,13 @@ mod tests {
     #[test]
     fn merged_day_change_rate_uses_previous_day_valuation() {
         // 株: 50円×100株=5,000円、前日評価額 255,000円
-        let stock = unified_from_stock(&sample_stock(), &DividendMaps::default());
-        let rate = unified_day_change_rate(&stock).expect("株の騰落率");
+        let stock = asset_columns::unified_from_stock(&sample_stock(), &DividendMaps::default());
+        let rate = asset_columns::unified_day_change_rate(&stock).expect("株の騰落率");
         assert!((rate - 5000.0 / 255000.0 * 100.0).abs() < 1e-9, "{rate}");
 
         // 投信: 50円×10000口/10000=50円、前日評価額 109,950円
-        let fund = unified_from_fund(&sample_fund());
-        let rate = unified_day_change_rate(&fund).expect("投信の騰落率");
+        let fund = asset_columns::unified_from_fund(&sample_fund());
+        let rate = asset_columns::unified_day_change_rate(&fund).expect("投信の騰落率");
         assert!((rate - 50.0 / 109950.0 * 100.0).abs() < 1e-9, "{rate}");
     }
 
@@ -372,29 +366,29 @@ mod tests {
         // 前日比がない行は「—」のまま
         let mut stock = sample_stock();
         stock.day_change = None;
-        let row = unified_from_stock(&stock, &DividendMaps::default());
-        assert_eq!(unified_day_change_rate(&row), None);
+        let row = asset_columns::unified_from_stock(&stock, &DividendMaps::default());
+        assert_eq!(asset_columns::unified_day_change_rate(&row), None);
 
         // 評価額がない行も出さない
         let row = UnifiedRow {
             market: None,
-            ..unified_from_stock(&sample_stock(), &DividendMaps::default())
+            ..asset_columns::unified_from_stock(&sample_stock(), &DividendMaps::default())
         };
-        assert_eq!(unified_day_change_rate(&row), None);
+        assert_eq!(asset_columns::unified_day_change_rate(&row), None);
 
         // 前日の評価額が0以下の行も出さない
         let row = UnifiedRow {
             market: Some(100.0),
             day_change_total: Some(100.0),
-            ..unified_from_stock(&sample_stock(), &DividendMaps::default())
+            ..asset_columns::unified_from_stock(&sample_stock(), &DividendMaps::default())
         };
-        assert_eq!(unified_day_change_rate(&row), None);
+        assert_eq!(asset_columns::unified_day_change_rate(&row), None);
 
         // 更新待ちの投信は古い日の変動を見せない
         let mut fund = sample_fund();
         fund.is_nav_latest = false;
-        let row = unified_from_fund(&fund);
+        let row = asset_columns::unified_from_fund(&fund);
         assert!(row.nav_pending);
-        assert_eq!(unified_day_change_rate(&row), None);
+        assert_eq!(asset_columns::unified_day_change_rate(&row), None);
     }
 }

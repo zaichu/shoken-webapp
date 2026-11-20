@@ -1,4 +1,4 @@
-use super::asset_columns::{stock_date_outliers, stock_table_decimals, stock_table_head};
+use super::asset_columns;
 use super::day_change::day_change_cell;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::holdings;
@@ -29,9 +29,9 @@ pub fn AssetHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     let price_date_rep = price_date_rep.clone();
-    let date_outliers = stock_date_outliers(&views, price_date_rep.as_deref());
+    let date_outliers = asset_columns::stock_date_outliers(&views, price_date_rep.as_deref());
     let (average_price_decimals, current_price_decimals, dividend_decimals) =
-        stock_table_decimals(&views, &dividends.get());
+        asset_columns::stock_table_decimals(&views, &dividends.get());
     let row_dividends: Vec<_> = views
         .iter()
         .map(|view| {
@@ -47,7 +47,7 @@ pub fn AssetHoldingsTable(
         <div data-testid="asset-holdings-table">
             <table class="asset-table">
                 <thead>
-                    {stock_table_head(sort_key, sort_order)}
+                    {asset_columns::stock_table_head(sort_key, sort_order)}
                 </thead>
                 <tbody>
                     {views

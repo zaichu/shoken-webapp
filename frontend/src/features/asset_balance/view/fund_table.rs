@@ -1,4 +1,4 @@
-use super::asset_columns::{fund_base_price_decimals, fund_detail_cells, fund_table_head};
+use super::asset_columns;
 use super::day_change::{day_change_cell, pending_day_change_cell};
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
@@ -21,12 +21,12 @@ pub fn FundHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let base_price_decimals = fund_base_price_decimals(&views);
+    let base_price_decimals = asset_columns::fund_base_price_decimals(&views);
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
                 <thead>
-                    {fund_table_head(sort_key, sort_order)}
+                    {asset_columns::fund_table_head(sort_key, sort_order)}
                 </thead>
                 <tbody>
                     {views
@@ -141,7 +141,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let dialog_view = view.clone();
                     let open = RwSignal::new(false);
                     let open_for_dialog = open;
-                    let (left, right) = fund_detail_cells(&dialog_view);
+                    let (left, right) = asset_columns::fund_detail_cells(&dialog_view);
                     view! {
                         <li class="list-row-item" data-testid="asset-compact-row">
                             <ListRowButton
@@ -192,7 +192,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    use super::super::asset_columns::fund_detail_cells;
+    use super::super::asset_columns;
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
     use crate::ui::amount::AmountKind;
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn fund_dialog_preserves_order() {
-        let (left, right) = fund_detail_cells(&sample_fund());
+        let (left, right) = asset_columns::fund_detail_cells(&sample_fund());
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
@@ -249,7 +249,7 @@ mod tests {
     #[test]
     fn fund_dialog_uses_row_basis() {
         let view = sample_fund();
-        let (left, right) = fund_detail_cells(&view);
+        let (left, right) = asset_columns::fund_detail_cells(&view);
         assert!(left[0].value.contains("11,000") || left[0].value.contains("11000"));
         assert!(right[2].value.contains("110,000") || right[2].value.contains("110000"));
         assert!(
@@ -264,14 +264,14 @@ mod tests {
     fn fund_dialog_month_change_uses_delta_sign() {
         let mut view = sample_fund();
         view.base_price_month_change = Some(-30.0);
-        let (left, _) = fund_detail_cells(&view);
+        let (left, _) = asset_columns::fund_detail_cells(&view);
         let month = &left[1];
         assert_eq!(month.kind, AmountKind::Delta);
         assert!(month.negative);
         assert!(!month.positive);
         assert!(month.value.starts_with('-'));
         view.base_price_month_change = Some(20.0);
-        let (left, _) = fund_detail_cells(&view);
+        let (left, _) = asset_columns::fund_detail_cells(&view);
         let month = &left[1];
         assert!(month.positive);
         assert!(month.value.starts_with('+'));

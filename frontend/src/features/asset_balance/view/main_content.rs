@@ -1,7 +1,5 @@
 use super::all_list::{AssetMergedList, AssetMergedTable};
-use super::asset_columns::{
-    UnifiedRow, mark_stock_date_outliers, sort_unified, unified_from_fund, unified_from_stock,
-};
+use super::asset_columns::{self, UnifiedRow};
 use super::asset_table::AssetHoldingsTable;
 use super::fund_table::{FundHoldingsList, FundHoldingsTable};
 use super::holdings_list::HoldingsList;
@@ -463,14 +461,14 @@ fn AllContent(
         let dividend_maps = dividends.get();
         let mut rows: Vec<UnifiedRow> = views
             .iter()
-            .map(|view| unified_from_stock(view, &dividend_maps))
+            .map(|view| asset_columns::unified_from_stock(view, &dividend_maps))
             .collect();
-        mark_stock_date_outliers(&mut rows, stock_date_rep.as_deref());
+        asset_columns::mark_stock_date_outliers(&mut rows, stock_date_rep.as_deref());
         let fund_rows: Vec<UnifiedRow> =
             fund::filter_fund_rows(&fund_rows_for_search, &text_search)
                 .into_iter()
                 .map(fund::fund_view)
-                .map(|view| unified_from_fund(&view))
+                .map(|view| asset_columns::unified_from_fund(&view))
                 .collect();
         rows.extend(fund_rows);
         rows
@@ -581,7 +579,7 @@ fn AllContent(
                 <div class="lg:hidden print:hidden">
                     {move || {
                         let rows = filtered.get();
-                        let order = sort_unified(&rows, sort_key.get(), sort_order.get());
+                        let order = asset_columns::sort_unified(&rows, sort_key.get(), sort_order.get());
                         let sorted = apply_order(&rows, order);
                         view! { <AssetMergedList rows=sorted /> }
                     }}

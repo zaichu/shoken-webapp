@@ -1,4 +1,4 @@
-use super::asset_columns::holding_detail_cells;
+use super::asset_columns;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::holdings::HoldingView;
 use crate::features::asset_balance::model;
@@ -44,7 +44,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                     let dialog_view = view.clone();
                     let open = RwSignal::new(false);
                     let open_for_dialog = open;
-                    let (left, right) = holding_detail_cells(
+                    let (left, right) = asset_columns::holding_detail_cells(
                         &dialog_view,
                         &dividends.get(),
                     );
@@ -127,7 +127,7 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
 
 #[cfg(test)]
 mod tests {
-    use super::super::asset_columns::holding_detail_cells;
+    use super::super::asset_columns;
     use crate::features::asset_balance::holdings::HoldingView;
     use crate::features::dividend_per_share::DividendMaps;
     use crate::ui::amount::AmountKind;
@@ -150,7 +150,8 @@ mod tests {
 
     #[test]
     fn holding_dialog_preserves_order() {
-        let (left, right) = holding_detail_cells(&sample_view(), &DividendMaps::default());
+        let (left, right) =
+            asset_columns::holding_detail_cells(&sample_view(), &DividendMaps::default());
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
@@ -177,7 +178,7 @@ mod tests {
     #[test]
     fn holding_dialog_uses_row_basis() {
         let view = sample_view();
-        let (left, right) = holding_detail_cells(&view, &DividendMaps::default());
+        let (left, right) = asset_columns::holding_detail_cells(&view, &DividendMaps::default());
         assert!(left[0].value.contains("2,600") || left[0].value.contains("2600"));
         assert!(right[1].value.contains("250,000") || right[1].value.contains("250000"));
         assert!(right[2].value.contains("260,000") || right[2].value.contains("260000"));
@@ -189,7 +190,7 @@ mod tests {
         view.day_change = Some(-30.0);
         view.current_price = 2000.0;
         view.purchase = 250000.0;
-        let (left, right) = holding_detail_cells(&view, &DividendMaps::default());
+        let (left, right) = asset_columns::holding_detail_cells(&view, &DividendMaps::default());
         let price = &left[0];
         assert_eq!(price.kind, AmountKind::Plain);
         assert!(!price.bold);
