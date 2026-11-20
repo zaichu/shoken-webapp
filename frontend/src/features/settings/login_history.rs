@@ -190,7 +190,7 @@ pub fn SectionOperationLog() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match fetch_operation_log_page(HISTORY_PAGE_SIZE, 0).await {
                 Ok(rows) => {
-                    has_more.set(rows.len() == HISTORY_PAGE_SIZE as usize);
+                    has_more.set(usize::try_from(HISTORY_PAGE_SIZE) == Ok(rows.len()));
                     entries.set(rows);
                     initial.set(Some(Ok(())));
                 }
@@ -207,7 +207,7 @@ pub fn SectionOperationLog() -> impl IntoView {
             let offset = i64::try_from(entries.with_untracked(Vec::len)).unwrap_or(i64::MAX);
             match fetch_operation_log_page(HISTORY_PAGE_SIZE, offset).await {
                 Ok(rows) => {
-                    has_more.set(rows.len() == HISTORY_PAGE_SIZE as usize);
+                    has_more.set(usize::try_from(HISTORY_PAGE_SIZE) == Ok(rows.len()));
                     entries.update(|all| all.extend(rows));
                 }
                 Err(error) => more_error.set(Some(error.user_message())),
