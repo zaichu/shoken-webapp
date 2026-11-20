@@ -7379,6 +7379,11 @@ async fn rls_5c_writes_via_app_enter() {
         .expect("端末解除の記録があるはず");
     assert_eq!(device_log.target, "device");
     assert_eq!(device_log.count, 1);
+    let (removed_again, _) =
+        backend::services::login_event::revoke_device(&pool, user_a, &device_id, &[82u8; 32])
+            .await
+            .expect("再解除");
+    assert!(removed_again.is_none());
     assert_eq!(count_where(&pool, "sessions", user_a).await, 1);
     assert_eq!(count_where(&pool, "sessions", user_b).await, 1);
 
@@ -7516,6 +7521,12 @@ async fn rls_5c_writes_via_app_enter() {
         .await
         .expect("全セッション削除は通るはず");
     assert_eq!(cleared, 1);
+    let logout_logs = backend::services::operation_log::list(&pool, user_a, 100, 0)
+        .await
+        .expect("全端末ログアウトの記録一覧");
+    assert!(logout_logs.iter().any(|entry| {
+        entry.operation == "logout_all" && entry.target == "sessions" && entry.count == 1
+    }));
     assert_eq!(count_where(&pool, "sessions", user_a).await, 0);
     assert_eq!(count_where(&pool, "sessions", user_b).await, 1);
 
