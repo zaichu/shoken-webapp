@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { SCREENS, THEMES, VIEWPORTS, prepareContext } from './screens.mjs';
 
 function parseArgs(argv) {
-  const options = { only: null, viewportWidths: null };
+  const options = { only: null, viewportWidths: null, detailMobile: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--port') {
@@ -22,6 +22,8 @@ function parseArgs(argv) {
       options.only = argv[(index += 1)];
     } else if (arg === '--viewports') {
       options.viewportWidths = argv[(index += 1)].split(',').map((width) => Number(width.trim()));
+    } else if (arg === '--detail-mobile') {
+      options.detailMobile = true;
     } else {
       throw new Error(`不明な引数: ${arg}`);
     }
@@ -66,6 +68,7 @@ const viewports = options.viewportWidths
 if (viewports.length === 0) {
   throw new Error('--viewports に一致する幅がありません');
 }
+const detailScreen = (screen) => screen.key.endsWith('-detail');
 
 mkdirSync(options.out, { recursive: true });
 const baseUrl = `http://127.0.0.1:${options.port}`;
@@ -76,6 +79,9 @@ const unexpected = [];
 try {
   for (const screen of screens) {
     for (const viewport of viewports) {
+      if (options.detailMobile && detailScreen(screen) && ![360, 390].includes(viewport.width)) {
+        continue;
+      }
       for (const theme of THEMES) {
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
@@ -91,6 +97,9 @@ try {
           if (screen.prepare) {
             await waitForReady(page, screen.loaded ?? screen.ready);
             await screen.prepare(page);
+          } else if (screen.listPrepare) {
+            await waitForReady(page, screen.loaded ?? screen.ready);
+            await screen.listPrepare(page);
           }
           await waitForReady(page, screen.ready);
           await page.waitForTimeout(500);

@@ -27,6 +27,7 @@ usage() {
   --viewports <幅一覧>   撮る幅を絞る(latest の既定: 390,1280,1920。PR 確認用は既定で全幅)
   --shots-branch <名>    画像を置くブランチ(既定: screenshots。push 動作の検証用に一時名を指定できる)
   --no-push              画像を push しない(撮るだけ。--cleanup-pr とは併用不可)
+  --detail-mobile        詳細画面を360pxと390pxで撮る(1280pxは一覧画面を撮る)
   -h, --help             この説明を表示する
 EOF
 }
@@ -39,6 +40,7 @@ PR_NUMBER=""
 VIEWPORTS=""
 SHOTS_BRANCH="screenshots"
 PUSH=1
+DETAIL_MOBILE=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --cleanup-pr)
@@ -63,6 +65,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --no-push)
       PUSH=0
+      shift
+      ;;
+    --detail-mobile)
+      DETAIL_MOBILE=1
       shift
       ;;
     -h | --help)
@@ -267,7 +273,11 @@ build_and_shoot() {
   if [ -n "$VIEWPORTS" ]; then
     SHOOT_ARGS+=(--viewports "$VIEWPORTS")
   fi
-  node scripts/ui-shots/shoot.mjs "${SHOOT_ARGS[@]}"
+  if [ "$DETAIL_MOBILE" -eq 1 ]; then
+    node scripts/ui-shots/shoot.mjs "${SHOOT_ARGS[@]}" --detail-mobile
+  else
+    node scripts/ui-shots/shoot.mjs "${SHOOT_ARGS[@]}"
+  fi
 
   stop_server
   echo "==> サーバー停止(ポート $PORT)"
