@@ -3,6 +3,9 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::{Decimal, RoundingStrategy};
 use shared::format::format_currency as format_currency_decimal;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) fn dec_to_f64(value: &Decimal) -> f64 {
     value.to_f64().unwrap_or(0.0)
 }

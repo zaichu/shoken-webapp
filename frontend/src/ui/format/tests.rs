@@ -109,6 +109,16 @@ fn percentage_value_formats_with_fixed_decimals() {
 }
 
 #[test]
+fn percentage_values_keep_asset_display_precision() {
+    assert_eq!(format_percentage_value(2.0), "2.00%");
+    assert_eq!(format_percentage_value(1.3770010052107338), "1.38%");
+    assert_eq!(format_fixed_percent(5.300076869056115, 1), "5.3%");
+    assert_eq!(format_fixed_percent(10.0, 1), "10.0%");
+    assert_eq!(format_fixed_percent(8.256880733944955, 1), "8.3%");
+    assert_eq!(format_fixed_percent(60.0, 1), "60.0%");
+}
+
+#[test]
 fn integer_percent_rounds_to_whole_numbers() {
     assert_eq!(format_integer_percent(42.4), "42%");
     assert_eq!(format_integer_percent(42.5), "43%");
@@ -140,6 +150,10 @@ fn unit_price_keeps_the_column_decimals() {
     assert_eq!(format_unit_price(100.5, 1), "¥100.5");
     assert_eq!(format_unit_price(100.5, 2), "¥100.50");
     assert_eq!(format_unit_price(-100.5, 2), "-¥100.50");
+    assert_eq!(format_unit_price(5997.6, 2), "¥5,997.60");
+    assert_eq!(format_unit_price(187.36, 2), "¥187.36");
+    assert_eq!(format_unit_price(162.0, 0), "¥162");
+    assert_eq!(format_unit_price(0.0, 0), "¥0");
 }
 
 #[test]
@@ -186,6 +200,10 @@ fn price_date_formats_month_and_day() {
     assert_eq!(format_price_date("2026-01-05"), "1/5");
     // 想定外の形式はそのまま返す
     assert_eq!(format_price_date("2026/10/21"), "2026/10/21");
+    assert_eq!(format_price_date("不明"), "不明");
+    assert_eq!(format_price_date("24-10-10"), "24-10-10");
+    assert_eq!(format_price_date("-10-10"), "-10-10");
+    assert_eq!(format_price_date("2025-"), "2025-");
 }
 
 #[test]
