@@ -212,5 +212,6 @@ scripts/check-migration-baseline.sh      # 本番と同じ形の DB と新しい
 本番と同じ形の DB(archive を順に当て、`BASELINE_LAST_VERSION` より後ろのファイルを足す)と、
 新しい DB(`backend/migrations` を全て当てる)の `pg_dump --schema-only`(所有者・権限・RLS・
 ポリシー・関数・`security_invoker` を含む)、`pg_dumpall --roles-only`(ロールの属性と所属・付与者)、
-seed の行を比べる。移行ロールは superuser と、本番(Supabase)に近い非 superuser の `CREATEROLE` ロールの2通りで比べる。
+seed の行を比べる。移行ロールは superuser と、新しい環境と同じ条件の非 superuser ロール
+(`NOSUPERUSER`・`BYPASSRLS`・`CREATEROLE`。土台 0100 が `BYPASSRLS` の限定関数所有ロールを作るため)の2通りで比べる。
 CI では `Backend DB Integration` の `Migration baseline parity` ジョブで回る。
