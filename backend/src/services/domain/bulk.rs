@@ -234,9 +234,8 @@ pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, Ap
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod integration_tests {
     use super::*;
-    use crate::db::{Bind, connect_pool_lazy, run_migrations};
+    use crate::db::Bind;
     use crate::services::{asset_balance, operation_log};
-    use crate::test_constants::POSTGRES_TAG;
     use rust_decimal_macros::dec;
     use shared::value::UserId;
     use std::time::Duration;
@@ -249,17 +248,17 @@ mod integration_tests {
     #[ignore = "requires Docker to run Postgres container"]
     async fn concurrent_delete_and_replace_complete_without_deadlock() {
         let node = Postgres::default()
-            .with_tag(POSTGRES_TAG)
+            .with_tag(crate::test_constants::POSTGRES_TAG)
             .start()
             .await
             .expect("Postgres 起動");
         let port = node.get_host_port_ipv4(5432).await.expect("Postgres port");
-        let pool = connect_pool_lazy(
+        let pool = crate::db::connect_pool_lazy(
             &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
             4,
         )
         .expect("pool 作成");
-        timeout(Duration::from_secs(30), run_migrations(&pool))
+        timeout(Duration::from_secs(30), crate::db::run_migrations(&pool))
             .await
             .expect("migration timeout")
             .expect("migration");
