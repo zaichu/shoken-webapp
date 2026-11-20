@@ -9,7 +9,7 @@ use crate::features::asset_balance::portfolio::{SortKey, SortOrder};
 use crate::features::dividend_per_share::DividendMaps;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::{AssetMarker, AssetRateAmount};
-use crate::ui::badge::{AccountBadge, AccountLegend};
+use crate::ui::badge::AccountBadge;
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::security_link::{TableNameLink, TableSecurityCode};
@@ -236,8 +236,7 @@ pub fn AssetHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
-            <AccountLegend />
-            // 算出条件は表の下に1行で添える(注記の凡例と並べる)
+            // 算出条件は表の下に1行で添える
             <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
         </div>
     }
