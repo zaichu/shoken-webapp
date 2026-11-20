@@ -280,7 +280,7 @@ fn transform_domestic_stock_row(
             row_num,
         )?,
         account,
-        shares: util::parse_required_number(row, "数量[株]", row_num)?,
+        shares: util::parse_required_positive_number(row, "数量[株]", row_num)?,
         asked_price: util::parse_required_number(row, "売却/決済単価[円]", row_num)?,
         proceeds: util::parse_required_number(row, "売却/決済額[円]", row_num)?,
         purchase_price: util::parse_required_number(row, "平均取得価額[円]", row_num)?,
@@ -307,6 +307,8 @@ mod tests {
     const MISSING_NAME_HEADER: &str = "約定日,受渡日,銘柄コード,口座,信用区分,取引,数量[株],売却/決済単価[円],売却/決済額[円],平均取得価額[円],実現損益[円]";
     const MISSING_NAME_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"特定\",\"-\",\"売付\",\"100\",\"1,500.0\",\"150,000\",\"1,400.00\",\"10,000\"";
     const INVALID_PNL_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"100\",\"1500.0\",\"150000\",\"1400.00\",\"N/A\"";
+    const ZERO_SHARES_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"0\",\"1500.0\",\"150000\",\"1400.00\",\"10000\"";
+    const NEGATIVE_SHARES_ROW: &str = "\"2026/02/09\",\"2026/02/12\",\"9902\",\"架空エネルギー\",\"特定\",\"-\",\"売付\",\"-5\",\"1500.0\",\"150000\",\"1400.00\",\"10000\"";
 
     fn preview_with_header(
         header: &str,
@@ -370,6 +372,9 @@ mod tests {
         for (header, row, expected_message) in [
             (MISSING_NAME_HEADER, MISSING_NAME_ROW, "銘柄名"),
             (HEADER, INVALID_PNL_ROW, "実現損益[円]"),
+            // 数量が 0 以下は DB の CHECK 制約に当たるため行エラーにする
+            (HEADER, ZERO_SHARES_ROW, "0より大きい値"),
+            (HEADER, NEGATIVE_SHARES_ROW, "0より大きい値"),
         ] {
             assert_preview_error(header, row, expected_message);
         }
