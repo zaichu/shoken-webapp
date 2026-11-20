@@ -1430,6 +1430,10 @@ async fn auth_paths_use_limited_functions() {
         "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz)",
         "public.auth_session_last_used_at(bytea)",
         "public.auth_delete_session_by_token(bytea)",
+        "public.auth_rotate_session(uuid, bytea, bytea)",
+        "public.auth_upsert_user(text, text, text, text)",
+        "public.login_notify_peek_v2(bytea)",
+        "public.login_notify_consume_v2(bytea)",
     ] {
         let executable = db::query_scalar::<bool>(
             format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
@@ -1455,6 +1459,23 @@ async fn auth_paths_use_limited_functions() {
         .await
         .unwrap();
         assert!(is_definer, "{signature} は DEFINER のはず");
+    }
+    // 旧 login_notify_*_by_token は *_v2 への移行済みで EXECUTE を外している
+    for signature in [
+        "public.login_notify_peek_by_token(bytea)",
+        "public.login_notify_consume_by_token(bytea)",
+    ] {
+        let executable = db::query_scalar::<bool>(
+            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(
+            !executable,
+            "{signature} は app_restricted から実行できないはず"
+        );
     }
     for signature in [
         "public.auth_session_user_by_token(bytea)",
@@ -1866,7 +1887,7 @@ async fn balance_views_and_user_policies_isolate_rows_for_app_restricted() {
     .await
     .unwrap();
     db::query(
-        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99001', '架空の検証銘柄', 10, 100, 1000, 200, 800)",
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, content_hash, occurrence_index) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99001', '架空の検証銘柄', 10, 100, 1000, 200, 800, 'rls-div-hash-1', 0)",
         vec![Bind::from(user_b)],
     )
     .execute(&pool)
@@ -1956,7 +1977,7 @@ async fn balance_views_and_user_policies_isolate_rows_for_app_restricted() {
     tx.rollback().await.unwrap();
     let mut tx = worker.begin_with_user(user_a).await.unwrap();
     let foreign_dividend = db::query(
-        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99002', '架空の検証銘柄', 10, 100, 1000, 200, 800)",
+        "INSERT INTO dividends (user_id, settlement_date, product, account, security_code, security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received, content_hash, occurrence_index) VALUES ($1, CURRENT_DATE, '国内株式', '特定口座', '99002', '架空の検証銘柄', 10, 100, 1000, 200, 800, 'rls-div-hash-2', 0)",
         vec![Bind::from(user_b)],
     )
     .execute(&mut tx)

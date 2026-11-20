@@ -58,12 +58,16 @@ const SUMMARY_SQL: &str = "SELECT COALESCE(SUM(dividends_before_tax), 0) AS tota
      COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received \
      FROM dividends";
 
-const AGGREGATE_SELECT_SQL: &str = "SELECT slot, value, label, count, total_dividends_before_tax, total_taxes, total_net_amount_received FROM (SELECT CASE WHEN GROUPING(product) = 0 THEN 0 WHEN GROUPING(account) = 0 THEN 1 WHEN GROUPING(security_code) = 0 THEN 2 WHEN GROUPING(EXTRACT(YEAR FROM settlement_date)::integer::text) = 0 THEN 3 WHEN GROUPING(TO_CHAR(settlement_date, 'YYYY-MM')) = 0 THEN 4 ELSE 5 END AS slot, COALESCE(product, account, security_code, EXTRACT(YEAR FROM settlement_date)::integer::text, TO_CHAR(settlement_date, 'YYYY-MM')) AS value, CASE WHEN GROUPING(security_code) = 0 THEN (ARRAY_AGG(security_name ORDER BY settlement_date DESC, id DESC))[1] ELSE COALESCE(product, account, security_code, EXTRACT(YEAR FROM settlement_date)::integer::text, TO_CHAR(settlement_date, 'YYYY-MM')) END AS label, COUNT(*) AS count, COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, COALESCE(SUM(taxes), 0) AS total_taxes, COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received FROM dividends";
+const AGGREGATE_SELECT_SQL: &str = "SELECT slot, value, value AS label, count, total_dividends_before_tax, total_taxes, total_net_amount_received FROM (SELECT CASE WHEN GROUPING(product) = 0 THEN 0 WHEN GROUPING(account) = 0 THEN 1 WHEN GROUPING(security_code) = 0 THEN 2 WHEN GROUPING(EXTRACT(YEAR FROM settlement_date)::integer::text) = 0 THEN 3 WHEN GROUPING(TO_CHAR(settlement_date, 'YYYY-MM')) = 0 THEN 4 ELSE 5 END AS slot, COALESCE(product, account, security_code, EXTRACT(YEAR FROM settlement_date)::integer::text, TO_CHAR(settlement_date, 'YYYY-MM')) AS value, COUNT(*) AS count, COALESCE(SUM(dividends_before_tax), 0) AS total_dividends_before_tax, COALESCE(SUM(taxes), 0) AS total_taxes, COALESCE(SUM(net_amount_received), 0) AS total_net_amount_received FROM dividends";
 
 const AGGREGATE_GROUP_SQL: &str = " GROUP BY GROUPING SETS ((product), (account), (security_code), (EXTRACT(YEAR FROM settlement_date)::integer::text), (TO_CHAR(settlement_date, 'YYYY-MM')), ())";
 
 const AGGREGATE_ORDER_SQL: &str =
     " ) AS aggregates ORDER BY slot, CASE WHEN slot IN (3, 4) THEN value END DESC, value ASC";
+
+/// 銘柄 facet の最新名だけを取る問い合わせ。集計とは別に DISTINCT ON で最新行を選ぶ
+const LATEST_SECURITY_NAME_SQL: &str =
+    "SELECT DISTINCT ON (security_code) security_code, security_name FROM dividends";
 
 struct DividendAggregateRow {
     slot: i32,
@@ -157,10 +161,32 @@ impl Search for DividendDomain {
         let mut aggregate_qb = Self::filtered_query(AGGREGATE_SELECT_SQL, user_id, filter);
         aggregate_qb.push(AGGREGATE_GROUP_SQL);
         aggregate_qb.push(AGGREGATE_ORDER_SQL);
-        let rows = aggregate_qb
+        let mut rows = aggregate_qb
             .build_query_as::<DividendAggregateRow>()
             .fetch_all(&mut *tx)
             .await?;
+        // 銘柄の最新名は集計とは別の DISTINCT ON で取り、Rust 側で上書きする
+        // (ARRAY_AGG を GROUPING SETS 内で回すと全行ソートが重いため)
+        if include_facets {
+            let mut name_qb = Self::filtered_query(LATEST_SECURITY_NAME_SQL, user_id, filter);
+            name_qb.push(" ORDER BY security_code, settlement_date DESC, id DESC");
+            let names = name_qb
+                .build_query_as::<(String, String)>()
+                .fetch_all(&mut *tx)
+                .await?;
+            let latest: std::collections::HashMap<&str, &str> = names
+                .iter()
+                .map(|(code, name)| (code.as_str(), name.as_str()))
+                .collect();
+            for row in &mut rows {
+                if row.slot == 2
+                    && let Some(value) = row.value.as_deref()
+                    && let Some(name) = latest.get(value)
+                {
+                    row.label = Some((*name).to_string());
+                }
+            }
+        }
         let mut total = 0;
         let mut summary = None;
         let mut products = Vec::new();
@@ -210,7 +236,12 @@ impl Search for DividendDomain {
     }
 }
 
-/// 配当金を一括追加（重複はスキップ）
+/// 配当金を一括追加（全件挿入）
+/// 同一内容の行が複数ある場合も全件保存する。
+///
+/// 再アップロード防止:
+///   content_hash + グローバル occurrence_index（user_id + content_hash 単位の通し番号）により
+///   DB に既存の行と同一内容・同一順序の行はスキップされる。
 pub async fn bulk_create(
     pool: &Db,
     user_id: UserId,
@@ -240,16 +271,51 @@ pub async fn bulk_create(
         limit,
         crate::db::query(
             r#"
+            WITH batch_data AS (
+                SELECT
+                    user_id, settlement_date, product, account, security_code,
+                    security_name, unit_price, shares, dividends_before_tax,
+                    taxes, net_amount_received,
+                    ordinality,
+                    md5(
+                        settlement_date::text || '|' || product || '|' || account || '|' ||
+                        security_code || '|' || security_name || '|' ||
+                        unit_price::text || '|' || shares::text || '|' || dividends_before_tax::text || '|' ||
+                        taxes::text || '|' || net_amount_received::text
+                    ) AS content_hash
+                FROM UNNEST(
+                    $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
+                    $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
+                    $10::numeric[], $11::numeric[]
+                ) WITH ORDINALITY AS t(user_id, settlement_date, product, account, security_code,
+                       security_name, unit_price, shares, dividends_before_tax,
+                       taxes, net_amount_received, ordinality)
+            ),
+            batch_indexed AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
+                        AS batch_occurrence_index
+                FROM batch_data
+            ),
+            db_counts AS (
+                SELECT content_hash, COUNT(*)::int4 AS existing_count
+                FROM dividends
+                WHERE user_id = $12::uuid
+                GROUP BY content_hash
+            )
             INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
                                    security_name, unit_price, shares, dividends_before_tax,
-                                   taxes, net_amount_received)
-            SELECT * FROM UNNEST(
-                $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
-                $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-                $10::numeric[], $11::numeric[]
-            )
-            ON CONFLICT (user_id, settlement_date, security_code, security_name, shares, dividends_before_tax, product, account)
-            DO NOTHING
+                                   taxes, net_amount_received, content_hash, occurrence_index)
+            SELECT
+                b.user_id, b.settlement_date, b.product, b.account, b.security_code,
+                b.security_name, b.unit_price, b.shares, b.dividends_before_tax,
+                b.taxes, b.net_amount_received,
+                b.content_hash,
+                b.batch_occurrence_index
+            FROM batch_indexed b
+            LEFT JOIN db_counts d ON b.content_hash = d.content_hash
+            WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
+            ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
             "#,
             vec![
                 Bind::from(user_ids),
@@ -263,6 +329,8 @@ pub async fn bulk_create(
                 Bind::decimal_vec(dividends_before_taxes),
                 Bind::decimal_vec(taxes),
                 Bind::decimal_vec(net_amounts),
+                // $12: スカラーのユーザーID（db_counts WHERE 句用）
+                Bind::from(user_id),
             ],
         ),
     )

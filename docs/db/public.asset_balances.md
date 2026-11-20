@@ -33,7 +33,6 @@
 | Name | Definition |
 | ---- | ---------- |
 | asset_balances_pkey | CREATE UNIQUE INDEX asset_balances_pkey ON public.asset_balances USING btree (id) |
-| idx_asset_balances_security_name_trgm | CREATE INDEX idx_asset_balances_security_name_trgm ON public.asset_balances USING gin (security_name gin_trgm_ops) |
 | idx_asset_balances_user_security | CREATE UNIQUE INDEX idx_asset_balances_user_security ON public.asset_balances USING btree (user_id, security_code, account) NULLS NOT DISTINCT |
 | idx_asset_balances_user_security_name | CREATE INDEX idx_asset_balances_user_security_name ON public.asset_balances USING btree (user_id, security_name) |
 

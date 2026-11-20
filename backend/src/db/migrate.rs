@@ -56,6 +56,46 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0109_drop_compat_auth_functions",
         include_str!("../../migrations/0109_drop_compat_auth_functions.sql"),
     ),
+    (
+        "0110_drop_idx_dividends_security_name_trgm",
+        include_str!("../../migrations/0110_drop_idx_dividends_security_name_trgm.sql"),
+    ),
+    (
+        "0111_drop_idx_domestic_stocks_security_name_trgm",
+        include_str!("../../migrations/0111_drop_idx_domestic_stocks_security_name_trgm.sql"),
+    ),
+    (
+        "0112_drop_idx_asset_balances_security_name_trgm",
+        include_str!("../../migrations/0112_drop_idx_asset_balances_security_name_trgm.sql"),
+    ),
+    (
+        "0113_drop_idx_mutualfunds_fund_name_trgm",
+        include_str!("../../migrations/0113_drop_idx_mutualfunds_fund_name_trgm.sql"),
+    ),
+    (
+        "0114_drop_idx_fund_balances_fund_name_trgm",
+        include_str!("../../migrations/0114_drop_idx_fund_balances_fund_name_trgm.sql"),
+    ),
+    (
+        "0115_drop_idx_sessions_user_id",
+        include_str!("../../migrations/0115_drop_idx_sessions_user_id.sql"),
+    ),
+    (
+        "0116_dividends_occurrence_index",
+        include_str!("../../migrations/0116_dividends_occurrence_index.sql"),
+    ),
+    (
+        "0117_mutualfunds_occurrence_index",
+        include_str!("../../migrations/0117_mutualfunds_occurrence_index.sql"),
+    ),
+    (
+        "0118_revoke_unused_login_notify_execute",
+        include_str!("../../migrations/0118_revoke_unused_login_notify_execute.sql"),
+    ),
+    (
+        "0119_range_checks",
+        include_str!("../../migrations/0119_range_checks.sql"),
+    ),
 ];
 
 /// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版
