@@ -25,6 +25,27 @@ use shared::value::UserId;
 /// 国内株式ドメイン
 pub struct DomesticStockDomain;
 
+const DOMESTIC_STOCK_HASH_PARTS: &[&str] = &[
+    "trade_date::text",
+    "settlement_date::text",
+    "security_code",
+    "security_name",
+    "account",
+    "shares::text",
+    "asked_price::text",
+    "proceeds::text",
+    "purchase_price::text",
+    "realized_profit_and_loss::text",
+    "taxes::text",
+    "realized_profit_and_loss_after_tax::text",
+];
+const DOMESTIC_STOCK_BULK_COLUMNS: &str = "user_id, trade_date, settlement_date, security_code, \
+    security_name, account, shares, asked_price, proceeds, purchase_price, \
+    realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax";
+const DOMESTIC_STOCK_UNNEST_PARAMS: &str = "$1::uuid[], $2::date[], $3::date[], $4::text[], \
+    $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], \
+    $11::numeric[], $12::numeric[], $13::numeric[]";
+
 impl Domain for DomesticStockDomain {
     const NAME: &'static str = "domestic_stock";
     const TABLE: &'static str = "domestic_stocks";
@@ -185,59 +206,13 @@ pub async fn bulk_create(
         items,
         limit,
         crate::db::query(
-            r#"
-            WITH batch_data AS (
-                SELECT
-                    user_id, trade_date, settlement_date, security_code,
-                    security_name, account, shares, asked_price, proceeds,
-                    purchase_price, realized_profit_and_loss, taxes,
-                    realized_profit_and_loss_after_tax,
-                    ordinality,
-                    md5(
-                        trade_date::text || '|' || settlement_date::text || '|' ||
-                        security_code || '|' || security_name || '|' || account || '|' ||
-                        shares::text || '|' || asked_price::text || '|' || proceeds::text || '|' ||
-                        purchase_price::text || '|' || realized_profit_and_loss::text || '|' ||
-                        taxes::text || '|' || realized_profit_and_loss_after_tax::text
-                    ) AS content_hash
-                FROM UNNEST(
-                    $1::uuid[], $2::date[], $3::date[], $4::text[],
-                    $5::text[], $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-                    $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[]
-                ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, security_code,
-                       security_name, account, shares, asked_price, proceeds,
-                       purchase_price, realized_profit_and_loss, taxes,
-                       realized_profit_and_loss_after_tax, ordinality)
+            bulk::dedup_insert_sql(
+                "domestic_stocks",
+                DOMESTIC_STOCK_BULK_COLUMNS,
+                &bulk::content_hash_expr(DOMESTIC_STOCK_HASH_PARTS),
+                DOMESTIC_STOCK_UNNEST_PARAMS,
+                "$14::uuid",
             ),
-            batch_indexed AS (
-                SELECT *,
-                    ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
-                        AS batch_occurrence_index
-                FROM batch_data
-            ),
-            db_counts AS (
-                SELECT content_hash, COUNT(*)::int4 AS existing_count
-                FROM domestic_stocks
-                WHERE user_id = $14::uuid
-                GROUP BY content_hash
-            )
-            INSERT INTO domestic_stocks (user_id, trade_date, settlement_date, security_code,
-                                         security_name, account, shares, asked_price, proceeds,
-                                         purchase_price, realized_profit_and_loss, taxes,
-                                         realized_profit_and_loss_after_tax,
-                                         content_hash, occurrence_index)
-            SELECT
-                b.user_id, b.trade_date, b.settlement_date, b.security_code,
-                b.security_name, b.account, b.shares, b.asked_price, b.proceeds,
-                b.purchase_price, b.realized_profit_and_loss, b.taxes,
-                b.realized_profit_and_loss_after_tax,
-                b.content_hash,
-                b.batch_occurrence_index
-            FROM batch_indexed b
-            LEFT JOIN db_counts d ON b.content_hash = d.content_hash
-            WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
-            ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
-            "#,
             vec![
                 Bind::from(user_ids),
                 Bind::from(trade_dates),

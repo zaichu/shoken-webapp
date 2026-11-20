@@ -99,6 +99,37 @@ pub fn user_ids_for_bulk_insert(user_id: UserId, total: usize) -> Vec<UserId> {
     vec![user_id; total]
 }
 
+pub fn content_hash_expr(parts: &[&str]) -> String {
+    format!("md5({})", parts.join(" || '|' || "))
+}
+
+pub fn dedup_insert_sql(
+    table: &str,
+    columns: &str,
+    hash_expr: &str,
+    unnest_params: &str,
+    user_param: &str,
+) -> String {
+    let select_list = columns
+        .split(',')
+        .map(|c| format!("b.{}", c.trim()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "WITH batch_data AS (SELECT {columns}, ordinality, {hash_expr} AS content_hash \
+        FROM UNNEST({unnest_params}) WITH ORDINALITY AS t({columns}, ordinality)), \
+        batch_indexed AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4 \
+        AS batch_occurrence_index FROM batch_data), \
+        db_counts AS (SELECT content_hash, COUNT(*)::int4 AS existing_count FROM {table} \
+        WHERE user_id = {user_param} GROUP BY content_hash) \
+        INSERT INTO {table} ({columns}, content_hash, occurrence_index) \
+        SELECT {select_list}, b.content_hash, b.batch_occurrence_index \
+        FROM batch_indexed b LEFT JOIN db_counts d ON b.content_hash = d.content_hash \
+        WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0) \
+        ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING"
+    )
+}
+
 /// 上限判定の純粋ロジック(DB 非依存)。existing は追記型のみ使用する
 fn exceeds_user_row_limit(
     mode: WriteMode,
@@ -423,5 +454,34 @@ mod tests {
             user_ids_for_bulk_insert(id, 0),
             [] as [shared::value::UserId; 0]
         );
+    }
+
+    #[test]
+    fn test_content_hash_expr_joins_with_pipe() {
+        assert_eq!(
+            super::content_hash_expr(&["a::text", "b", "COALESCE(c, '')"]),
+            "md5(a::text || '|' || b || '|' || COALESCE(c, ''))"
+        );
+    }
+
+    #[test]
+    fn test_dedup_insert_sql_keeps_dedup_clauses() {
+        let sql = super::dedup_insert_sql(
+            "dividends",
+            "user_id, settlement_date, product",
+            "md5(settlement_date::text || '|' || product)",
+            "$1::uuid[], $2::date[], $3::text[]",
+            "$4::uuid",
+        );
+        for fragment in [
+            "ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4",
+            "WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)",
+            "ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING",
+            "FROM dividends",
+            "INSERT INTO dividends",
+            "b.user_id, b.settlement_date, b.product",
+        ] {
+            assert!(sql.contains(fragment), "missing {fragment}: {sql}");
+        }
     }
 }
