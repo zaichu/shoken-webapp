@@ -15,6 +15,7 @@ import {
 } from './data.mjs';
 
 export const VIEWPORTS = [
+  { key: 'sp-360', width: 360, height: 800, label: 'スマホ 360×800' },
   { key: 'pc-1024', width: 1024, height: 768, label: 'PC 1024×768' },
   { key: 'pc-1280', width: 1280, height: 800, label: 'PC 1280×800' },
   { key: 'pc-1440', width: 1440, height: 900, label: 'PC 1440×900' },
@@ -103,6 +104,23 @@ export const SCREENS = [
     scroll: true,
   },
   {
+    key: 'asset-stock-detail',
+    label: '資産管理・国内株式・詳細',
+    path: '/assetbalance',
+    loaded: ['[data-testid="asset-kind-tabs"]'],
+    ready: ['[data-testid="asset-holdings-table"] tbody tr', '[data-testid="asset-holdings-list"] li'],
+    prepare: async (page) => {
+      await page.getByRole('tab', { name: '国内株式', exact: true }).click();
+      await page.getByTestId('asset-compact-row')
+        .filter({ hasText: '架空先端産業技術研究開発機構' })
+        .getByTestId('asset-row-button').click();
+      await page.getByTestId('asset-holding-dialog').waitFor({ state: 'visible' });
+    },
+    listPrepare: async (page) => {
+      await page.getByRole('tab', { name: '国内株式', exact: true }).click();
+    },
+  },
+  {
     key: 'asset-fund',
     label: '資産管理・投資信託',
     path: '/assetbalance',
@@ -112,6 +130,23 @@ export const SCREENS = [
       await page.getByRole('tab', { name: '投資信託', exact: true }).click();
     },
     scroll: true,
+  },
+  {
+    key: 'asset-fund-detail',
+    label: '資産管理・投資信託・詳細',
+    path: '/assetbalance',
+    loaded: ['[data-testid="asset-kind-tabs"]'],
+    ready: ['[data-testid="asset-fund-table"] tbody tr', '[data-testid="asset-fund-list"] li'],
+    prepare: async (page) => {
+      await page.getByRole('tab', { name: '投資信託', exact: true }).click();
+      await page.getByTestId('asset-compact-row')
+        .filter({ hasText: '架空・世界革新テクノロジー株式インデックスファンド＜購入・換金手数料なし＞' })
+        .getByTestId('asset-row-button').click();
+      await page.getByTestId('asset-fund-dialog').waitFor({ state: 'visible' });
+    },
+    listPrepare: async (page) => {
+      await page.getByRole('tab', { name: '投資信託', exact: true }).click();
+    },
   },
   {
     key: 'receipts-dividend',
@@ -132,6 +167,18 @@ export const SCREENS = [
     scroll: true,
   },
   {
+    key: 'receipts-stock-detail',
+    label: '取引明細・国内株式・詳細',
+    path: '/receipts',
+    loaded: ['[data-testid="receipts-workspace"]'],
+    ready: ['[data-testid="receipt-card-list"] [data-testid="receipt-card"]'],
+    prepare: async (page) => {
+      await page.getByRole('tab', { name: new RegExp(RECEIPT_TAB.stock) }).click();
+      await page.getByTestId('receipt-row-button').first().click();
+      await page.getByTestId('receipt-detail-dialog').waitFor({ state: 'visible' });
+    },
+  },
+  {
     key: 'receipts-fund',
     label: '取引明細・投資信託',
     path: '/receipts',
@@ -141,6 +188,18 @@ export const SCREENS = [
       await page.getByRole('tab', { name: new RegExp(RECEIPT_TAB.fund) }).click();
     },
     scroll: true,
+  },
+  {
+    key: 'receipts-fund-detail',
+    label: '取引明細・投資信託・詳細',
+    path: '/receipts',
+    loaded: ['[data-testid="receipts-workspace"]'],
+    ready: ['[data-testid="receipt-card-list"] [data-testid="receipt-card"]'],
+    prepare: async (page) => {
+      await page.getByRole('tab', { name: new RegExp(RECEIPT_TAB.fund) }).click();
+      await page.getByTestId('receipt-row-button').first().click();
+      await page.getByTestId('receipt-detail-dialog').waitFor({ state: 'visible' });
+    },
   },
   {
     key: 'search',

@@ -45,7 +45,7 @@ const STOCK_NAMES = [
 ];
 
 const FUND_NAMES = [
-  '架空バランスファンドA号',
+  '架空・世界革新テクノロジー株式インデックスファンド＜購入・換金手数料なし＞',
   '架空インデックスファンドB号',
   '架空先進地域医療介護サービスファンド',
   '架空世界株インデックスファンド',
@@ -75,7 +75,7 @@ const FUND_NAMES = [
   '架空高配当株式ファンド',
   '架空エネルギートランジションファンド',
   '架空長期水池ファンド',
-  '架空・世界革新テクノロジー株式インデックスファンド＜購入・換金手数料なし＞',
+  '架空インデックスファンドA号',
   '架空グローバル先端素材ソリューションホールディングス関連ファンド',
   '架空環境技術・再生可能エネルギーセクターファンド',
   '架空先端産業技術研究開発機構テーマファンド',
@@ -133,8 +133,9 @@ function fundShares(index) {
 export function assetBalances() {
   const rows = STOCK_NAMES.map((security_name, index) => {
     const shares = stockShares(index);
-    const average_purchase_price = decimal(1500, index * 20);
-    const current_price = index === 0 ? average_purchase_price - 100 : decimal(1550, index * 21);
+    const extremePrice = index === 35;
+    const average_purchase_price = extremePrice ? 19706.78 : decimal(1500, index * 20);
+    const current_price = extremePrice ? 19806.78 : index === 0 ? average_purchase_price - 100 : decimal(1550, index * 21);
     const daily_change = decimal(index % 3 === 0 ? -25 : 20, index * 0.35);
     return {
       id: `asset-balance-${index + 1}`,
@@ -175,7 +176,7 @@ export function assetBalances() {
 export function fundBalances() {
   const rows = FUND_NAMES.map((fund_name, index) => {
     const shares = fundShares(index);
-    const average_purchase_price = decimal(9000, index * 100);
+    const average_purchase_price = index === 0 ? 19706.78 : decimal(9000, index * 100);
     const base_price = index === 0 ? average_purchase_price - 500 : decimal(9500, index * 110);
     const market_value = Number(((shares * base_price) / 10000).toFixed(2));
     const total_purchase_amount = Number(((shares * average_purchase_price) / 10000).toFixed(2));

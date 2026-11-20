@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { SCREENS, THEMES, VIEWPORTS, prepareContext } from './screens.mjs';
 
 function parseArgs(argv) {
-  const options = { only: null, viewportWidths: null };
+  const options = { only: null, viewportWidths: null, detailMobile: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--port') {
@@ -22,6 +22,8 @@ function parseArgs(argv) {
       options.only = argv[(index += 1)];
     } else if (arg === '--viewports') {
       options.viewportWidths = argv[(index += 1)].split(',').map((width) => Number(width.trim()));
+    } else if (arg === '--detail-mobile') {
+      options.detailMobile = true;
     } else {
       throw new Error(`不明な引数: ${arg}`);
     }
@@ -87,10 +89,14 @@ try {
         const page = await context.newPage();
         const name = `${screen.key}-${viewport.width}x${viewport.height}-${theme}`;
         try {
+          const openDetail = !options.detailMobile || viewport.width !== 1280;
           await page.goto(`${baseUrl}${screen.path}`, { waitUntil: 'load' });
-          if (screen.prepare) {
+          if (screen.prepare && openDetail) {
             await waitForReady(page, screen.loaded ?? screen.ready);
             await screen.prepare(page);
+          } else if (screen.listPrepare) {
+            await waitForReady(page, screen.loaded ?? screen.ready);
+            await screen.listPrepare(page);
           }
           await waitForReady(page, screen.ready);
           await page.waitForTimeout(500);
