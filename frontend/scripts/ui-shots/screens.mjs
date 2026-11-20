@@ -153,14 +153,14 @@ export const SCREENS = [
     key: 'settings',
     label: '設定',
     path: '/settings',
-    ready: ['#login-history tbody tr', '#devices li'],
+    ready: ['#login-history tbody tr', '#devices li', '#operation-log li'],
     scroll: true,
   },
   {
     key: 'settings-login-history',
     label: '設定・ログイン履歴と登録端末',
     path: '/settings',
-    ready: ['#login-history tbody tr', '#devices li'],
+    ready: ['#login-history tbody tr', '#devices li', '#operation-log li'],
     prepare: async (page) => {
       await page.locator('#login-history').scrollIntoViewIfNeeded();
     },
@@ -279,6 +279,28 @@ async function installMocks(context, { anonymous, admin }) {
     return route.fulfill(json({ data: rows.slice(offset, offset + limit) }));
   });
   await context.route(/\/api\/v1\/devices$/, (route) => route.fulfill(json(deviceList())));
+  await context.route(/\/api\/v1\/operation-logs(?:\?.*)?$/, (route) =>
+    (() => {
+      const params = new URL(route.request().url()).searchParams;
+      const limit = Number(params.get('limit') ?? 10);
+      const offset = Number(params.get('offset') ?? 0);
+      const rows = Array.from({ length: 35 }, (_, index) => {
+        const kind = index % 4;
+        return {
+          occurred_at: new Date(Date.UTC(2026, 10, 19, 3) - index * 86_400_000).toISOString(),
+          operation: ['csv_delete', 'account_delete', 'logout_all', 'device_revoke'][kind],
+          target:
+            kind === 0
+              ? ['dividends', 'domestic_stocks', 'mutualfunds', 'asset_balances', 'fund_balances'][
+                  Math.floor(index / 4) % 5
+                ]
+              : ['account', 'sessions', 'device'][kind - 1],
+          count: 1_200 + index * 137,
+        };
+      });
+      return route.fulfill(json({ data: rows.slice(offset, offset + limit) }));
+    })(),
+  );
   await context.route(/\/api\/v1\/notification-settings$/, (route) =>
     route.fulfill(json({ login_notify_enabled: true })),
   );

@@ -27,6 +27,7 @@ shoken-webapp の DB スキーマ(テーブル一覧・外部キー・ER 図)
 | [public.asset_balances_view](public.asset_balances_view.md) | 14 | 保有残高と共有株価の合成(読み取りビュー)。current_price / daily_change は共有の確定値を優先 | VIEW |
 | [public.fund_balances](public.fund_balances.md) | 19 | 投資信託の保有残高(現在値) | BASE TABLE |
 | [public.fund_balances_view](public.fund_balances_view.md) | 21 | 投信の保有残高と共有基準価額の合成(読み取りビュー)。price_source / nav_is_latest は出どころの判定 | VIEW |
+| [public.operation_logs](public.operation_logs.md) | 6 | 重要な操作の記録。金額・銘柄・IP の生の値は保存しない | BASE TABLE |
 
 ## Relations
 
@@ -43,6 +44,7 @@ erDiagram
 "public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.asset_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.operation_logs" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -264,6 +266,14 @@ erDiagram
   text price_source
   boolean nav_is_latest
   date expected_nav_date
+}
+"public.operation_logs" {
+  bigint id
+  uuid user_id FK
+  text operation
+  text target
+  bigint count
+  timestamp_with_time_zone occurred_at
 }
 ```
 

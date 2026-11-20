@@ -142,6 +142,36 @@ pub async fn resolve_device_hash(
     Ok(find_hash_for_opaque_id(&user_id, hashes, opaque_id))
 }
 
+pub async fn revoke_device(
+    pool: &Db,
+    user_id: UserId,
+    opaque_id: &str,
+    current_device_hash: &[u8],
+) -> Result<Option<(u64, bool)>, DbError> {
+    let mut tx = pool.begin_with_user(user_id).await?;
+    let hashes =
+        crate::db::query_as::<HashRow>(ACTIVE_DEVICE_HASHES_SQL, vec![Bind::from(user_id)])
+            .fetch_all(&mut tx)
+            .await?
+            .into_iter()
+            .map(|row| row.device_hash)
+            .collect();
+    let Some(hash) = find_hash_for_opaque_id(&user_id, hashes, opaque_id) else {
+        return Ok(None);
+    };
+    let is_current = hash == current_device_hash;
+    let deleted = crate::db::query(
+        "DELETE FROM sessions WHERE user_id = $1 AND (device_hash = $2 OR device_hash IS NULL)",
+        vec![Bind::from(user_id), Bind::Bytes(hash)],
+    )
+    .execute(&mut tx)
+    .await?;
+    crate::services::operation_log::record(&mut tx, user_id, "device_revoke", "device", deleted)
+        .await?;
+    tx.commit().await?;
+    Ok(Some((deleted, is_current)))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

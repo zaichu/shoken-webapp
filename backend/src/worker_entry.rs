@@ -319,6 +319,19 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             timer.elapsed_ms(),
         );
     }
+    {
+        let timer = CronTimer::start();
+        let outcome = crate::services::operation_log::prune(&state.pool)
+            .await
+            .map(|count| Some(usize::try_from(count).unwrap_or(usize::MAX)))
+            .map_err(|e| Error::RustError(e.to_string()));
+        ran |= log_cron_outcome(
+            CronStep::LoginEvents,
+            "操作記録削除",
+            outcome,
+            timer.elapsed_ms(),
+        );
+    }
     if !ran {
         console_log!("{}", cron_log::format_cron_noop(total.elapsed_ms()));
     }

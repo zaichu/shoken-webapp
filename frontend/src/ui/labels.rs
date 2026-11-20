@@ -427,6 +427,21 @@ pub fn csv_manage_delete_confirm_button(total: usize) -> String {
 
 /// ログイン履歴: 設定内の履歴セクションの見出し
 pub const LOGIN_HISTORY_SECTION: &str = "ログイン履歴";
+pub const OPERATION_LOG_SECTION: &str = "操作の記録";
+pub const OPERATION_LOG_EMPTY: &str = "操作の記録はまだありません";
+pub const OPERATION_LOG_CSV_DELETE: &str = "CSVデータの削除";
+pub const OPERATION_LOG_ACCOUNT_DELETE: &str = "アカウントの削除";
+pub const OPERATION_LOG_LOGOUT_ALL: &str = "全端末のログアウト";
+pub const OPERATION_LOG_DEVICE_REVOKE: &str = "端末の解除";
+pub const OPERATION_LOG_TARGET_DIVIDENDS: &str = "配当金";
+pub const OPERATION_LOG_TARGET_DOMESTIC_STOCKS: &str = "国内株式";
+pub const OPERATION_LOG_TARGET_MUTUAL_FUNDS: &str = "投資信託";
+pub const OPERATION_LOG_TARGET_ASSET_BALANCES: &str = "保有銘柄";
+pub const OPERATION_LOG_TARGET_FUND_BALANCES: &str = "保有投資信託";
+pub const OPERATION_LOG_TARGET_ACCOUNT: &str = "アカウント";
+pub const OPERATION_LOG_TARGET_SESSIONS: &str = "すべての端末";
+pub const OPERATION_LOG_TARGET_DEVICE: &str = "端末";
+pub const OPERATION_LOG_COUNT: &str = "件";
 /// ログイン履歴: 登録した端末セクションの見出し
 pub const REGISTERED_DEVICES_SECTION: &str = "登録した端末";
 /// ログイン履歴: Cookie を消すと新しい端末になる旨の注意書き

@@ -29,6 +29,10 @@ pub fn auth_routes() -> Router<AppState> {
             delete(login_history::delete_all_sessions),
         )
         .route("/api/v1/login-history", get(login_history::list_history))
+        .route(
+            "/api/v1/operation-logs",
+            get(login_history::list_operation_logs),
+        )
         .route("/api/v1/devices", get(login_history::list_devices))
         .route("/api/v1/devices/{id}", delete(login_history::delete_device))
         .route(

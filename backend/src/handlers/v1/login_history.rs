@@ -71,6 +71,37 @@ pub async fn list_devices(
     Ok(Json(DeviceListResponse { data: devices }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/operation-logs",
+    operation_id = "v1_operation_logs_list",
+    params(
+        ("limit" = Option<i64>, Query, description = "取得上限（既定: 50、最大: 100）"),
+        ("offset" = Option<i64>, Query, description = "取得開始位置（既定: 0）"),
+    ),
+    responses(
+        (status = 200, description = "自分の操作記録を新しい順に返す", body = crate::services::operation_log::OperationLogListResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn list_operation_logs(
+    State(state): State<AppState>,
+    auth_user: AuthenticatedUser,
+    Query(query): Query<HistoryQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    let entries = crate::services::operation_log::list(
+        &state.pool,
+        auth_user.id(),
+        login_event::clamp_history_limit(query.limit),
+        login_event::clamp_history_offset(query.offset),
+    )
+    .await?;
+    Ok(Json(
+        crate::services::operation_log::OperationLogListResponse { data: entries },
+    ))
+}
+
 /// 端末を1台解除する（v1）
 #[utoipa::path(
     delete,
@@ -92,12 +123,12 @@ pub async fn delete_device(
     jar: CookieJar,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let device_hash = login_event::resolve_device_hash(&state.pool, auth_user.id(), &id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    auth_service::delete_device_sessions(&state.pool, auth_user.id(), &device_hash).await?;
     let current = oauth::get_device_token_from_jar(&jar);
-    if current.hash() == device_hash {
+    let (_, revoked_current) =
+        login_event::revoke_device(&state.pool, auth_user.id(), &id, &current.hash())
+            .await?
+            .ok_or(ApiError::NotFound)?;
+    if revoked_current {
         let jar = jar.remove(crate::handlers::v1::auth::oauth::clear_session_cookie(
             state.config.secure_cookie,
         ));

@@ -2402,6 +2402,63 @@
         }
       }
     },
+    "/api/v1/operation-logs": {
+      "get": {
+        "tags": [
+          "handlers::v1::login_history"
+        ],
+        "operationId": "v1_operation_logs_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "取得上限（既定: 50、最大: 100）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "取得開始位置（既定: 0）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "自分の操作記録を新しい順に返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationLogListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/session": {
       "get": {
         "tags": [
@@ -3698,6 +3755,45 @@
         "properties": {
           "login_notify_enabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "OperationLogEntry": {
+        "type": "object",
+        "required": [
+          "occurred_at",
+          "operation",
+          "target",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        }
+      },
+      "OperationLogListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperationLogEntry"
+            }
           }
         }
       },

@@ -44,6 +44,7 @@ pub fn SettingsPage() -> impl IntoView {
                             <SectionSecurity />
                             <login_history::SectionDevices />
                             <login_history::SectionLoginHistory />
+                            <login_history::SectionOperationLog />
                             <SectionDanger />
                         }.into_any())
                 }}

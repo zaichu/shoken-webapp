@@ -48,6 +48,20 @@ struct DeviceListResponse {
     data: Vec<DeviceEntry>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct OperationLogEntry {
+    occurred_at: String,
+    operation: String,
+    target: String,
+    count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct OperationLogListResponse {
+    #[serde(default)]
+    data: Vec<OperationLogEntry>,
+}
+
 fn result_badge_variant(result: &str) -> BadgeVariant {
     match result {
         "failure" => BadgeVariant::Danger,
@@ -120,6 +134,119 @@ async fn fetch_devices() -> Result<Vec<DeviceEntry>, ApiError> {
         .get_json::<DeviceListResponse>("/api/v1/devices", &[])
         .await
         .map(|response| response.data)
+}
+
+async fn fetch_operation_log_page(
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<OperationLogEntry>, ApiError> {
+    let limit_value = limit.to_string();
+    let offset_value = offset.to_string();
+    ApiClient::read_client()
+        .get_json::<OperationLogListResponse>(
+            "/api/v1/operation-logs",
+            &[
+                ("limit", limit_value.as_str()),
+                ("offset", offset_value.as_str()),
+            ],
+        )
+        .await
+        .map(|response| response.data)
+}
+
+fn operation_label(operation: &str) -> &'static str {
+    match operation {
+        "account_delete" => labels::OPERATION_LOG_ACCOUNT_DELETE,
+        "logout_all" => labels::OPERATION_LOG_LOGOUT_ALL,
+        "device_revoke" => labels::OPERATION_LOG_DEVICE_REVOKE,
+        _ => labels::OPERATION_LOG_CSV_DELETE,
+    }
+}
+
+fn operation_target_label(target: &str) -> &'static str {
+    match target {
+        "dividends" => labels::OPERATION_LOG_TARGET_DIVIDENDS,
+        "domestic_stocks" => labels::OPERATION_LOG_TARGET_DOMESTIC_STOCKS,
+        "mutualfunds" => labels::OPERATION_LOG_TARGET_MUTUAL_FUNDS,
+        "asset_balances" => labels::OPERATION_LOG_TARGET_ASSET_BALANCES,
+        "fund_balances" => labels::OPERATION_LOG_TARGET_FUND_BALANCES,
+        "sessions" => labels::OPERATION_LOG_TARGET_SESSIONS,
+        "device" => labels::OPERATION_LOG_TARGET_DEVICE,
+        _ => labels::OPERATION_LOG_TARGET_ACCOUNT,
+    }
+}
+
+#[component]
+pub fn SectionOperationLog() -> impl IntoView {
+    let entries = RwSignal::new(Vec::<OperationLogEntry>::new());
+    let initial = RwSignal::new(Option::<Result<(), String>>::None);
+    let has_more = RwSignal::new(false);
+    let loading_more = RwSignal::new(false);
+    let more_error = RwSignal::new(Option::<String>::None);
+    let load = move || {
+        initial.set(None);
+        has_more.set(false);
+        more_error.set(None);
+        leptos::task::spawn_local(async move {
+            match fetch_operation_log_page(HISTORY_PAGE_SIZE, 0).await {
+                Ok(rows) => {
+                    has_more.set(rows.len() == HISTORY_PAGE_SIZE as usize);
+                    entries.set(rows);
+                    initial.set(Some(Ok(())));
+                }
+                Err(error) => initial.set(Some(Err(error.user_message()))),
+            }
+        });
+    };
+    let load_more = move || {
+        if loading_more.get_untracked() {
+            return;
+        }
+        loading_more.set(true);
+        leptos::task::spawn_local(async move {
+            let offset = i64::try_from(entries.with_untracked(Vec::len)).unwrap_or(i64::MAX);
+            match fetch_operation_log_page(HISTORY_PAGE_SIZE, offset).await {
+                Ok(rows) => {
+                    has_more.set(rows.len() == HISTORY_PAGE_SIZE as usize);
+                    entries.update(|all| all.extend(rows));
+                }
+                Err(error) => more_error.set(Some(error.user_message())),
+            }
+            loading_more.set(false);
+        });
+    };
+    Effect::new(move |_| load());
+
+    view! {
+        <settings_ui::SettingsSection id="operation-log" labelledby="operation-log-heading">
+            <settings_ui::SettingsPanel>
+                <SectionHeading id="operation-log-heading">{labels::OPERATION_LOG_SECTION}</SectionHeading>
+                {move || match initial.get() {
+                    None => view! { <ListSkeleton variant=ListSkeletonVariant::Table /> }.into_any(),
+                    Some(Err(message)) => view! { <ListLoadError message=message on_retry=move || load() /> }.into_any(),
+                    Some(Ok(())) if entries.with(Vec::is_empty) => view! { <EmptyState title=labels::OPERATION_LOG_EMPTY.to_string() /> }.into_any(),
+                    Some(Ok(())) => view! {
+                        <ul class="asset-compact-list" role="list">
+                            {entries.with(std::clone::Clone::clone).into_iter().map(|entry| {
+                                let title = format!("{} · {}", operation_label(&entry.operation), operation_target_label(&entry.target));
+                                let datetime = self::format_datetime(&entry.occurred_at);
+                                let count = format!("{} {}", entry.count, labels::OPERATION_LOG_COUNT);
+                                view! {
+                                    <li class="list-row-item">
+                                        <ListRowStatic name=move || datetime.clone()
+                                            primary=move || view! { {title.clone()} }
+                                            meta=move || count.clone() secondary=move || String::new() />
+                                    </li>
+                                }
+                            }).collect_view()}
+                        </ul>
+                        {move || more_error.get().map(|message| view! { <settings_ui::SettingsRetry><ListLoadError message=message on_retry=move || load_more() /></settings_ui::SettingsRetry> })}
+                        {move || has_more.get().then(|| view! { <ShowMoreButton testid="operation-log-more" disabled=Signal::derive(move || loading_more.get()) on_click=load_more /> })}
+                    }.into_any(),
+                }}
+            </settings_ui::SettingsPanel>
+        </settings_ui::SettingsSection>
+    }
 }
 
 #[component]

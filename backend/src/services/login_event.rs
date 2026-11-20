@@ -6,6 +6,7 @@ pub mod history;
 pub use client_info::{ClientInfo, client_info_from_headers, parse_user_agent};
 pub use devices::{
     DeviceEntry, DeviceListResponse, device_opaque_id, list_devices, resolve_device_hash,
+    revoke_device,
 };
 pub use history::{
     DEFAULT_HISTORY_LIMIT, LoginHistoryEntry, LoginHistoryListResponse, MAX_EVENTS_PER_USER,

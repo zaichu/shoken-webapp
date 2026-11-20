@@ -222,6 +222,8 @@ pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, Ap
     let deleted = super::delete_rows_query::<D>(user_id)
         .execute(&mut tx)
         .await?;
+    crate::services::operation_log::record(&mut tx, user_id, "csv_delete", D::TABLE, deleted)
+        .await?;
     tx.commit().await?;
     info!("[{}.delete_all] 完了: {}件削除", D::NAME, deleted);
     Ok(deleted)
