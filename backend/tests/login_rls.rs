@@ -2168,14 +2168,11 @@ async fn default_privilege_grants_counts_roles_present_and_missing() {
         .unwrap();
     let baseline = default_privilege_grant_counts(&worker).await;
     assert_eq!(baseline.len(), 3);
-    for (role, table, view, sequence) in baseline
-        .iter()
-        .map(|(role, table, view, _, sequence)| (role, table, view, sequence))
-    {
+    for (role, table, view, function, sequence) in &baseline {
         assert_eq!(
-            (*table, *view, *sequence),
-            (0, 0, 0),
-            "作っただけのロールに表・ビュー・シーケンスの権限は無い: {role}"
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "作っただけのロールに直接付けた権限は無い: {role}"
         );
     }
 

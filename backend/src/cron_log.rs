@@ -45,9 +45,9 @@ pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
 
 /// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
 /// 出すのはロール名・表名・関数名・真偽値・件数だけ
-/// anon・authenticated・service_role が public の表・ビュー・関数・シーケンスに持つ権限の
-/// 件数もロールごとに 1 行出す。無いロールは 0 件にし、名前指定の has_* 呼び出しはしない
-/// (ロール不在で検査自体が落ちるため pg_roles 経由で oid を解決する)。
+/// anon・authenticated・service_role に直接付いた public の表・ビュー・関数・シーケンスの
+/// 権限の件数もロールごとに 1 行出す(PUBLIC 経由は数えない)。無いロールは 0 件にし、
+/// 名前指定の権限調べは使わない(ロール不在で検査自体が落ちるため pg_roles 経由で oid を解決する)。
 /// 末尾の range_check_violations は 0119 の CHECK 制約(dividend_per_share_cache。#2112 で VALIDATE 予定)と
 /// #2112 で追加予定の shares > 0 制約に先立つ違反件数だけを出す(値・利用者は出さない)。
 /// 個人表への直接参照は権限のないロールで検査自体が落ちるため、
@@ -113,33 +113,23 @@ SELECT pg_catalog.format('default_privilege_grants role=%s table=%s view=%s func
            CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
                FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
-                 AND (pg_catalog.has_table_privilege(r.oid, c.oid, 'SELECT')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'INSERT')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'UPDATE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'DELETE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'TRUNCATE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'REFERENCES')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'TRIGGER'))) END,
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END,
            CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
                FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
                WHERE n.nspname = 'public' AND c.relkind IN ('v', 'm')
-                 AND (pg_catalog.has_table_privilege(r.oid, c.oid, 'SELECT')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'INSERT')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'UPDATE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'DELETE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'TRUNCATE')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'REFERENCES')
-                   OR pg_catalog.has_table_privilege(r.oid, c.oid, 'TRIGGER'))) END,
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END,
            CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
                FROM pg_catalog.pg_proc p
                WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
-                 AND pg_catalog.has_function_privilege(r.oid, p.oid, 'EXECUTE')) END,
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                     WHERE a.grantee = r.oid)) END,
            CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
                FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
                WHERE n.nspname = 'public' AND c.relkind = 'S'
-                 AND (pg_catalog.has_sequence_privilege(r.oid, c.oid, 'USAGE')
-                   OR pg_catalog.has_sequence_privilege(r.oid, c.oid, 'SELECT')
-                   OR pg_catalog.has_sequence_privilege(r.oid, c.oid, 'UPDATE'))) END)
+                 AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                     WHERE a.grantee = r.oid)) END)
 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS v(rolname)
 LEFT JOIN pg_catalog.pg_roles r ON r.rolname = v.rolname
 UNION ALL
@@ -311,6 +301,10 @@ mod tests {
                 "名前指定の has_* はロール不在で例外になるため pg_roles 経由の oid で調べる: {fragment}"
             );
         }
+        assert!(
+            DB_ACCESS_STATE_SQL.contains("grantee = r.oid"),
+            "PUBLIC 経由を含めず直接付けた権限だけを数える"
+        );
     }
 
     #[test]
