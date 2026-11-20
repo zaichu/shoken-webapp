@@ -308,7 +308,7 @@ mod tests {
             Date::from_calendar_date(2027, time::Month::January, 1).unwrap()
         );
 
-        for invalid in ["2026/06", "2026-13", "abcd-06", "2026-06-01"] {
+        for invalid in ["2026/06", "2026-13", "abcd-06", "2026-06-01", "9999-12"] {
             assert!(
                 matches!(
                     parse_year_month_range(invalid),
@@ -317,6 +317,29 @@ mod tests {
                 "value={invalid} は ValidationError になるべき"
             );
         }
+    }
+
+    #[test]
+    fn test_parse_year_month_range_handles_boundary_months() {
+        let (start, end) = parse_year_month_range("0001-01").expect("0001-01 は有効");
+        assert_eq!(
+            start,
+            Date::from_calendar_date(1, time::Month::January, 1).unwrap()
+        );
+        assert_eq!(
+            end,
+            Date::from_calendar_date(1, time::Month::February, 1).unwrap()
+        );
+
+        let (start, end) = parse_year_month_range("9999-11").expect("9999-11 は有効");
+        assert_eq!(
+            start,
+            Date::from_calendar_date(9999, time::Month::November, 1).unwrap()
+        );
+        assert_eq!(
+            end,
+            Date::from_calendar_date(9999, time::Month::December, 1).unwrap()
+        );
     }
 
     #[test]
@@ -855,7 +878,7 @@ mod tests {
                         "input={input} の Err が ValidationError ではない"
                     );
                     proptest::prop_assert!(
-                        !(1..=12).contains(&month),
+                        !(1..=12).contains(&month) || (year == 9999 && month == 12),
                         "有効な月 {input} が Err になった"
                     );
                 }
