@@ -21,6 +21,12 @@ migration ファイルの置き場所と運用メモ。
 | `0104_holdings.sql` | `asset_balances`・`fund_balances` と、共有の価格を合成するビュー(`security_invoker`) |
 | `0105_grants.sql` | ロールごとの表・ビュー・列・関数への GRANT |
 | `0106_limited_functions.sql` | 認証と定期処理・共有表の書き込みの限定関数(`SECURITY DEFINER`)と、その所有者・EXECUTE |
+| `0107_session_idle_timeout.sql` | セッションの無操作期限付き認証関数と旧 Worker 用互換関数 |
+| `0108_operation_logs.sql` | 操作記録 |
+| `0109_drop_compat_auth_functions.sql` | 旧 Worker 用一引数認証関数の削除 |
+
+その後の増分 migration は、セッション期限や互換性のための変更を番号順に適用する。
+`0109_drop_compat_auth_functions.sql` は旧 Worker 向けの一引数認証関数2つを削除する。
 
 `archive/` は土台に畳む前の旧 migration `0000〜0037`。ランナーは読まない(本番の履歴の照合用の
 digest と、旧ファイルを使う一部のテストだけが参照する)。書き換えない。
@@ -54,6 +60,15 @@ migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` �
 4. 未適用の migration は無いので終わり、続けて `wrangler deploy` に進む(Worker のコードは変わらない)。
 
 一致しなかった場合は何も記録せずにエラーで止まり、Worker の配信にも進まない。
+
+#### 0109 の初回デプロイ
+
+0109 は `auth_session_user_by_token(bytea)` と `auth_lookup_user_id_by_session(bytea)` の DROP だけを行う。
+0107 で新 Worker は期限付きの複数引数関数へ移行済みで、0109 の前にデプロイが完了している。
+デプロイ手順は migration を Worker 配信より先に適用するため、その間に旧 Worker が残っていると
+認証呼び出しが失敗する。初回適用前に PR #2100 の本番デプロイ完了と、現行 Worker の版/リクエストログに
+一引数関数呼び出しがないことを確認する。0109 適用時の DB 変更はこの2関数の削除のみで、
+DROP により関数 ACL も消える。
 
 ### 戻すとき
 

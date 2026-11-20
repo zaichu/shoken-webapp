@@ -6909,6 +6909,19 @@ async fn stage5b_definer_functions_and_app_enter() {
         .expect("関数定義の取得に失敗");
         assert!(is_definer, "{signature} は DEFINER のはず");
     }
+    for signature in [
+        "public.auth_session_user_by_token(bytea)",
+        "public.auth_lookup_user_id_by_session(bytea)",
+    ] {
+        let exists = db::query_scalar::<bool>(
+            "SELECT to_regprocedure($1) IS NOT NULL",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("関数定義の取得に失敗");
+        assert!(!exists, "{signature} は存在しないはず");
+    }
 
     let owner_enter = db::query_scalar::<bool>(
         "SELECT has_function_privilege(CURRENT_USER, 'public.app_enter(uuid)', 'EXECUTE')",
