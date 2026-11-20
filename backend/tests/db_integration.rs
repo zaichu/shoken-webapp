@@ -6,7 +6,7 @@ use axum::{
     middleware,
     routing::get,
 };
-use backend::services::csv::import::CsvImport;
+use backend::services::csv::pipeline::CsvImport;
 use backend::{
     config::{self, Config},
     db::{self, Bind, Db, Executor, connect_pool_lazy, run_migrations},

@@ -5,9 +5,8 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
-use crate::services::csv::import;
-use crate::services::csv::import::CsvImport;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline;
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CellError, CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -57,7 +56,7 @@ impl CsvImport for DividendDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        import::validate_csv_rows(table, transform_dividend_row)
+        pipeline::validate_csv_rows(table, transform_dividend_row)
     }
 
     async fn bulk_create(
@@ -400,7 +399,7 @@ fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvR
 mod tests {
     use super::*;
     use crate::models::csv_import::CsvPreviewResponse;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
 
     const HEADER: &str = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 

@@ -5,11 +5,8 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::fund_balance::{
     CreateFundBalanceRequest, FundBalance, FundBalanceSearchQueryParams, FundBalanceSummary,
 };
-use crate::services::csv::import;
-use crate::services::csv::import::CsvImport;
-#[cfg(test)]
 use crate::services::csv::pipeline;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -44,7 +41,7 @@ impl CsvImport for FundBalanceDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        let (items, errors) = import::validate_csv_rows(table, transform_fund_balance_row);
+        let (items, errors) = pipeline::validate_csv_rows(table, transform_fund_balance_row);
         (items.into_iter().flatten().collect(), errors)
     }
 
@@ -360,7 +357,7 @@ fn transform_fund_balance_row(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
     use rust_decimal_macros::dec;
 
     const FUND_CSV_HEADER: &str = "投資信託種別,口座区分,ファンド,分配金コース,保有数量[口],(内訳　通常数量[口]),(内訳　積立数量[口]),平均取得価額[円],取得総額[円],基準価額[円],基準価額(前日比)[円],基準価額(前月比)[円],時価評価額[円],評価損益[円],評価損益[％],トータルリターン[円],通貨単位,未収分配金,参考為替レート,時価評価額[外貨],合計額[円]";
