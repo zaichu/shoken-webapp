@@ -68,6 +68,7 @@ const viewports = options.viewportWidths
 if (viewports.length === 0) {
   throw new Error('--viewports に一致する幅がありません');
 }
+const detailScreen = (screen) => screen.key.endsWith('-detail');
 
 mkdirSync(options.out, { recursive: true });
 const baseUrl = `http://127.0.0.1:${options.port}`;
@@ -78,6 +79,9 @@ const unexpected = [];
 try {
   for (const screen of screens) {
     for (const viewport of viewports) {
+      if (options.detailMobile && detailScreen(screen) && ![360, 390].includes(viewport.width)) {
+        continue;
+      }
       for (const theme of THEMES) {
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
@@ -89,9 +93,8 @@ try {
         const page = await context.newPage();
         const name = `${screen.key}-${viewport.width}x${viewport.height}-${theme}`;
         try {
-          const openDetail = !options.detailMobile || viewport.width !== 1280;
           await page.goto(`${baseUrl}${screen.path}`, { waitUntil: 'load' });
-          if (screen.prepare && openDetail) {
+          if (screen.prepare) {
             await waitForReady(page, screen.loaded ?? screen.ready);
             await screen.prepare(page);
           } else if (screen.listPrepare) {
