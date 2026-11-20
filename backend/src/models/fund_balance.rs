@@ -109,7 +109,7 @@ impl Validate for CreateFundBalanceRequest {
 
 /// 投資信託残高一覧の検索クエリパラメータ
 ///
-/// fund_balances の日付列は price_as_of（取込日）だが日付条件は提供しない
+/// fund_balances の日付列は price_as_of（基準価額の基準日）だが日付条件は提供しない
 #[derive(Debug, Clone, Default, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct FundBalanceSearchQueryParams {
     #[serde(flatten)]

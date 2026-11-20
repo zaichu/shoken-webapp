@@ -1,5 +1,4 @@
 use super::use_asset_balance_state;
-use crate::api::dto::FundPriceSource;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund;
 use crate::session;
@@ -134,10 +133,7 @@ pub fn AssetFundHoldingPage(id: String) -> impl IntoView {
                                 let asof_text = view
                                     .price_as_of
                                     .map_or_else(|| labels::MISSING.to_string(), |date| format::format_iso_date(&date));
-                                let asof_label = match view.price_source {
-                                    FundPriceSource::Api => labels::BASE_PRICE_AS_OF,
-                                    FundPriceSource::Csv => labels::CSV_IMPORTED_AT,
-                                };
+                                let asof_label = labels::BASE_PRICE_AS_OF;
                                 view! {
                                     <FundDetailCard>
                                         <FundDetailHeader>

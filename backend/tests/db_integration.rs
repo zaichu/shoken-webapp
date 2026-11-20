@@ -5142,7 +5142,7 @@ async fn stock_price_new_as_of_without_prev_close_drops_daily_change() {
     assert_eq!(prev_close.expect("前日終値は維持する").0, dec!(110));
 }
 
-/// fund_balances に1行だけ足す。price_as_of(CSV 取込日)と created_at を固定できる
+/// fund_balances に1行だけ足す。price_as_of(CSV の基準価額が指す日)と created_at を固定できる
 /// ため、「更新待ち」や共有値の鮮度判定を実行時刻に依らず確かめられる
 #[expect(clippy::too_many_arguments)]
 async fn insert_fund_row(
@@ -5235,7 +5235,7 @@ async fn fund_name_normalize_unifies_width_space_and_paren() {
     }
 }
 
-/// 共有値の基準日が CSV 取込日の3日前以降なら、基準価額まわりの値は
+/// 共有値の基準日が CSV の基準価額の基準日の3日前以降なら、基準価額まわりの値は
 /// 共有値でそろう。評価額・評価損益は口数から計算し直し、1円未満は切り捨てる
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
@@ -6064,18 +6064,14 @@ async fn fund_balance_import_uses_expected_nav_date() {
     )
     .await
     .expect("bulk_create");
-    let (price_as_of,): (Date,) = db::query(
-        "SELECT price_as_of FROM fund_balances WHERE user_id = $1",
+    let (matches,): (bool,) = db::query(
+        "SELECT price_as_of = fund_expected_nav_date(created_at) FROM fund_balances WHERE user_id = $1",
         vec![Bind::from(user_id)],
     )
     .fetch_one(&pool)
     .await
     .expect("price_as_of");
-    let (expected_now,): (Date,) = db::query("SELECT fund_expected_nav_date(now())", vec![])
-        .fetch_one(&pool)
-        .await
-        .expect("expected now");
-    assert_eq!(price_as_of, expected_now);
+    assert!(matches);
 }
 
 #[tokio::test]

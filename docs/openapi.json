@@ -3430,7 +3430,7 @@
           "price_as_of": {
             "type": "string",
             "format": "date",
-            "description": "出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日"
+            "description": "出どころ側の日付。Api は共有値の基準日、Csv は取込時点の基準価額の想定日"
           },
           "price_source": {
             "$ref": "#/components/schemas/FundPriceSource",
@@ -4362,7 +4362,7 @@
                 "price_as_of": {
                   "type": "string",
                   "format": "date",
-                  "description": "出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日"
+                  "description": "出どころ側の日付。Api は共有値の基準日、Csv は取込時点の基準価額の想定日"
                 },
                 "price_source": {
                   "$ref": "#/components/schemas/FundPriceSource",
