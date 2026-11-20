@@ -372,7 +372,7 @@ pub struct FundBalance {
     pub profit_loss_rate: Option<Decimal>,
     #[cfg_attr(feature = "utoipa", schema(value_type = f64))]
     pub total_return: Option<Decimal>,
-    /// 出どころ側の日付。Api は共有値の基準日、Csv は JST での CSV 取込日
+    /// 出どころ側の日付。Api は共有値の基準日、Csv は取込時点の基準価額の想定日
     #[cfg_attr(feature = "utoipa", schema(value_type = String, format = "date"))]
     #[cfg_attr(feature = "typed", serde(with = "date_serde"))]
     pub price_as_of: NaiveDate,

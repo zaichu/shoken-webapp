@@ -1,5 +1,5 @@
 mod logic;
-// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+// tests/db_price.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub mod persistence;
 

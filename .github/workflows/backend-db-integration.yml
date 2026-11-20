@@ -162,6 +162,6 @@ jobs:
                 `- sha: ${context.sha}`,
                 `- workflow: Backend DB Integration`,
                 ``,
-                `直近の db_integration.rs / db_backup.rs の失敗を確認し、原因の修正またはテスト期待値の見直しを検討してください。`,
+                `直近の db_* / db_backup の ignored テストの失敗を確認し、原因の修正またはテスト期待値の見直しを検討してください。`,
               ].join('\n'),
             });

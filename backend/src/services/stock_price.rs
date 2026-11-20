@@ -4,6 +4,7 @@
 
 use crate::db::{Bind, Db};
 use crate::errors::{ApiError, UpstreamError};
+use crate::services::price_cron;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use shared::value::SecurityCode;
@@ -21,9 +22,6 @@ const CHART_REQUEST_HEADERS: &[(&str, &str)] = &[("User-Agent", "Mozilla/5.0")];
 /// cron 1回で処理する銘柄数の上限。無料枠の CPU 時間に収まるよう絞る。
 /// 残りは次回の cron に委ねる（最終試行時刻が古い順に処理するため循環する）
 const MAX_CODES_PER_RUN: i64 = 15;
-
-/// 銘柄間の待ち時間。非公式 API への負荷を抑えるために少し間を空ける
-const FETCH_GAP_MS: u64 = 500;
 
 /// wasm は tracing subscriber を持たないため、Worker 上では console 系へ出す
 #[cfg(target_arch = "wasm32")]
@@ -121,15 +119,8 @@ pub fn parse_chart_close(body: &str, max_as_of: Date) -> Result<ClosePrice, ApiE
     })
 }
 
-/// 2xx 以外の応答をエラーに写す。429 はレート制限として区別する
 #[cfg(any(target_arch = "wasm32", test))]
-fn chart_status_error(status: u16, body: String) -> ApiError {
-    if status == 429 {
-        UpstreamError::RateLimited.into()
-    } else {
-        UpstreamError::Http { status, body }.into()
-    }
-}
+use price_cron::upstream_status_error as chart_status_error;
 
 /// Yahoo chart API から終値を取得する。ホスト側では実行経路がないためエラー固定
 /// （テストは parse_chart_close / apply_close_price を直接検証する）
@@ -183,7 +174,7 @@ async fn fetch_close_price(
 /// 取得した終値を共有の security_prices 行へ適用する(1銘柄1行)。
 /// 保存済みの基準日より新しい取得日のときだけ更新し、日付の新しいほうを残す。
 /// まだ行がない銘柄(マイグレーションとデプロイの隙間に取り込まれた保有など)は挿入する
-// tests/db_integration.rs からの検証用に公開しているため docs には出さない
+// tests/db_price.rs からの検証用に公開しているため docs には出さない
 #[doc(hidden)]
 pub async fn apply_close_price(
     pool: &Db,
@@ -233,41 +224,24 @@ fn latest_close_date(now: OffsetDateTime) -> Date {
 /// 戻り値は取得に成功した銘柄数（ログ用）
 pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result<usize, ApiError> {
     let latest = latest_close_date(OffsetDateTime::now_utc());
-    let mut tx = pool.begin().await?;
-    let codes: Vec<SecurityCode> = crate::db::query(
+    let codes: Vec<SecurityCode> = price_cron::select_targets(
+        pool,
         "SELECT security_code FROM public.scheduled_stock_price_targets_v2($1, $2)",
-        vec![Bind::from(latest), Bind::from(MAX_CODES_PER_RUN)],
+        "SELECT public.scheduled_stock_price_mark_attempted_v2($1)",
+        latest,
+        MAX_CODES_PER_RUN,
     )
-    .fetch_all::<(SecurityCode,), _>(&mut tx)
     .await?
     .into_iter()
-    .map(|(code,)| code)
+    .map(SecurityCode::from_raw)
     .collect();
-    tx.commit().await?;
-
-    // 選んだ銘柄の試行時刻を先に進めておく。取得に失敗しても順位が末尾へ回るため、
-    // 連続して失敗する銘柄が後続の更新を永久に塞ぐことを防ぐ（#1338）。
-    // 未取得(行なし)の銘柄には基準日なしの行を作り、次回以降も対象のままにする
-    if !codes.is_empty() {
-        crate::db::query(
-            "SELECT public.scheduled_stock_price_mark_attempted_v2($1)",
-            vec![Bind::from(
-                codes
-                    .iter()
-                    .map(|code| code.as_str().to_owned())
-                    .collect::<Vec<_>>(),
-            )],
-        )
-        .execute(pool)
-        .await?;
-    }
 
     let base_url = base_url.unwrap_or_else(|| CHART_BASE_URL.to_string());
     let mut fetched = 0;
     let mut failed = 0;
     for (i, code) in codes.iter().enumerate() {
         if i > 0 {
-            crate::services::dividend_cache::sleep_millis(FETCH_GAP_MS).await;
+            crate::services::dividend_cache::sleep_millis(price_cron::FETCH_GAP_MS).await;
         }
         match fetch_close_price(&base_url, code, latest).await {
             Ok(price) => {
@@ -306,7 +280,7 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
         codes.len() - failed,
         failed
     );
-    if !codes.is_empty() && fetched == 0 {
+    if price_cron::none_succeeded(codes.len(), fetched) {
         // 全銘柄が失敗 = 個別障害ではなく取得元の応答・エンドポイント変更を疑う
         svc_log!(
             error,
@@ -318,10 +292,8 @@ pub async fn refresh_stock_prices(pool: &Db, base_url: Option<String>) -> Result
 
 /// 予定時刻（UTC エポックミリ秒）の分が5の倍数なら現在値更新を実行するかを返す
 // JS からのミリ秒は f64 のため切り捨て・飽和する。範囲外は None→false になる
-#[expect(clippy::cast_possible_truncation)]
 pub fn should_refresh_at(scheduled_ms: f64) -> bool {
-    OffsetDateTime::from_unix_timestamp_nanos(i128::from(scheduled_ms as i64) * 1_000_000)
-        .is_ok_and(|t| t.minute().is_multiple_of(5))
+    price_cron::scheduled_time_ms(scheduled_ms).is_some_and(|t| t.minute().is_multiple_of(5))
 }
 
 #[cfg(test)]

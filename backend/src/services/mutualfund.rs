@@ -5,9 +5,8 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::mutualfund::{
     CreateMutualfundRequest, Mutualfund, MutualfundSearchQueryParams, MutualfundSummary,
 };
-use crate::services::csv::import;
-use crate::services::csv::import::CsvImport;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline;
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -24,6 +23,29 @@ use shared::value::UserId;
 /// 投資信託ドメイン
 pub struct MutualfundDomain;
 
+const MUTUALFUND_HASH_PARTS: &[&str] = &[
+    "trade_date::text",
+    "settlement_date::text",
+    "fund_name",
+    "COALESCE(dividends, '')",
+    "account",
+    "shares::text",
+    "exchange_rate::text",
+    "cancellation_unit_price_yen::text",
+    "cancellation_amount_yen::text",
+    "average_acquisition_price_yen::text",
+    "realized_profit_and_loss::text",
+    "taxes::text",
+    "realized_profit_and_loss_after_tax::text",
+];
+const MUTUALFUND_BULK_COLUMNS: &str = "user_id, trade_date, settlement_date, fund_name, dividends, \
+    account, shares, exchange_rate, cancellation_unit_price_yen, cancellation_amount_yen, \
+    average_acquisition_price_yen, realized_profit_and_loss, taxes, \
+    realized_profit_and_loss_after_tax";
+const MUTUALFUND_UNNEST_PARAMS: &str = "$1::uuid[], $2::date[], $3::date[], $4::text[], $5::text[], \
+    $6::text[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[], \
+    $12::numeric[], $13::numeric[], $14::numeric[]";
+
 impl Domain for MutualfundDomain {
     const NAME: &'static str = "mutualfund";
     const TABLE: &'static str = "mutualfunds";
@@ -39,7 +61,7 @@ impl CsvImport for MutualfundDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        import::validate_csv_rows(table, transform_mutualfund_row)
+        pipeline::validate_csv_rows(table, transform_mutualfund_row)
     }
 
     async fn bulk_create(
@@ -156,59 +178,13 @@ pub async fn bulk_create(
         items,
         limit,
         crate::db::query(
-            r#"
-            WITH batch_data AS (
-                SELECT
-                    user_id, trade_date, settlement_date, fund_name, dividends,
-                    account, shares, exchange_rate, cancellation_unit_price_yen,
-                    cancellation_amount_yen, average_acquisition_price_yen,
-                    realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax,
-                    ordinality,
-                    md5(
-                        trade_date::text || '|' || settlement_date::text || '|' || fund_name || '|' ||
-                        COALESCE(dividends, '') || '|' || account || '|' ||
-                        shares::text || '|' || exchange_rate::text || '|' || cancellation_unit_price_yen::text || '|' ||
-                        cancellation_amount_yen::text || '|' || average_acquisition_price_yen::text || '|' ||
-                        realized_profit_and_loss::text || '|' || taxes::text || '|' || realized_profit_and_loss_after_tax::text
-                    ) AS content_hash
-                FROM UNNEST(
-                    $1::uuid[], $2::date[], $3::date[], $4::text[], $5::text[],
-                    $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-                    $10::numeric[], $11::numeric[], $12::numeric[], $13::numeric[], $14::numeric[]
-                ) WITH ORDINALITY AS t(user_id, trade_date, settlement_date, fund_name, dividends,
-                       account, shares, exchange_rate, cancellation_unit_price_yen,
-                       cancellation_amount_yen, average_acquisition_price_yen,
-                       realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax, ordinality)
+            bulk::dedup_insert_sql(
+                "mutualfunds",
+                MUTUALFUND_BULK_COLUMNS,
+                &bulk::content_hash_expr(MUTUALFUND_HASH_PARTS),
+                MUTUALFUND_UNNEST_PARAMS,
+                "$15::uuid",
             ),
-            batch_indexed AS (
-                SELECT *,
-                    ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
-                        AS batch_occurrence_index
-                FROM batch_data
-            ),
-            db_counts AS (
-                SELECT content_hash, COUNT(*)::int4 AS existing_count
-                FROM mutualfunds
-                WHERE user_id = $15::uuid
-                GROUP BY content_hash
-            )
-            INSERT INTO mutualfunds (user_id, trade_date, settlement_date, fund_name, dividends,
-                                     account, shares, exchange_rate, cancellation_unit_price_yen,
-                                     cancellation_amount_yen, average_acquisition_price_yen,
-                                     realized_profit_and_loss, taxes, realized_profit_and_loss_after_tax,
-                                     content_hash, occurrence_index)
-            SELECT
-                b.user_id, b.trade_date, b.settlement_date, b.fund_name, b.dividends,
-                b.account, b.shares, b.exchange_rate, b.cancellation_unit_price_yen,
-                b.cancellation_amount_yen, b.average_acquisition_price_yen,
-                b.realized_profit_and_loss, b.taxes, b.realized_profit_and_loss_after_tax,
-                b.content_hash,
-                b.batch_occurrence_index
-            FROM batch_indexed b
-            LEFT JOIN db_counts d ON b.content_hash = d.content_hash
-            WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
-            ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
-            "#,
             vec![
                 Bind::from(user_ids),
                 Bind::from(trade_dates),
@@ -277,7 +253,7 @@ fn transform_mutualfund_row(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
 
     #[test]
     fn test_preview_csv_basic() {

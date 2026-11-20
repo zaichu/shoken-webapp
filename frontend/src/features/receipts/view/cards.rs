@@ -326,10 +326,7 @@ pub(crate) fn receipt_detail_cells(
     card: &CardRowData,
 ) -> (Vec<DetailCell>, Vec<DetailCell>) {
     let date_text = format::format_iso_date(&card.date.replace('/', "-"));
-    let date_label = match tab {
-        ReceiptsTab::Dividend => labels::PAYMENT_DATE,
-        _ => labels::TRADE_DATE,
-    };
+    let date_label = tab.date_label();
     if tab == ReceiptsTab::Dividend {
         let (qty, _, _, _) = detail_text(&card.details, labels::QUANTITY);
         let (per_share, _, _, _) = detail_text(&card.details, labels::PER_SHARE_DIVIDEND);
@@ -380,10 +377,7 @@ pub(crate) fn receipt_detail_cells(
         ];
         (left, right)
     } else {
-        let amount_label = match tab {
-            ReceiptsTab::DomesticStock => labels::SELLING_AMOUNT,
-            _ => labels::REDEMPTION_AMOUNT,
-        };
+        let amount_label = tab.amount_label().unwrap_or(labels::REDEMPTION_AMOUNT);
         let (qty, _, _, _) = detail_text(&card.details, labels::QUANTITY);
         let (amount, _, _, _) = detail_text(&card.details, amount_label);
         let (cost, _, _, _) = detail_text(&card.details, labels::ACQUISITION_PRICE);
@@ -564,10 +558,7 @@ pub(crate) fn group_headline_summary(
     } else {
         raw.to_string()
     };
-    let label = match tab {
-        ReceiptsTab::Dividend => labels::DIVIDEND_AMOUNT,
-        _ => labels::REALIZED_PROFIT_LOSS,
-    };
+    let label = tab.headline_label();
     Some(GroupSummary {
         label: label.to_string(),
         value: text,
@@ -707,10 +698,7 @@ pub(crate) fn MobileCardGroup(
         .into_any();
     }
     let (_, primary_raw) = summary.last().cloned().unwrap_or_default();
-    let primary_label: &'static str = match tab {
-        ReceiptsTab::Dividend => labels::DIVIDEND_AMOUNT,
-        _ => labels::REALIZED_PROFIT_LOSS,
-    };
+    let primary_label: &'static str = tab.headline_label();
     let primary_negative = is_negative_labeled_value(tab, primary_label, &primary_raw);
     let primary_positive = is_positive_labeled_value(tab, primary_label, &primary_raw);
     let primary_value = signed_text_for_profit(tab, primary_label, &primary_raw);

@@ -1,4 +1,5 @@
 mod all_list;
+mod asset_columns;
 mod asset_table;
 mod composition_page;
 mod day_change;

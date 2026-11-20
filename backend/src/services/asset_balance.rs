@@ -5,10 +5,9 @@ use crate::models::asset_balance::{
 };
 use crate::models::common::BulkCreateResponse;
 use crate::models::csv_import::CsvRowError;
-use crate::services::csv::import::CsvImport;
 #[cfg(test)]
 use crate::services::csv::pipeline;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -430,7 +429,7 @@ fn transform_asset_balance_row(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
     use rust_decimal_macros::dec;
 
     type ExpectedRow<'a> = (&'a str, Decimal, Decimal, Decimal, Decimal, Decimal);

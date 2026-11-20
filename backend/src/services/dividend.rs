@@ -5,9 +5,8 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::dividend::{
     CreateDividendRequest, Dividend, DividendSearchQueryParams, DividendSummary,
 };
-use crate::services::csv::import;
-use crate::services::csv::import::CsvImport;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline;
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CellError, CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -23,6 +22,23 @@ use shared::value::UserId;
 
 /// 配当金ドメイン
 pub struct DividendDomain;
+
+const DIVIDEND_HASH_PARTS: &[&str] = &[
+    "settlement_date::text",
+    "product",
+    "account",
+    "security_code",
+    "security_name",
+    "unit_price::text",
+    "shares::text",
+    "dividends_before_tax::text",
+    "taxes::text",
+    "net_amount_received::text",
+];
+const DIVIDEND_BULK_COLUMNS: &str = "user_id, settlement_date, product, account, security_code, \
+    security_name, unit_price, shares, dividends_before_tax, taxes, net_amount_received";
+const DIVIDEND_UNNEST_PARAMS: &str = "$1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[], \
+    $6::text[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[]";
 
 impl Domain for DividendDomain {
     const NAME: &'static str = "dividend";
@@ -40,7 +56,7 @@ impl CsvImport for DividendDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        import::validate_csv_rows(table, transform_dividend_row)
+        pipeline::validate_csv_rows(table, transform_dividend_row)
     }
 
     async fn bulk_create(
@@ -270,53 +286,13 @@ pub async fn bulk_create(
         items,
         limit,
         crate::db::query(
-            r#"
-            WITH batch_data AS (
-                SELECT
-                    user_id, settlement_date, product, account, security_code,
-                    security_name, unit_price, shares, dividends_before_tax,
-                    taxes, net_amount_received,
-                    ordinality,
-                    md5(
-                        settlement_date::text || '|' || product || '|' || account || '|' ||
-                        security_code || '|' || security_name || '|' ||
-                        unit_price::text || '|' || shares::text || '|' || dividends_before_tax::text || '|' ||
-                        taxes::text || '|' || net_amount_received::text
-                    ) AS content_hash
-                FROM UNNEST(
-                    $1::uuid[], $2::date[], $3::text[], $4::text[], $5::text[],
-                    $6::text[], $7::numeric[], $8::numeric[], $9::numeric[],
-                    $10::numeric[], $11::numeric[]
-                ) WITH ORDINALITY AS t(user_id, settlement_date, product, account, security_code,
-                       security_name, unit_price, shares, dividends_before_tax,
-                       taxes, net_amount_received, ordinality)
+            bulk::dedup_insert_sql(
+                "dividends",
+                DIVIDEND_BULK_COLUMNS,
+                &bulk::content_hash_expr(DIVIDEND_HASH_PARTS),
+                DIVIDEND_UNNEST_PARAMS,
+                "$12::uuid",
             ),
-            batch_indexed AS (
-                SELECT *,
-                    ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY ordinality)::int4
-                        AS batch_occurrence_index
-                FROM batch_data
-            ),
-            db_counts AS (
-                SELECT content_hash, COUNT(*)::int4 AS existing_count
-                FROM dividends
-                WHERE user_id = $12::uuid
-                GROUP BY content_hash
-            )
-            INSERT INTO dividends (user_id, settlement_date, product, account, security_code,
-                                   security_name, unit_price, shares, dividends_before_tax,
-                                   taxes, net_amount_received, content_hash, occurrence_index)
-            SELECT
-                b.user_id, b.settlement_date, b.product, b.account, b.security_code,
-                b.security_name, b.unit_price, b.shares, b.dividends_before_tax,
-                b.taxes, b.net_amount_received,
-                b.content_hash,
-                b.batch_occurrence_index
-            FROM batch_indexed b
-            LEFT JOIN db_counts d ON b.content_hash = d.content_hash
-            WHERE b.batch_occurrence_index > COALESCE(d.existing_count, 0)
-            ON CONFLICT (user_id, content_hash, occurrence_index) DO NOTHING
-            "#,
             vec![
                 Bind::from(user_ids),
                 Bind::from(settlement_dates),
@@ -423,7 +399,7 @@ fn parse_taxes(row: &CsvRowView<'_>, row_num: RowNumber) -> Result<Decimal, CsvR
 mod tests {
     use super::*;
     use crate::models::csv_import::CsvPreviewResponse;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
 
     const HEADER: &str = "入金日,商品,口座,銘柄コード,銘柄,受取通貨,単価[円/現地通貨],数量[株/口],配当・分配金合計（税引前）[円/現地通貨],税額合計[円/現地通貨],受取金額[円/現地通貨]";
 

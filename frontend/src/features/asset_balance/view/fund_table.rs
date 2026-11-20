@@ -1,12 +1,12 @@
+use super::asset_columns;
 use super::day_change::{day_change_cell, pending_day_change_cell};
-use super::sort_header::sort_header;
 use crate::features::asset_balance::format as balance_format;
 use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::{AssetMarker, AssetRateAmount};
 use crate::ui::badge::AccountBadge;
-use crate::ui::detail_dialog::{DetailCell, DetailDialog};
+use crate::ui::detail_dialog::DetailDialog;
 use crate::ui::format;
 use crate::ui::labels;
 use crate::ui::list_row::ListRowButton;
@@ -21,37 +21,12 @@ pub fn FundHoldingsTable(
     sort_order: RwSignal<SortOrder>,
 ) -> impl IntoView {
     // 列の中の小数桁をそろえる(整数円の値しかない列は .00 を付けない)
-    let base_price_decimals = format::unit_price_decimals(views.iter().map(|view| view.base_price));
+    let base_price_decimals = asset_columns::fund_base_price_decimals(&views);
     view! {
         <div data-testid="asset-fund-table">
             <table class="asset-table">
                 <thead>
-                    <tr>
-                        <th scope="col" class="col-text">{labels::FUND}</th>
-                        <th scope="col" class="col-text">{labels::ACCOUNT}</th>
-                        <th scope="col" class="col-text">{labels::DISTRIBUTION_COURSE}</th>
-                        {sort_header(labels::FUND_SHARES, FundSortKey::Shares, sort_key, sort_order)}
-                        {sort_header(labels::BASE_PRICE, FundSortKey::BasePrice, sort_key, sort_order)}
-                        // 1行にすると1280で表がはみ出すため単位だけ改行する。
-                        // 読み上げ名は変わらない(「前日比 (1万口あたり)」)
-                        <th
-                            scope="col"
-                            class="col-num"
-                            title=labels::DAY_CHANGE_COLUMN_NOTE
-                            abbr=labels::DAY_CHANGE_COLUMN_NOTE
-                        >
-                            {labels::DAY_CHANGE}
-                            <br />
-                            {labels::PER_10K_UNIT}
-                        </th>
-                        {sort_header(labels::MARKET_VALUE, FundSortKey::MarketValue, sort_key, sort_order)}
-                        {sort_header(
-                            labels::VALUATION_PROFIT_LOSS,
-                            FundSortKey::ProfitLoss,
-                            sort_key,
-                            sort_order,
-                        )}
-                    </tr>
+                    {asset_columns::fund_table_head(sort_key, sort_order)}
                 </thead>
                 <tbody>
                     {views
@@ -141,88 +116,6 @@ pub fn FundHoldingsTable(
     }
 }
 
-pub(crate) fn fund_detail_cells(view: &FundView) -> (Vec<DetailCell>, Vec<DetailCell>) {
-    let base_text = format::format_unit_price(
-        view.base_price,
-        format::unit_price_decimals(std::iter::once(view.base_price)),
-    );
-    let day_text = if view.nav_pending() {
-        labels::PENDING_UPDATE.to_string()
-    } else {
-        balance_format::format_signed_row_valuation_amount(view.view_day_change())
-    };
-    let day_negative = balance_format::is_negative_valuation(view.view_day_change());
-    let day_positive = balance_format::is_positive_valuation(view.view_day_change());
-    let month_text = if view.nav_pending() {
-        labels::PENDING_UPDATE.to_string()
-    } else {
-        balance_format::format_signed_row_valuation_amount(view.base_price_month_change)
-    };
-    let month_negative = balance_format::is_negative_valuation(view.base_price_month_change);
-    let month_positive = balance_format::is_positive_valuation(view.base_price_month_change);
-    let average_text = format::format_unit_price(
-        view.average_purchase_price,
-        format::unit_price_decimals(std::iter::once(view.average_purchase_price)),
-    );
-    let course_text = view
-        .course
-        .clone()
-        .unwrap_or_else(|| labels::FETCH_UNAVAILABLE.to_string());
-    let shares_text = labels::fund_units_label(&format::format_number_value(view.shares));
-    let purchase_text = format::format_currency(view.purchase);
-    let market_text = balance_format::format_row_valuation_amount(Some(view.market_value));
-    let pnl_text = balance_format::format_signed_row_valuation_amount(Some(view.profit_loss));
-    let pnl_rate = balance_format::format_signed_valuation_rate(view.profit_loss_rate, 1);
-    let pnl_rate_negative = balance_format::is_negative_rate(view.profit_loss_rate);
-    let pnl_rate_positive = balance_format::is_positive_rate(view.profit_loss_rate);
-    let pnl_negative = balance_format::is_negative_valuation(Some(view.profit_loss));
-    let pnl_positive = balance_format::is_positive_valuation(Some(view.profit_loss));
-    let as_of = view.price_as_of.clone().map_or_else(
-        || labels::FETCH_UNAVAILABLE.to_string(),
-        |date| format::format_iso_date(&date),
-    );
-    let left = vec![
-        DetailCell::with_sub(
-            labels::BASE_PRICE.to_string(),
-            base_text,
-            day_text,
-            day_negative,
-            day_positive,
-        ),
-        DetailCell {
-            label: labels::BASE_PRICE_MONTH_CHANGE.to_string(),
-            value: month_text,
-            sub: None,
-            sub_rate: None,
-            sub_rate_negative: false,
-            sub_rate_positive: false,
-            negative: month_negative,
-            positive: month_positive,
-            bold: false,
-            kind: AmountKind::Delta,
-        },
-        DetailCell::plain(labels::AVERAGE_PRICE_PER_10K.to_string(), average_text),
-        DetailCell::plain(labels::DISTRIBUTION_COURSE.to_string(), course_text),
-    ];
-    let mut pnl_cell = DetailCell::strong_sub(
-        labels::MARKET_VALUE.to_string(),
-        market_text,
-        pnl_text,
-        pnl_negative,
-        pnl_positive,
-    );
-    pnl_cell.sub_rate = Some(pnl_rate);
-    pnl_cell.sub_rate_negative = pnl_rate_negative;
-    pnl_cell.sub_rate_positive = pnl_rate_positive;
-    let right = vec![
-        DetailCell::plain(labels::FUND_SHARES.to_string(), shares_text),
-        DetailCell::plain(labels::TOTAL_ACQUISITION.to_string(), purchase_text),
-        pnl_cell,
-        DetailCell::plain(labels::BASE_PRICE_AS_OF.to_string(), as_of),
-    ];
-    (left, right)
-}
-
 /// スマホのファンド一覧。共通の2行の行で出す
 #[component]
 pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
@@ -248,7 +141,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
                     let dialog_view = view.clone();
                     let open = RwSignal::new(false);
                     let open_for_dialog = open;
-                    let (left, right) = fund_detail_cells(&dialog_view);
+                    let (left, right) = asset_columns::fund_detail_cells(&dialog_view);
                     view! {
                         <li class="list-row-item" data-testid="asset-compact-row">
                             <ListRowButton
@@ -299,7 +192,7 @@ pub fn FundHoldingsList(views: Vec<FundView>) -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    use super::fund_detail_cells;
+    use super::super::asset_columns;
     use crate::api::dto::FundPriceSource;
     use crate::features::asset_balance::fund::FundView;
     use crate::ui::amount::AmountKind;
@@ -330,7 +223,7 @@ mod tests {
 
     #[test]
     fn fund_dialog_preserves_order() {
-        let (left, right) = fund_detail_cells(&sample_fund());
+        let (left, right) = asset_columns::fund_detail_cells(&sample_fund());
         let left_labels: Vec<&str> = left.iter().map(|cell| cell.label.as_str()).collect();
         assert_eq!(
             left_labels,
@@ -356,7 +249,7 @@ mod tests {
     #[test]
     fn fund_dialog_uses_row_basis() {
         let view = sample_fund();
-        let (left, right) = fund_detail_cells(&view);
+        let (left, right) = asset_columns::fund_detail_cells(&view);
         assert!(left[0].value.contains("11,000") || left[0].value.contains("11000"));
         assert!(right[2].value.contains("110,000") || right[2].value.contains("110000"));
         assert!(
@@ -371,14 +264,14 @@ mod tests {
     fn fund_dialog_month_change_uses_delta_sign() {
         let mut view = sample_fund();
         view.base_price_month_change = Some(-30.0);
-        let (left, _) = fund_detail_cells(&view);
+        let (left, _) = asset_columns::fund_detail_cells(&view);
         let month = &left[1];
         assert_eq!(month.kind, AmountKind::Delta);
         assert!(month.negative);
         assert!(!month.positive);
         assert!(month.value.starts_with('-'));
         view.base_price_month_change = Some(20.0);
-        let (left, _) = fund_detail_cells(&view);
+        let (left, _) = asset_columns::fund_detail_cells(&view);
         let month = &left[1];
         assert!(month.positive);
         assert!(month.value.starts_with('+'));

@@ -50,7 +50,7 @@ migration を変えたら `scripts/gen-db-docs.sh` を実行して `docs/db/` �
 
 土台が旧 migration と同じ schema を作ることは `scripts/check-migration-baseline.sh` で確かめる
 (下の「検証」)。記録の判定は `backend/src/db/migrate.rs` の単体テストと
-`backend/tests/db_integration.rs` の migrate テストで固定している。
+`backend/tests/db_migration.rs` の migrate テストで固定している。
 
 ### 本番の最初のデプロイで起きること
 
@@ -109,7 +109,7 @@ cargo run --bin migrate
 - 1つの目的ごとに1本にまとめ、細かく分けすぎない(同じ表への列追加・索引・ポリシーは同じファイルに書く)。
 - 構造の変更(DDL)と、行数の多い静的データ(seed)は別のファイルに分ける。目安は seed が 50 行を超えるとき。
 - `fund_codes` の seed を更新するときは、マーカー(`-- gen:fund-codes-seed begin/end`)付きの新しい migration を作り、`scripts/update_fund_codes_seed.py --migration <そのファイル>` で書く(土台の `0103` は書き換えない)。
-- テスト(`backend/tests/db_integration.rs`)と `scripts/check-migration-baseline.sh` は、版の範囲を
+- テスト(`backend/tests/db_migration.rs`)と `scripts/check-migration-baseline.sh` は、版の範囲を
   `backend/migrations` のファイルとランナーの `BASELINE_LAST_VERSION` から求めるので、ファイルを足しても直す所はない。
   parity のジョブは、足したファイルを本番と同じ形の DB(archive の後ろ)と新しい DB(土台の後ろ)の両方に当てて比べる。
 - 数が増えて読みにくくなったら、下の「土台の作り直し」で畳む。
@@ -204,7 +204,7 @@ PR に理由を書く。
 cd backend && cargo fmt --check
 cd backend && cargo clippy --all-targets -- -D warnings
 cd backend && cargo test
-cd backend && make test-ignored          # Docker の結合テスト(login_rls・db_integration など)
+cd backend && make test-ignored          # Docker の結合テスト(login_rls・db_* など)
 scripts/check-migration-baseline.sh      # 本番と同じ形の DB と新しい DB の一致(Docker の postgres:17)
 ```
 

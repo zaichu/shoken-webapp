@@ -181,11 +181,12 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         .batch_execute(
             "ALTER FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) OWNER TO postgres;
+             ALTER FUNCTION public.auth_lookup_user_id_by_session_v2(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_session_user_by_token_v2(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_last_used_at(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
-             ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;
-             ALTER FUNCTION public.login_notify_peek_by_token(bytea) OWNER TO postgres",
+             ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;",
         )
         .await
         .unwrap();
@@ -1464,6 +1465,8 @@ async fn auth_paths_use_limited_functions() {
         "public.auth_delete_session_by_token(bytea)",
         "public.auth_rotate_session(uuid, bytea, bytea)",
         "public.auth_upsert_user(text, text, text, text)",
+        "public.auth_session_user_by_token_v2(bytea)",
+        "public.auth_lookup_user_id_by_session_v2(bytea)",
         "public.login_notify_peek_v2(bytea)",
         "public.login_notify_consume_v2(bytea)",
     ] {
@@ -1492,22 +1495,19 @@ async fn auth_paths_use_limited_functions() {
         .unwrap();
         assert!(is_definer, "{signature} は DEFINER のはず");
     }
-    // 旧 login_notify_*_by_token は *_v2 への移行済みで EXECUTE を外している
+    // 旧 login_notify_*_by_token は削除済みで存在しない
     for signature in [
         "public.login_notify_peek_by_token(bytea)",
         "public.login_notify_consume_by_token(bytea)",
     ] {
-        let executable = db::query_scalar::<bool>(
-            format!("SELECT has_function_privilege('app_restricted', '{signature}', 'EXECUTE')"),
-            vec![],
+        let exists = db::query_scalar::<bool>(
+            "SELECT to_regprocedure($1) IS NOT NULL",
+            vec![Bind::from(signature)],
         )
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert!(
-            !executable,
-            "{signature} は app_restricted から実行できないはず"
-        );
+        assert!(!exists, "{signature} は存在しないはず");
     }
     for signature in [
         "public.auth_session_user_by_token(bytea)",
@@ -1544,6 +1544,22 @@ async fn auth_paths_use_limited_functions() {
         config.contains(&("search_path=public, pg_temp".to_string(),)),
         "照会関数は search_path を固定するはず"
     );
+    for signature in [
+        "public.auth_session_user_by_token_v2(bytea)",
+        "public.auth_lookup_user_id_by_session_v2(bytea)",
+    ] {
+        let args = db::query_scalar::<String>(
+            "SELECT pg_get_function_arguments($1::regprocedure)",
+            vec![Bind::from(signature)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            args, "p_token_hash bytea",
+            "{signature} は期限の引数を取らないはず"
+        );
+    }
 
     let mut info = GoogleUserInfo {
         sub: "auth-paths-google".into(),
@@ -2077,4 +2093,681 @@ async fn app_roles_cannot_bypass_user_table_rls_without_force() {
     .await
     .unwrap();
     assert_eq!(violations, "");
+}
+
+async fn default_privilege_grant_counts(pool: &Db) -> Vec<(String, i64, i64, i64, i64)> {
+    let mut counts: Vec<(String, i64, i64, i64, i64)> =
+        db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+            .fetch_all::<(String,), _>(pool)
+            .await
+            .expect("app_worker から接続状態を読める")
+            .into_iter()
+            .filter_map(|(line,)| {
+                let rest = line.strip_prefix("default_privilege_grants ")?;
+                let mut role = String::new();
+                let mut table = 0;
+                let mut view = 0;
+                let mut function = 0;
+                let mut sequence = 0;
+                for part in rest.split(' ') {
+                    let (key, value) = part.split_once('=')?;
+                    match key {
+                        "role" => role = value.to_string(),
+                        "table" => table = value.parse().ok()?,
+                        "view" => view = value.parse().ok()?,
+                        "function" => function = value.parse().ok()?,
+                        "sequence" => sequence = value.parse().ok()?,
+                        _ => return None,
+                    }
+                }
+                (!role.is_empty()).then_some((role, table, view, function, sequence))
+            })
+            .collect();
+    counts.sort();
+    counts
+}
+
+fn grant_count(counts: &[(String, i64, i64, i64, i64)], role: &str) -> (i64, i64, i64, i64) {
+    counts
+        .iter()
+        .find(|(name, _, _, _, _)| name == role)
+        .map_or_else(
+            || panic!("{role} の件数行がある"),
+            |(_, table, view, function, sequence)| (*table, *view, *function, *sequence),
+        )
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn default_privilege_grants_counts_roles_present_and_missing() {
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'test'")
+        .await
+        .unwrap();
+    let worker = connect_pool_lazy(
+        &format!("postgres://app_worker:test@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+
+    let missing = default_privilege_grant_counts(&worker).await;
+    assert_eq!(missing.len(), 3);
+    for (role, table, view, function, sequence) in &missing {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "無いロールは 0 件で失敗しない: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;",
+        )
+        .await
+        .unwrap();
+    let baseline = default_privilege_grant_counts(&worker).await;
+    assert_eq!(baseline.len(), 3);
+    for (role, table, view, function, sequence) in &baseline {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "作っただけのロールに直接付けた権限は無い: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "GRANT SELECT ON public.users TO anon;
+             GRANT SELECT ON public.asset_balances_view TO authenticated;
+             GRANT EXECUTE ON FUNCTION public.range_check_violation_counts_v2() TO service_role;
+             GRANT USAGE ON SEQUENCE public.operation_logs_id_seq TO anon;",
+        )
+        .await
+        .unwrap();
+    let granted = default_privilege_grant_counts(&worker).await;
+    assert_eq!(granted.len(), 3);
+    let baseline_anon = grant_count(&baseline, "anon");
+    let baseline_authenticated = grant_count(&baseline, "authenticated");
+    let baseline_service = grant_count(&baseline, "service_role");
+    assert_eq!(
+        grant_count(&granted, "anon"),
+        (
+            baseline_anon.0 + 1,
+            baseline_anon.1,
+            baseline_anon.2,
+            baseline_anon.3 + 1
+        )
+    );
+    assert_eq!(
+        grant_count(&granted, "authenticated"),
+        (
+            baseline_authenticated.0,
+            baseline_authenticated.1 + 1,
+            baseline_authenticated.2,
+            baseline_authenticated.3
+        )
+    );
+    assert_eq!(
+        grant_count(&granted, "service_role"),
+        (
+            baseline_service.0,
+            baseline_service.1,
+            baseline_service.2 + 1,
+            baseline_service.3
+        )
+    );
+
+    admin
+        .batch_execute(
+            "REVOKE ALL ON TABLE public.users FROM anon;
+             REVOKE ALL ON TABLE public.asset_balances_view FROM authenticated;
+             REVOKE ALL ON FUNCTION public.range_check_violation_counts_v2() FROM service_role;
+             REVOKE ALL ON SEQUENCE public.operation_logs_id_seq FROM anon;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    let missing_again = default_privilege_grant_counts(&worker).await;
+    assert_eq!(missing_again.len(), 3);
+    for (role, table, view, function, sequence) in &missing_again {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "消したロールは再び 0 件で失敗しない: {role}"
+        );
+    }
+}
+
+async fn leftover_function_grants(pool: &Db) -> Vec<(String, i64, i64, i64, String, String)> {
+    let mut rows: Vec<(String, i64, i64, i64, String, String)> =
+        db::query(cron_log::DB_ACCESS_STATE_SQL, vec![])
+            .fetch_all::<(String,), _>(pool)
+            .await
+            .expect("app_worker から残った関数の内訳を読める")
+            .into_iter()
+            .filter_map(|(line,)| {
+                let rest = line.strip_prefix("function_leftover_grants ")?;
+                let mut role = String::new();
+                let mut total = 0;
+                let mut ext = 0;
+                let mut own = 0;
+                let mut owners = String::new();
+                let mut names = String::new();
+                for part in rest.split(' ') {
+                    let (key, value) = part.split_once('=')?;
+                    match key {
+                        "role" => role = value.to_string(),
+                        "total" => total = value.parse().ok()?,
+                        "ext" => ext = value.parse().ok()?,
+                        "own" => own = value.parse().ok()?,
+                        "owners" => owners = value.to_string(),
+                        "names" => names = value.to_string(),
+                        _ => return None,
+                    }
+                }
+                (!role.is_empty()).then_some((role, total, ext, own, owners, names))
+            })
+            .collect();
+    rows.sort();
+    rows
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn leftover_function_grants_distinguishes_extension_functions() {
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute("ALTER ROLE app_worker PASSWORD 'test'")
+        .await
+        .unwrap();
+    let worker = connect_pool_lazy(
+        &format!("postgres://app_worker:test@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+             CREATE FUNCTION public.aaa_leftover_probe_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;",
+        )
+        .await
+        .unwrap();
+    let leftover = leftover_function_grants(&worker).await;
+    assert_eq!(leftover.len(), 3);
+    for (role, total, ext, own, owners, names) in &leftover {
+        assert_eq!(
+            *total,
+            ext + own,
+            "全体は拡張とそれ以外に分かれるはず: {role}"
+        );
+        assert!(
+            *ext >= 1,
+            "pgcrypto の関数が拡張として数えられるはず: {role}"
+        );
+        assert!(
+            *own >= 1,
+            "アプリの関数が拡張以外として数えられるはず: {role}"
+        );
+        assert!(
+            owners.contains("postgres:"),
+            "所有者ごとの件数が出るはず: {role} {owners}"
+        );
+        let listed: Vec<&str> = names.split(',').collect();
+        assert!(
+            listed.len() <= 10,
+            "拡張でない関数の名前は最大 10 件のはず: {role} {names}"
+        );
+        assert!(
+            listed.contains(&"aaa_leftover_probe_fn"),
+            "拡張でないアプリの関数名が出るはず: {role} {names}"
+        );
+        assert!(
+            !listed.contains(&"digest") && !listed.contains(&"hmac"),
+            "拡張の関数名は名前の一覧に出ないはず: {role} {names}"
+        );
+    }
+    let counts = default_privilege_grant_counts(&worker).await;
+    for (role, total, _, _, _, _) in &leftover {
+        assert_eq!(
+            grant_count(&counts, role).2,
+            *total,
+            "件数行の関数件数と一致するはず: {role}"
+        );
+    }
+
+    admin
+        .batch_execute(
+            "INSERT INTO pg_catalog.pg_depend
+               (classid, objid, objsubid, refclassid, refobjid, refobjsubid, deptype)
+             SELECT 'pg_catalog.pg_class'::pg_catalog.regclass, p.oid, 0,
+                    'pg_catalog.pg_extension'::pg_catalog.regclass, e.oid, 0, 'e'
+             FROM pg_catalog.pg_proc p, pg_catalog.pg_extension e
+             WHERE p.proname = 'aaa_leftover_probe_fn'
+               AND p.pronamespace = 'public'::pg_catalog.regnamespace
+               AND e.extname = 'pgcrypto';",
+        )
+        .await
+        .unwrap();
+    let planted = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM pg_catalog.pg_depend d
+         WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+           AND d.deptype = 'e'
+           AND d.objid = (SELECT p.oid FROM pg_catalog.pg_proc p
+                          WHERE p.proname = 'aaa_leftover_probe_fn')",
+        vec![],
+    )
+    .fetch_one(&admin)
+    .await
+    .unwrap();
+    assert_eq!(planted, 1, "別カタログで OID が重なる拡張依存を植えたはず");
+    let overlapped = leftover_function_grants(&worker).await;
+    assert_eq!(
+        overlapped, leftover,
+        "別カタログの拡張依存では振り分けが変わらないはず"
+    );
+
+    admin
+        .batch_execute(
+            "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated, service_role;
+             DROP ROLE anon; DROP ROLE authenticated; DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    let missing = leftover_function_grants(&worker).await;
+    assert_eq!(missing.len(), 3);
+    for (role, total, ext, own, owners, names) in &missing {
+        assert_eq!(
+            (*total, *ext, *own),
+            (0, 0, 0),
+            "無いロールは 0 件で失敗しない: {role}"
+        );
+        assert_eq!(
+            (owners.as_str(), names.as_str()),
+            ("-", "-"),
+            "無いロールの内訳は空のはず: {role}"
+        );
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn supabase_roles_revoked_including_future_objects() {
+    async fn has_table_privilege(pool: &Db, role: &str, object: &str, privilege: &str) -> bool {
+        db::query_scalar::<bool>(
+            "SELECT has_table_privilege($1, $2, $3)",
+            vec![Bind::from(role), Bind::from(object), Bind::from(privilege)],
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+    async fn has_function_privilege(pool: &Db, role: &str, signature: &str) -> bool {
+        db::query_scalar::<bool>(
+            "SELECT has_function_privilege($1, $2, 'EXECUTE')",
+            vec![Bind::from(role), Bind::from(signature)],
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+    async fn apply_revoke_migration(pool: &Db) {
+        let tx = pool.begin().await.unwrap();
+        (&tx)
+            .batch_execute(include_str!("../migrations/0125_revoke_supabase_roles.sql"))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+    }
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let super_admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    super_admin
+        .batch_execute(
+            "CREATE ROLE mig LOGIN PASSWORD 'mig' NOSUPERUSER BYPASSRLS CREATEROLE;
+             GRANT CREATE ON DATABASE postgres TO mig;
+             GRANT CREATE ON SCHEMA public TO mig WITH GRANT OPTION;",
+        )
+        .await
+        .unwrap();
+    let admin =
+        connect_pool_lazy(&format!("postgres://mig:mig@127.0.0.1:{port}/postgres"), 1).unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+
+    for (role, object, privilege) in [
+        ("app_restricted", "public.users", "SELECT"),
+        ("app_restricted", "public.users", "INSERT"),
+        ("app_worker", "public.stock", "SELECT"),
+        ("app_worker", "public.fund_codes", "SELECT"),
+    ] {
+        assert!(
+            has_table_privilege(&super_admin, role, object, privilege).await,
+            "{role} の {object} {privilege} は残るはず"
+        );
+    }
+    assert!(
+        has_function_privilege(
+            &super_admin,
+            "app_restricted",
+            "public.fund_name_normalize(text)"
+        )
+        .await,
+        "app_restricted の関数の EXECUTE は残るはず"
+    );
+
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             CREATE TABLE public.supabase_probe_before (id bigint PRIMARY KEY);
+             CREATE VIEW public.supabase_probe_before_v AS SELECT 1 AS id;
+             CREATE SEQUENCE public.supabase_probe_before_seq;
+             CREATE FUNCTION public.supabase_probe_before_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             GRANT CREATE ON SCHEMA public TO app_price_target_executor;
+             ALTER FUNCTION public.supabase_probe_before_fn() OWNER TO app_price_target_executor;",
+        )
+        .await
+        .unwrap();
+    let executor_tx = admin.begin().await.unwrap();
+    (&executor_tx)
+        .batch_execute(
+            "SET ROLE app_price_target_executor;
+             GRANT EXECUTE ON FUNCTION public.supabase_probe_before_fn() TO authenticated;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    executor_tx.commit().await.unwrap();
+    let proacl = db::query_scalar::<String>(
+        "SELECT proacl::text FROM pg_proc WHERE proname = 'supabase_probe_before_fn'",
+        vec![],
+    )
+    .fetch_one(&super_admin)
+    .await
+    .unwrap();
+    assert!(
+        proacl.contains("anon=X/app_price_target_executor"),
+        "所有者を移すと付与者が書き換わる再現のはず: {proacl}"
+    );
+    assert!(
+        has_function_privilege(&super_admin, "anon", "public.supabase_probe_before_fn()").await,
+        "書き換わった付与で anon に EXECUTE が付くはず"
+    );
+    let before = default_privilege_grant_counts(&super_admin).await;
+    assert!(
+        grant_count(&before, "anon").0 >= 1 && grant_count(&before, "anon").1 >= 1,
+        "再現した既定権限で anon に表・ビューが付くはず: {before:?}"
+    );
+    assert!(
+        grant_count(&before, "authenticated").3 >= 1,
+        "再現した既定権限で authenticated にシーケンスが付くはず: {before:?}"
+    );
+    assert!(
+        grant_count(&before, "service_role").2 >= 1,
+        "再現した既定権限で service_role に関数が付くはず: {before:?}"
+    );
+
+    apply_revoke_migration(&admin).await;
+    apply_revoke_migration(&admin).await;
+    let revoked = default_privilege_grant_counts(&super_admin).await;
+    assert_eq!(revoked.len(), 3);
+    for (role, table, view, function, sequence) in &revoked {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "3 ロールの権限は 0 件になるはず: {role}"
+        );
+    }
+    for name in ["supabase_probe_before_fn"] {
+        let proacl = db::query_scalar::<String>(
+            "SELECT proacl::text FROM pg_proc WHERE proname = $1",
+            vec![Bind::from(name)],
+        )
+        .fetch_one(&super_admin)
+        .await
+        .unwrap();
+        for role in ["anon", "authenticated", "service_role"] {
+            assert!(
+                !proacl.contains(&format!("{role}=")),
+                "所有者を移した関数の {role} の直接の EXECUTE も外れるはず: {proacl}"
+            );
+        }
+    }
+
+    admin
+        .batch_execute(
+            "CREATE TABLE public.supabase_probe_after (id bigint PRIMARY KEY);
+             CREATE SEQUENCE public.supabase_probe_after_seq;
+             CREATE FUNCTION public.supabase_probe_after_fn() RETURNS bigint LANGUAGE sql RETURN 1;",
+        )
+        .await
+        .unwrap();
+    let executor_after = admin.begin().await.unwrap();
+    (&executor_after)
+        .batch_execute(
+            "SET ROLE app_price_target_executor;
+             CREATE FUNCTION public.supabase_probe_after_exec_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    executor_after.commit().await.unwrap();
+    let after_new = default_privilege_grant_counts(&super_admin).await;
+    for (role, table, view, function, sequence) in &after_new {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "新しく作った表・関数に付かないはず: {role}"
+        );
+    }
+    for name in ["supabase_probe_after_fn", "supabase_probe_after_exec_fn"] {
+        let proacl = db::query_scalar::<String>(
+            "SELECT COALESCE(proacl::text, '') FROM pg_proc WHERE proname = $1",
+            vec![Bind::from(name)],
+        )
+        .fetch_one(&super_admin)
+        .await
+        .unwrap();
+        for role in ["anon", "authenticated", "service_role"] {
+            assert!(
+                !proacl.contains(&format!("{role}=")),
+                "新しく作った関数の {role} の直接の EXECUTE は付かないはず: {proacl}"
+            );
+        }
+    }
+    for (role, object) in [
+        ("anon", "public.supabase_probe_after"),
+        ("authenticated", "public.supabase_probe_after"),
+        ("service_role", "public.supabase_probe_after"),
+    ] {
+        assert!(
+            !has_table_privilege(&super_admin, role, object, "SELECT").await,
+            "{role} の {object} SELECT は付かないはず"
+        );
+    }
+    for (role, object, privilege) in [
+        ("app_restricted", "public.users", "SELECT"),
+        ("app_worker", "public.stock", "SELECT"),
+    ] {
+        assert!(
+            has_table_privilege(&super_admin, role, object, privilege).await,
+            "{role} の {object} {privilege} は残るはず"
+        );
+    }
+
+    super_admin
+        .batch_execute(
+            "CREATE ROLE extowner NOLOGIN;
+             GRANT CREATE ON SCHEMA public TO extowner;",
+        )
+        .await
+        .unwrap();
+    let ext_tx = super_admin.begin().await.unwrap();
+    (&ext_tx)
+        .batch_execute(
+            "SET ROLE extowner;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             CREATE FUNCTION public.supabase_probe_ext_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    ext_tx.commit().await.unwrap();
+    apply_revoke_migration(&admin).await;
+    let with_ext = default_privilege_grant_counts(&super_admin).await;
+    for (role, table, view, function, sequence) in &with_ext {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 1, 0),
+            "扱えない所有者の分は止めずに残るはず: {role}"
+        );
+    }
+
+    super_admin
+        .batch_execute(
+            "DROP FUNCTION public.supabase_probe_ext_fn();
+             DROP OWNED BY extowner;
+             DROP ROLE extowner;
+             DROP FUNCTION public.supabase_probe_before_fn();
+             DROP FUNCTION public.supabase_probe_after_fn();
+             DROP FUNCTION public.supabase_probe_after_exec_fn();
+             DROP VIEW public.supabase_probe_before_v;
+             DROP TABLE public.supabase_probe_before;
+             DROP TABLE public.supabase_probe_after;
+             DROP SEQUENCE public.supabase_probe_before_seq;
+             DROP SEQUENCE public.supabase_probe_after_seq;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    apply_revoke_migration(&admin).await;
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres 17 container"]
+async fn supabase_roles_revoked_as_superuser_including_unhandled_owner() {
+    async fn apply_revoke_migration(pool: &Db) {
+        let tx = pool.begin().await.unwrap();
+        (&tx)
+            .batch_execute(include_str!("../migrations/0125_revoke_supabase_roles.sql"))
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+    }
+    let node = Postgres::default()
+        .with_tag("17-alpine")
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let admin = connect_pool_lazy(
+        &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+        1,
+    )
+    .unwrap();
+    run_migrations(&admin)
+        .await
+        .expect("Postgres 17 に migration を適用");
+    admin
+        .batch_execute(
+            "CREATE ROLE anon NOLOGIN;
+             CREATE ROLE authenticated NOLOGIN;
+             CREATE ROLE service_role NOLOGIN;
+             CREATE ROLE extowner2 NOLOGIN;
+             GRANT CREATE ON SCHEMA public TO extowner2;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon, authenticated, service_role;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             CREATE TABLE public.supabase_probe_super (id bigint PRIMARY KEY);
+             CREATE FUNCTION public.supabase_probe_super_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             ALTER FUNCTION public.supabase_probe_super_fn() OWNER TO app_price_target_executor;",
+        )
+        .await
+        .unwrap();
+    let ext_tx = admin.begin().await.unwrap();
+    (&ext_tx)
+        .batch_execute(
+            "SET ROLE extowner2;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO authenticated;
+             CREATE FUNCTION public.supabase_probe_ext2_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    ext_tx.commit().await.unwrap();
+    apply_revoke_migration(&admin).await;
+    let revoked = default_privilege_grant_counts(&admin).await;
+    assert_eq!(revoked.len(), 3);
+    for (role, table, view, function, sequence) in &revoked {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 0, 0),
+            "superuser の移行では扱えない所有者の分も 0 件になるはず: {role}"
+        );
+    }
+    admin
+        .batch_execute(
+            "DROP FUNCTION public.supabase_probe_super_fn();
+             DROP FUNCTION public.supabase_probe_ext2_fn();
+             DROP TABLE public.supabase_probe_super;
+             DROP OWNED BY extowner2;
+             DROP ROLE extowner2;
+             DROP ROLE anon;
+             DROP ROLE authenticated;
+             DROP ROLE service_role;",
+        )
+        .await
+        .unwrap();
+    apply_revoke_migration(&admin).await;
 }
