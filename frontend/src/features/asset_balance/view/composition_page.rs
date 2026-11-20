@@ -16,7 +16,6 @@ use crate::features::dividend_per_share::DividendMaps;
 use crate::session;
 use crate::ui::amount::Amount;
 use crate::ui::asset_balance::{AssetPageEmpty, AssetPageError, CompositionFrame};
-use crate::ui::badge::AccountLegend;
 use crate::ui::button::TabButton;
 use crate::ui::format;
 use crate::ui::labels;
@@ -452,8 +451,6 @@ fn CompositionContent(
                                     })
                                     .collect_view()}
                             </ul>
-                            {matches!(current_group, CompositionGroup::Account)
-                                .then(|| view! { <AccountLegend /> })}
                         }
                             .into_any()
                     }}

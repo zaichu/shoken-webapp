@@ -216,7 +216,6 @@ fn AccountFundBar(accounts: Vec<CompositionSlice>) -> impl IntoView {
             <HomeCompositionNote>{labels::HOME_ACCOUNT_FUND_LABEL}</HomeCompositionNote>
             <HomeStackedBar secondary=true>{bars}</HomeStackedBar>
             <HomeCompositionRows>{rows}</HomeCompositionRows>
-            <HomeCompositionNote>{labels::ACCOUNT_LEGEND}</HomeCompositionNote>
         </HomeCompositionAccounts>
     }
 }

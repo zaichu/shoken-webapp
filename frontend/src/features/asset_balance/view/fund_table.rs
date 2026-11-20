@@ -5,7 +5,7 @@ use crate::features::asset_balance::fund::{FundSortKey, FundView};
 use crate::features::asset_balance::portfolio::SortOrder;
 use crate::ui::amount::{Amount, AmountKind};
 use crate::ui::asset_balance::{AssetMarker, AssetRateAmount};
-use crate::ui::badge::{AccountBadge, AccountLegend};
+use crate::ui::badge::AccountBadge;
 use crate::ui::detail_dialog::{DetailCell, DetailDialog};
 use crate::ui::format;
 use crate::ui::labels;
@@ -137,7 +137,6 @@ pub fn FundHoldingsTable(
                         .collect_view()}
                 </tbody>
             </table>
-            <AccountLegend />
         </div>
     }
 }

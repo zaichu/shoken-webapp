@@ -403,8 +403,6 @@ fn account_notes_cover_all_badges() {
     assert!(account_note(ACCOUNT_OLD_NISA).contains("旧NISA"));
     assert!(account_note(ACCOUNT_NISA_GROWTH).contains("NISA成長"));
     assert!(account_note(ACCOUNT_NISA_TSUMITATE).contains("NISAつみたて"));
-    assert!(ACCOUNT_LEGEND.contains("特定・一般"));
-    assert!(ACCOUNT_LEGEND.contains("合算"));
 }
 
 #[test]
