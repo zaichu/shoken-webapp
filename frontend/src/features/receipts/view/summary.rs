@@ -162,10 +162,7 @@ pub fn SummaryStrip(
     let breakdown: Vec<SummaryBreakdownEntry> = secondary.into_iter().map(to_breakdown).collect();
     let (primary_label, primary_value, primary_negative, primary_positive) = primary
         .map_or_default(|(label, value, _)| {
-            let display = match tab {
-                ReceiptsTab::Dividend => labels::RECEIVED_DIVIDEND_AFTER_TAX,
-                _ => labels::REALIZED_AFTER_TAX,
-            };
+            let display = tab.summary_primary_label();
             let _ = label;
             let (negative, positive) = value_signs(value);
             (

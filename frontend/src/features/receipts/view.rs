@@ -20,8 +20,6 @@ use crate::ui::page_skeleton::SkeletonTabs;
 use crate::ui::underline_tabs::{SwipeArea, SwipeMotion};
 use leptos::prelude::*;
 
-pub(crate) const TAB_IDS: [&str; 3] = ["dividend", "domesticstock", "mutualfund"];
-
 #[component]
 pub fn ReceiptsPage() -> impl IntoView {
     let store = receipts::use_receipts_data(

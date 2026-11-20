@@ -9,6 +9,7 @@ use rust_decimal::Decimal;
 // `¥`・`/`・漢字を含む本文の幅は font-size に対して安定するため
 pub(super) struct ReceiptKind {
     pub(super) label: &'static str,
+    pub(super) slug: &'static str,
     pub(super) list_path: &'static str,
     pub(super) preview_path: &'static str,
     pub(super) import_path: &'static str,
@@ -16,6 +17,16 @@ pub(super) struct ReceiptKind {
     // ヘッダー集計の項目。(ラベル, 損益系なら負数で赤文字にするか)
     pub(super) header_items: [(&'static str, bool); 3],
     pub(super) empty_hint: &'static str,
+    // 一覧の日付見出しと約定金額の見出し。配当は金額を持たない
+    pub(super) date_label: &'static str,
+    pub(super) amount_label: Option<&'static str>,
+    // 月見出しの右に出す主役の見出しと帯の主見出し
+    pub(super) headline_label: &'static str,
+    pub(super) summary_primary_label: &'static str,
+    // 狭い表で残す列の見出し。columns の部分集合にする
+    pub(super) compact_headers: &'static [&'static str],
+    // CSV の見出し自動検出。配当だけ表題行つき形式に対応する
+    pub(super) csv_header_marker: Option<&'static str>,
     pub(super) string_fields: &'static [fn(&ReceiptRow) -> &str],
     pub(super) search_amounts: &'static [fn(&ReceiptRow) -> Decimal],
     pub(super) product_category: bool,
@@ -50,6 +61,7 @@ const fn card_col(
 pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
     ReceiptKind {
         label: labels::DIVIDEND_AMOUNT,
+        slug: "dividend",
         list_path: "/api/v1/dividends",
         preview_path: "/api/v1/dividend-import-validations",
         import_path: "/api/v1/dividend-imports",
@@ -99,6 +111,21 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (labels::AFTER_TAX, true),
         ],
         empty_hint: labels::RECEIPT_DIVIDEND_EMPTY_HINT,
+        date_label: labels::PAYMENT_DATE,
+        amount_label: None,
+        headline_label: labels::DIVIDEND_AMOUNT,
+        summary_primary_label: labels::RECEIVED_DIVIDEND_AFTER_TAX,
+        compact_headers: &[
+            labels::PAYMENT_DATE,
+            labels::SECURITY_CODE,
+            labels::SECURITY_NAME,
+            labels::ACCOUNT,
+            labels::QUANTITY,
+            labels::DIVIDEND_AMOUNT,
+            labels::TAX,
+            labels::AFTER_TAX,
+        ],
+        csv_header_marker: Some(labels::PAYMENT_DATE),
         string_fields: &[
             ReceiptRow::code,
             ReceiptRow::name,
@@ -128,6 +155,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
     },
     ReceiptKind {
         label: labels::DOMESTIC_STOCK,
+        slug: "domesticstock",
         list_path: "/api/v1/domestic-stock-transactions",
         preview_path: "/api/v1/domestic-stock-import-validations",
         import_path: "/api/v1/domestic-stock-imports",
@@ -186,6 +214,23 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (labels::AFTER_TAX, true),
         ],
         empty_hint: labels::RECEIPT_STOCK_EMPTY_HINT,
+        date_label: labels::TRADE_DATE,
+        amount_label: Some(labels::SELLING_AMOUNT),
+        headline_label: labels::REALIZED_PROFIT_LOSS,
+        summary_primary_label: labels::REALIZED_AFTER_TAX,
+        compact_headers: &[
+            labels::TRADE_DATE,
+            labels::SECURITY_CODE,
+            labels::SECURITY_NAME,
+            labels::ACCOUNT,
+            labels::QUANTITY,
+            labels::SELLING_AMOUNT,
+            labels::ACQUISITION_PRICE,
+            labels::REALIZED_PROFIT_LOSS,
+            labels::TAX,
+            labels::AFTER_TAX,
+        ],
+        csv_header_marker: None,
         string_fields: &[ReceiptRow::code, ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[
             |row| row.search_amount(0),
@@ -204,6 +249,7 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
     },
     ReceiptKind {
         label: labels::MUTUAL_FUND,
+        slug: "mutualfund",
         list_path: "/api/v1/mutual-fund-transactions",
         preview_path: "/api/v1/mutual-fund-import-validations",
         import_path: "/api/v1/mutual-fund-imports",
@@ -256,6 +302,22 @@ pub(super) const RECEIPT_KINDS: [ReceiptKind; 3] = [
             (labels::AFTER_TAX, true),
         ],
         empty_hint: labels::RECEIPT_FUND_EMPTY_HINT,
+        date_label: labels::TRADE_DATE,
+        amount_label: Some(labels::REDEMPTION_AMOUNT),
+        headline_label: labels::REALIZED_PROFIT_LOSS,
+        summary_primary_label: labels::REALIZED_AFTER_TAX,
+        compact_headers: &[
+            labels::TRADE_DATE,
+            labels::FUND_NAME,
+            labels::ACCOUNT,
+            labels::QUANTITY,
+            labels::REDEMPTION_AMOUNT,
+            labels::ACQUISITION_PRICE,
+            labels::REALIZED_PROFIT_LOSS,
+            labels::TAX,
+            labels::AFTER_TAX,
+        ],
+        csv_header_marker: None,
         string_fields: &[ReceiptRow::name, ReceiptRow::account],
         search_amounts: &[],
         product_category: false,

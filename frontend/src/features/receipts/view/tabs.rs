@@ -1,4 +1,3 @@
-use super::TAB_IDS;
 use crate::features::receipts::view::ReceiptsMainContent;
 use crate::features::receipts::{ReceiptsStore, ReceiptsTab};
 use crate::ui::button::TabButton;
@@ -9,11 +8,14 @@ use crate::ui::underline_tabs::SwipeMotion;
 use leptos::prelude::*;
 
 pub fn next_tab_index(current: usize, key: &str) -> Option<usize> {
-    underline_tabs::next_tab_index(TAB_IDS.len(), current, key)
+    underline_tabs::next_tab_index(ReceiptsTab::ALL.len(), current, key)
 }
 
 fn focus_tab(index: usize, suffix: &str) {
-    underline_tabs::focus_tab_by_id_after_paint(format!("tab-{}{}", TAB_IDS[index], suffix));
+    let Some(tab) = ReceiptsTab::ALL.get(index) else {
+        return;
+    };
+    underline_tabs::focus_tab_by_id_after_paint(format!("tab-{}{}", tab.slug(), suffix));
 }
 
 #[component]
@@ -23,7 +25,7 @@ pub fn ReceiptsTabButton(
     motion: SwipeMotion,
     #[prop(optional)] suffix: Option<&'static str>,
 ) -> impl IntoView {
-    let slug = TAB_IDS[tab as usize];
+    let slug = tab.slug();
     let suffix = suffix.unwrap_or("");
     let id = format!("tab-{slug}{suffix}");
     let label = tab.label();
@@ -128,7 +130,7 @@ pub fn TabPanel(
     #[prop(optional)] loading: bool,
     motion: SwipeMotion,
 ) -> impl IntoView {
-    let slug = TAB_IDS[tab as usize];
+    let slug = tab.slug();
     let index = ReceiptsTab::ALL
         .iter()
         .position(|item| *item == tab)
