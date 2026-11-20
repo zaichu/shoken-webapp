@@ -5,9 +5,8 @@ use crate::models::csv_import::CsvRowError;
 use crate::models::domestic_stock::{
     CreateDomesticStockRequest, DomesticStock, DomesticStockSearchQueryParams, DomesticStockSummary,
 };
-use crate::services::csv::import;
-use crate::services::csv::import::CsvImport;
-use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+use crate::services::csv::pipeline;
+use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
 use crate::services::csv::util;
 use crate::services::csv::util::{CsvRowView, RowNumber};
 use crate::services::domain::bulk;
@@ -61,7 +60,7 @@ impl CsvImport for DomesticStockDomain {
     };
 
     fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-        import::validate_csv_rows(table, transform_domestic_stock_row)
+        pipeline::validate_csv_rows(table, transform_domestic_stock_row)
     }
 
     async fn bulk_create(
@@ -270,7 +269,7 @@ fn transform_domestic_stock_row(
 mod tests {
     use super::*;
     use crate::models::csv_import::CsvPreviewResponse;
-    use crate::services::csv::import::CsvImport;
+    use crate::services::csv::pipeline::CsvImport;
     use crate::services::domain::search;
     use rust_decimal_macros::dec;
     use time::Date;

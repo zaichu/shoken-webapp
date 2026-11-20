@@ -3,7 +3,7 @@ use crate::errors::{ApiError, CsvError};
 use crate::handlers::common;
 use crate::models::common::MessageResponse;
 use crate::models::csv_import::CsvUploadResponse;
-use crate::services::csv::import::CsvImport;
+use crate::services::csv::pipeline::CsvImport;
 use crate::services::domain::Domain;
 use crate::services::domain::bulk::{self, RowLimit};
 use axum::{Json, extract::Multipart, http::StatusCode, response::IntoResponse};
@@ -68,8 +68,8 @@ mod tests {
     use crate::errors::ErrorResponse;
     use crate::models::common::BulkCreateResponse;
     use crate::models::csv_import::CsvRowError;
-    use crate::services::csv::import;
-    use crate::services::csv::pipeline::{CsvParserConfig, CsvTable};
+    use crate::services::csv::pipeline;
+    use crate::services::csv::pipeline::{CsvImport, CsvParserConfig, CsvTable};
     use axum::{
         Router,
         body::{Body, to_bytes},
@@ -101,7 +101,7 @@ mod tests {
         };
 
         fn transform_rows(table: &CsvTable) -> (Vec<Self::Row>, Vec<CsvRowError>) {
-            import::validate_csv_rows(table, |row, row_num| {
+            pipeline::validate_csv_rows(table, |row, row_num| {
                 let value = row.cell("a");
                 if value.is_empty() {
                     Err(CsvRowError {
