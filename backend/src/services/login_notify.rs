@@ -1,5 +1,6 @@
 pub use super::encoding::base64_encode;
 use crate::db::{Bind, Db, DbError};
+use crate::errors::ApiError;
 use crate::models::user::User;
 use crate::services::login_event::{ClientInfo, LoginOutcome};
 #[cfg(any(target_arch = "wasm32", test))]
@@ -181,6 +182,18 @@ pub async fn consume_token(pool: &Db, plaintext: &str) -> Result<Option<UserId>,
     .await?;
     tx.commit().await?;
     Ok(user_id)
+}
+
+pub async fn prune_old_tokens_and_views(pool: &Db) -> Result<u64, ApiError> {
+    let mut tx = pool.begin().await?;
+    let deleted = crate::db::query_scalar::<i64>(
+        "SELECT public.prune_login_notify_tokens_and_admin_views_v2()",
+        vec![],
+    )
+    .fetch_one(&mut tx)
+    .await?;
+    tx.commit().await?;
+    u64::try_from(deleted).map_err(|_| ApiError::Internal("通知・閲覧記録の削除件数が不正です"))
 }
 
 #[allow(async_fn_in_trait)]
@@ -626,5 +639,84 @@ mod tests {
             .is_err(),
             "送信の失敗はタイムアウト待ちに隠されずに返ること"
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn old_tokens_and_views_are_pruned_and_recent_rows_remain() {
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = crate::db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('prune-test', 'prune-test@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        crate::db::query(
+            "INSERT INTO login_notify_tokens (user_id, token_hash, created_at, expires_at, used_at)
+              VALUES ($1, $2, NOW() - INTERVAL '91 days', NOW() - INTERVAL '90 days', NOW() - INTERVAL '90 days'),
+                     ($1, $3, NOW() - INTERVAL '91 days', NOW() - INTERVAL '90 days', NULL),
+                     ($1, $4, NOW(), NOW() + INTERVAL '1 day', NOW()),
+                     ($1, $5, NOW(), NOW() + INTERVAL '1 day', NULL)",
+            vec![
+                Bind::from(user_id),
+                Bind::Bytes(vec![1; 32]),
+                Bind::Bytes(vec![2; 32]),
+                Bind::Bytes(vec![3; 32]),
+                Bind::Bytes(vec![4; 32]),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        crate::db::query(
+            "INSERT INTO admin_login_views (user_id, occurred_at)
+              VALUES ($1, NOW() - INTERVAL '366 days'), ($1, NOW())",
+            vec![Bind::from(user_id)],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert_eq!(prune_old_tokens_and_views(&pool).await.unwrap(), 3);
+        let remaining_tokens: i64 = crate::db::query_scalar(
+            "SELECT COUNT(*) FROM login_notify_tokens WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(remaining_tokens, 2);
+        let remaining_views: i64 = crate::db::query_scalar(
+            "SELECT COUNT(*) FROM admin_login_views WHERE user_id = $1",
+            vec![Bind::from(user_id)],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(remaining_views, 1);
+        let restricted: bool = crate::db::query_scalar(
+            "SELECT has_function_privilege('app_restricted', 'public.prune_login_notify_tokens_and_admin_views_v2()', 'EXECUTE')",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!restricted);
+        let worker: bool = crate::db::query_scalar(
+            "SELECT has_function_privilege('app_worker', 'public.prune_login_notify_tokens_and_admin_views_v2()', 'EXECUTE')",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(worker);
+        let is_definer: bool = crate::db::query_scalar(
+            "SELECT prosecdef FROM pg_proc WHERE oid = 'public.prune_login_notify_tokens_and_admin_views_v2()'::regprocedure",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(is_definer);
     }
 }

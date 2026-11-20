@@ -321,6 +321,16 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     }
     {
         let timer = CronTimer::start();
+        let outcome = prune_login_notify_views(&state).await;
+        ran |= log_cron_outcome(
+            CronStep::LoginNotifyViews,
+            "通知トークン・閲覧記録削除",
+            outcome,
+            timer.elapsed_ms(),
+        );
+    }
+    {
+        let timer = CronTimer::start();
         let outcome = crate::services::operation_log::prune(&state.pool)
             .await
             .map(|count| Some(usize::try_from(count).unwrap_or(usize::MAX)))
@@ -393,6 +403,13 @@ async fn drain_dividend_cache(state: &AppState) -> Result<Option<usize>> {
 
 async fn prune_login_events(state: &AppState) -> Result<Option<usize>> {
     login_event::prune_login_events(&state.pool)
+        .await
+        .map(|deleted| (deleted > 0).then(|| usize::try_from(deleted).unwrap_or(usize::MAX)))
+        .map_err(|e| Error::RustError(e.to_string()))
+}
+
+async fn prune_login_notify_views(state: &AppState) -> Result<Option<usize>> {
+    crate::services::login_notify::prune_old_tokens_and_views(&state.pool)
         .await
         .map(|deleted| (deleted > 0).then(|| usize::try_from(deleted).unwrap_or(usize::MAX)))
         .map_err(|e| Error::RustError(e.to_string()))

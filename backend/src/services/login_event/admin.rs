@@ -435,6 +435,46 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn search_data_limit_is_clamped_to_200_in_database() {
+        use crate::models::common::PaginationParams;
+        let (pool, _node) = crate::test_db::start_test_pool().await;
+        let user_id: UserId = db::query_scalar(
+            "INSERT INTO users (google_id, email) VALUES ('admin-limit', 'admin-limit@example.com') RETURNING id",
+            vec![],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        db::query(
+            "INSERT INTO login_events (user_id, result, device_hash)
+             SELECT $1, 'success', $2 FROM generate_series(1, 250)",
+            vec![Bind::from(user_id), Bind::Bytes(vec![7; 32])],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let response = search(
+            &pool,
+            AdminLoginQuery {
+                search: SearchQueryParams {
+                    pagination: PaginationParams {
+                        page: Some(1),
+                        per_page: Some(1000),
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.total, 250);
+        assert_eq!(response.data.len(), 200);
+        assert_eq!((response.page, response.per_page), (1, 1000));
+    }
+
+    #[tokio::test]
     async fn search_rejects_invalid_sort_and_overflow_before_database() {
         let pool = db::connect_pool_lazy("postgres://user:password@localhost/test_db", 1).unwrap();
         pool.close().await;
