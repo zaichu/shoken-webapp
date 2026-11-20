@@ -239,6 +239,10 @@ fn log_cron_outcome(
     }
 }
 
+fn merge_cron_outcome(ran: bool, outcome_ran: bool) -> bool {
+    ran || outcome_ran
+}
+
 // 同じ分の cron は1回にまとまって届くため振り分けない
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
@@ -325,11 +329,14 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             .await
             .map(|count| Some(usize::try_from(count).unwrap_or(usize::MAX)))
             .map_err(|e| Error::RustError(e.to_string()));
-        ran |= log_cron_outcome(
-            CronStep::OperationLogs,
-            "操作記録削除",
-            outcome,
-            timer.elapsed_ms(),
+        ran = merge_cron_outcome(
+            ran,
+            log_cron_outcome(
+                CronStep::OperationLogs,
+                "操作記録削除",
+                outcome,
+                timer.elapsed_ms(),
+            ),
         );
     }
     if !ran {
@@ -396,4 +403,17 @@ async fn prune_login_events(state: &AppState) -> Result<Option<usize>> {
         .await
         .map(|deleted| (deleted > 0).then(|| usize::try_from(deleted).unwrap_or(usize::MAX)))
         .map_err(|e| Error::RustError(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_cron_outcome;
+
+    #[test]
+    fn cron_outcomes_remain_ran_after_success_or_failure() {
+        assert!(merge_cron_outcome(false, true));
+        assert!(merge_cron_outcome(true, false));
+        assert!(merge_cron_outcome(true, true));
+        assert!(!merge_cron_outcome(false, false));
+    }
 }

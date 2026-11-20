@@ -35,6 +35,12 @@ exclude_re = [
     "backend/src/services/auth\\.rs.*rotate_session_in_tx",
     "backend/src/services/auth\\.rs.*delete_session",
     "backend/src/services/auth\\.rs.*delete_account",
+    # 操作記録・セッション削除・端末解除はDB Tx境界。
+    # 振る舞いはDocker統合テスト(db_integration)で検証する。
+    "backend/src/services/auth\\.rs.*delete_all_sessions",
+    "backend/src/services/auth\\.rs.*delete_device_sessions",
+    "backend/src/services/operation_log\\.rs.*list",
+    "backend/src/services/login_event/devices\\.rs.*revoke_device",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
     # 振る舞いは tests/db_integration.rs の service_coverage_all_domains /
     # search_facets_group_by_domain_fields で検証済み。
