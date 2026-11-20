@@ -2269,10 +2269,19 @@ async fn supabase_roles_revoked_including_future_objects() {
         .await
         .unwrap()
     }
+    async fn has_function_privilege(pool: &Db, role: &str, signature: &str) -> bool {
+        db::query_scalar::<bool>(
+            "SELECT has_function_privilege($1, $2, 'EXECUTE')",
+            vec![Bind::from(role), Bind::from(signature)],
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
     async fn apply_revoke_migration(pool: &Db) {
         let tx = pool.begin().await.unwrap();
         (&tx)
-            .batch_execute(include_str!("../migrations/0123_revoke_supabase_roles.sql"))
+            .batch_execute(include_str!("../migrations/0125_revoke_supabase_roles.sql"))
             .await
             .unwrap();
         tx.commit().await.unwrap();
@@ -2283,11 +2292,21 @@ async fn supabase_roles_revoked_including_future_objects() {
         .await
         .unwrap();
     let port = node.get_host_port_ipv4(5432).await.unwrap();
-    let admin = connect_pool_lazy(
+    let super_admin = connect_pool_lazy(
         &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
         1,
     )
     .unwrap();
+    super_admin
+        .batch_execute(
+            "CREATE ROLE mig LOGIN PASSWORD 'mig' NOSUPERUSER BYPASSRLS CREATEROLE;
+             GRANT CREATE ON DATABASE postgres TO mig;
+             GRANT CREATE ON SCHEMA public TO mig WITH GRANT OPTION;",
+        )
+        .await
+        .unwrap();
+    let admin =
+        connect_pool_lazy(&format!("postgres://mig:mig@127.0.0.1:{port}/postgres"), 1).unwrap();
     run_migrations(&admin)
         .await
         .expect("Postgres 17 に migration を適用");
@@ -2299,18 +2318,19 @@ async fn supabase_roles_revoked_including_future_objects() {
         ("app_worker", "public.fund_codes", "SELECT"),
     ] {
         assert!(
-            has_table_privilege(&admin, role, object, privilege).await,
+            has_table_privilege(&super_admin, role, object, privilege).await,
             "{role} の {object} {privilege} は残るはず"
         );
     }
-    let executable = db::query_scalar::<bool>(
-        "SELECT has_function_privilege('app_restricted', 'public.fund_name_normalize(text)', 'EXECUTE')",
-        vec![],
-    )
-    .fetch_one(&admin)
-    .await
-    .unwrap();
-    assert!(executable, "app_restricted の関数の EXECUTE は残るはず");
+    assert!(
+        has_function_privilege(
+            &super_admin,
+            "app_restricted",
+            "public.fund_name_normalize(text)"
+        )
+        .await,
+        "app_restricted の関数の EXECUTE は残るはず"
+    );
 
     admin
         .batch_execute(
@@ -2320,19 +2340,44 @@ async fn supabase_roles_revoked_including_future_objects() {
              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon, authenticated, service_role;
              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
-             GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
-             GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-             GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
              CREATE TABLE public.supabase_probe_before (id bigint PRIMARY KEY);
+             CREATE VIEW public.supabase_probe_before_v AS SELECT 1 AS id;
              CREATE SEQUENCE public.supabase_probe_before_seq;
-             CREATE FUNCTION public.supabase_probe_before_fn() RETURNS bigint LANGUAGE sql RETURN 1;",
+             CREATE FUNCTION public.supabase_probe_before_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             GRANT CREATE ON SCHEMA public TO app_price_target_executor;
+             ALTER FUNCTION public.supabase_probe_before_fn() OWNER TO app_price_target_executor;",
         )
         .await
         .unwrap();
-    let before = default_privilege_grant_counts(&admin).await;
+    let executor_tx = admin.begin().await.unwrap();
+    (&executor_tx)
+        .batch_execute(
+            "SET ROLE app_price_target_executor;
+             GRANT EXECUTE ON FUNCTION public.supabase_probe_before_fn() TO authenticated;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    executor_tx.commit().await.unwrap();
+    let proacl = db::query_scalar::<String>(
+        "SELECT proacl::text FROM pg_proc WHERE proname = 'supabase_probe_before_fn'",
+        vec![],
+    )
+    .fetch_one(&super_admin)
+    .await
+    .unwrap();
     assert!(
-        grant_count(&before, "anon").0 >= 1,
-        "再現した既定権限で anon に表が付くはず: {before:?}"
+        proacl.contains("anon=X/app_price_target_executor"),
+        "所有者を移すと付与者が書き換わる再現のはず: {proacl}"
+    );
+    assert!(
+        has_function_privilege(&super_admin, "anon", "public.supabase_probe_before_fn()").await,
+        "書き換わった付与で anon に EXECUTE が付くはず"
+    );
+    let before = default_privilege_grant_counts(&super_admin).await;
+    assert!(
+        grant_count(&before, "anon").0 >= 1 && grant_count(&before, "anon").1 >= 1,
+        "再現した既定権限で anon に表・ビューが付くはず: {before:?}"
     );
     assert!(
         grant_count(&before, "authenticated").3 >= 1,
@@ -2345,7 +2390,7 @@ async fn supabase_roles_revoked_including_future_objects() {
 
     apply_revoke_migration(&admin).await;
     apply_revoke_migration(&admin).await;
-    let revoked = default_privilege_grant_counts(&admin).await;
+    let revoked = default_privilege_grant_counts(&super_admin).await;
     assert_eq!(revoked.len(), 3);
     for (role, table, view, function, sequence) in &revoked {
         assert_eq!(
@@ -2353,6 +2398,21 @@ async fn supabase_roles_revoked_including_future_objects() {
             (0, 0, 0, 0),
             "3 ロールの権限は 0 件になるはず: {role}"
         );
+    }
+    for name in ["supabase_probe_before_fn"] {
+        let proacl = db::query_scalar::<String>(
+            "SELECT proacl::text FROM pg_proc WHERE proname = $1",
+            vec![Bind::from(name)],
+        )
+        .fetch_one(&super_admin)
+        .await
+        .unwrap();
+        for role in ["anon", "authenticated", "service_role"] {
+            assert!(
+                !proacl.contains(&format!("{role}=")),
+                "所有者を移した関数の {role} の直接の EXECUTE も外れるはず: {proacl}"
+            );
+        }
     }
 
     admin
@@ -2363,7 +2423,17 @@ async fn supabase_roles_revoked_including_future_objects() {
         )
         .await
         .unwrap();
-    let after_new = default_privilege_grant_counts(&admin).await;
+    let executor_after = admin.begin().await.unwrap();
+    (&executor_after)
+        .batch_execute(
+            "SET ROLE app_price_target_executor;
+             CREATE FUNCTION public.supabase_probe_after_exec_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    executor_after.commit().await.unwrap();
+    let after_new = default_privilege_grant_counts(&super_admin).await;
     for (role, table, view, function, sequence) in &after_new {
         assert_eq!(
             (*table, *view, *function, *sequence),
@@ -2371,13 +2441,28 @@ async fn supabase_roles_revoked_including_future_objects() {
             "新しく作った表・関数に付かないはず: {role}"
         );
     }
+    for name in ["supabase_probe_after_fn", "supabase_probe_after_exec_fn"] {
+        let proacl = db::query_scalar::<String>(
+            "SELECT COALESCE(proacl::text, '') FROM pg_proc WHERE proname = $1",
+            vec![Bind::from(name)],
+        )
+        .fetch_one(&super_admin)
+        .await
+        .unwrap();
+        for role in ["anon", "authenticated", "service_role"] {
+            assert!(
+                !proacl.contains(&format!("{role}=")),
+                "新しく作った関数の {role} の直接の EXECUTE は付かないはず: {proacl}"
+            );
+        }
+    }
     for (role, object) in [
         ("anon", "public.supabase_probe_after"),
         ("authenticated", "public.supabase_probe_after"),
         ("service_role", "public.supabase_probe_after"),
     ] {
         assert!(
-            !has_table_privilege(&admin, role, object, "SELECT").await,
+            !has_table_privilege(&super_admin, role, object, "SELECT").await,
             "{role} の {object} SELECT は付かないはず"
         );
     }
@@ -2386,15 +2471,17 @@ async fn supabase_roles_revoked_including_future_objects() {
         ("app_worker", "public.stock", "SELECT"),
     ] {
         assert!(
-            has_table_privilege(&admin, role, object, privilege).await,
+            has_table_privilege(&super_admin, role, object, privilege).await,
             "{role} の {object} {privilege} は残るはず"
         );
     }
 
-    admin
+    super_admin
         .batch_execute(
             "DROP FUNCTION public.supabase_probe_before_fn();
              DROP FUNCTION public.supabase_probe_after_fn();
+             DROP FUNCTION public.supabase_probe_after_exec_fn();
+             DROP VIEW public.supabase_probe_before_v;
              DROP TABLE public.supabase_probe_before;
              DROP TABLE public.supabase_probe_after;
              DROP SEQUENCE public.supabase_probe_before_seq;
