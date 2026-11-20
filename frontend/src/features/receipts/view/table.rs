@@ -1,4 +1,3 @@
-use super::TAB_IDS;
 use super::cards::{
     CardRowData, CompactReceiptGroup, MobileCardGroup, amount_kind_for_label, card_row_data,
     is_negative_labeled_value, is_positive_labeled_value, signed_text_for_profit,
@@ -87,7 +86,7 @@ pub fn ReceiptTable(
     let promoted = filter::promoted_column(tab, &rows, &query);
     let fields = tab.card_fields();
     let labels = tab.summary_labels();
-    let slug = TAB_IDS[tab as usize];
+    let slug = tab.slug();
     let card_groups: Vec<_> = groups
         .iter()
         .enumerate()
@@ -117,45 +116,9 @@ pub fn ReceiptTable(
             .iter()
             .enumerate()
             .filter_map(|(index, column)| {
-                let visible = match tab {
-                    ReceiptsTab::Dividend => [
-                        labels::PAYMENT_DATE,
-                        labels::SECURITY_CODE,
-                        labels::SECURITY_NAME,
-                        labels::ACCOUNT,
-                        labels::QUANTITY,
-                        labels::DIVIDEND_AMOUNT,
-                        labels::TAX,
-                        labels::AFTER_TAX,
-                    ]
-                    .contains(&column.header),
-                    ReceiptsTab::DomesticStock => [
-                        labels::TRADE_DATE,
-                        labels::SECURITY_CODE,
-                        labels::SECURITY_NAME,
-                        labels::ACCOUNT,
-                        labels::QUANTITY,
-                        labels::SELLING_AMOUNT,
-                        labels::ACQUISITION_PRICE,
-                        labels::REALIZED_PROFIT_LOSS,
-                        labels::TAX,
-                        labels::AFTER_TAX,
-                    ]
-                    .contains(&column.header),
-                    ReceiptsTab::MutualFund => [
-                        labels::TRADE_DATE,
-                        labels::FUND_NAME,
-                        labels::ACCOUNT,
-                        labels::QUANTITY,
-                        labels::REDEMPTION_AMOUNT,
-                        labels::ACQUISITION_PRICE,
-                        labels::REALIZED_PROFIT_LOSS,
-                        labels::TAX,
-                        labels::AFTER_TAX,
-                    ]
-                    .contains(&column.header),
-                };
-                visible.then_some(index)
+                tab.compact_headers()
+                    .contains(&column.header)
+                    .then_some(index)
             })
             .collect()
     } else {

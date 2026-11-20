@@ -812,6 +812,10 @@ impl ReceiptsTab {
         self.kind().label
     }
 
+    pub(crate) const fn slug(self) -> &'static str {
+        self.kind().slug
+    }
+
     pub(crate) const fn list_path(self) -> &'static str {
         self.kind().list_path
     }
@@ -864,6 +868,30 @@ impl ReceiptsTab {
 
     pub(crate) const fn empty_hint(self) -> &'static str {
         self.kind().empty_hint
+    }
+
+    pub(crate) const fn date_label(self) -> &'static str {
+        self.kind().date_label
+    }
+
+    pub(crate) const fn amount_label(self) -> Option<&'static str> {
+        self.kind().amount_label
+    }
+
+    pub(crate) const fn headline_label(self) -> &'static str {
+        self.kind().headline_label
+    }
+
+    pub(crate) const fn summary_primary_label(self) -> &'static str {
+        self.kind().summary_primary_label
+    }
+
+    pub(crate) const fn compact_headers(self) -> &'static [&'static str] {
+        self.kind().compact_headers
+    }
+
+    pub(crate) const fn csv_header_marker(self) -> Option<&'static str> {
+        self.kind().csv_header_marker
     }
 
     pub(crate) const fn product_category(self) -> bool {

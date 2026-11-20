@@ -118,6 +118,24 @@ fn tab_filters_keep_distinct_amount_and_category_rules() {
 }
 
 #[test]
+fn tab_definitions_cover_display_labels() {
+    let mut slugs = Vec::new();
+    for tab in ReceiptsTab::ALL {
+        slugs.push(tab.slug());
+        assert!(!tab.date_label().is_empty(), "{tab:?}");
+        assert!(!tab.headline_label().is_empty(), "{tab:?}");
+        assert!(!tab.summary_primary_label().is_empty(), "{tab:?}");
+        for header in tab.compact_headers() {
+            assert!(
+                tab.columns().iter().any(|column| column.header == *header),
+                "{tab:?}: {header}"
+            );
+        }
+    }
+    assert_eq!(slugs, ["dividend", "domesticstock", "mutualfund"]);
+}
+
+#[test]
 fn api_summaries_accept_only_the_matching_tab() {
     let values = [
         Decimal::new(100, 0),
