@@ -7432,10 +7432,27 @@ async fn rls_5c_writes_via_app_enter() {
     assert_eq!(count_where(&pool, "sessions", user_a).await, 2);
     assert_eq!(count_where(&pool, "sessions", user_b).await, 1);
 
-    let removed = auth_svc::delete_device_sessions(&pool, user_a, &[81u8; 32])
-        .await
-        .expect("端末のセッション削除は通るはず");
+    let device_id = backend::services::login_event::device_opaque_id(&user_a, &[81u8; 32]);
+    let (removed, revoked_current) =
+        backend::services::login_event::revoke_device(&pool, user_a, &device_id, &[82u8; 32])
+            .await
+            .expect("端末解除は通るはず")
+            .expect("対象端末が見つかるはず");
     assert_eq!(removed, 1);
+    assert!(!revoked_current);
+    let device_log = backend::services::operation_log::list(&pool, user_a, 100, 0)
+        .await
+        .expect("端末解除の記録取得")
+        .into_iter()
+        .find(|entry| entry.operation == "device_revoke")
+        .expect("端末解除の記録があるはず");
+    assert_eq!(device_log.target, "device");
+    assert_eq!(device_log.count, 1);
+    let removed_again =
+        backend::services::login_event::revoke_device(&pool, user_a, &device_id, &[82u8; 32])
+            .await
+            .expect("再解除");
+    assert!(removed_again.is_none());
     assert_eq!(count_where(&pool, "sessions", user_a).await, 1);
     assert_eq!(count_where(&pool, "sessions", user_b).await, 1);
 
@@ -7452,6 +7469,61 @@ async fn rls_5c_writes_via_app_enter() {
         .await
         .expect("全削除は通るはず");
     assert_eq!(deleted, 1);
+    let audit_count: i64 = db::query_scalar(
+        "SELECT count FROM operation_logs WHERE user_id = $1 AND operation = 'csv_delete' AND target = 'dividends' ORDER BY id DESC LIMIT 1",
+        vec![Bind::from(user_c)],
+    )
+    .fetch_one_with_user(&pool, user_c)
+    .await
+    .expect("削除操作記録を取得");
+    assert_eq!(audit_count, 1);
+    let other_user_logs = backend::services::operation_log::list(&pool, user_a, 100, 0)
+        .await
+        .expect("利用者 A の操作記録取得");
+    assert!(
+        other_user_logs
+            .iter()
+            .all(|entry| entry.target != "dividends")
+    );
+    let before_failed_operation: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM operation_logs WHERE user_id = $1",
+        vec![Bind::from(user_c)],
+    )
+    .fetch_one_with_user(&pool, user_c)
+    .await
+    .expect("操作記録件数取得");
+    let mut failed_tx = pool.begin_with_user(user_c).await.expect("Tx 開始");
+    backend::services::operation_log::record(&mut failed_tx, user_c, "csv_delete", "dividends", 1)
+        .await
+        .expect("失敗操作の記録投入");
+    assert!(
+        db::query("SELECT * FROM operation_log_missing_table", vec![])
+            .fetch_all::<(i64,), _>(&mut failed_tx)
+            .await
+            .is_err()
+    );
+    drop(failed_tx);
+    let after_failed_operation: i64 = db::query_scalar(
+        "SELECT COUNT(*) FROM operation_logs WHERE user_id = $1",
+        vec![Bind::from(user_c)],
+    )
+    .fetch_one_with_user(&pool, user_c)
+    .await
+    .expect("失敗後の操作記録件数取得");
+    assert_eq!(before_failed_operation, after_failed_operation);
+    db::query(
+        "UPDATE operation_logs SET occurred_at = NOW() - INTERVAL '2 years' WHERE user_id = $1",
+        vec![Bind::from(user_c)],
+    )
+    .execute(&pool)
+    .await
+    .expect("古い操作記録の準備");
+    assert_eq!(
+        backend::services::operation_log::prune(&pool)
+            .await
+            .expect("古い操作記録の掃除"),
+        u64::try_from(before_failed_operation).expect("操作記録件数"),
+    );
     assert_eq!(count_where(&pool, "dividends", user_a).await, 2);
     assert_eq!(count_where(&pool, "dividends", user_b).await, 1);
     assert_eq!(count_where(&pool, "dividends", user_c).await, 0);
@@ -7518,6 +7590,12 @@ async fn rls_5c_writes_via_app_enter() {
         .await
         .expect("全セッション削除は通るはず");
     assert_eq!(cleared, 1);
+    let logout_logs = backend::services::operation_log::list(&pool, user_a, 100, 0)
+        .await
+        .expect("全端末ログアウトの記録一覧");
+    assert!(logout_logs.iter().any(|entry| {
+        entry.operation == "logout_all" && entry.target == "sessions" && entry.count == 1
+    }));
     assert_eq!(count_where(&pool, "sessions", user_a).await, 0);
     assert_eq!(count_where(&pool, "sessions", user_b).await, 1);
 
@@ -7543,6 +7621,79 @@ async fn rls_5c_writes_via_app_enter() {
     .await
     .expect("設定値の取得に失敗");
     assert!(setting.as_deref().is_none_or(str::is_empty));
+}
+
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn operation_log_services_record_list_and_prune() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+    run_migrations(&pool).await.expect("migrations failed");
+    let user = create_test_user(&pool).await;
+    let mut tx = pool.begin_with_user(user).await.expect("Tx 開始");
+    backend::services::operation_log::record(&mut tx, user, "logout_all", "sessions", 3)
+        .await
+        .expect("記録追加");
+    tx.commit().await.expect("Tx commit");
+
+    let entries = backend::services::operation_log::list(&pool, user, 10, 0)
+        .await
+        .expect("記録一覧");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].operation, "logout_all");
+    assert_eq!(entries[0].target, "sessions");
+    assert_eq!(entries[0].count, 3);
+
+    pool.batch_execute("ALTER ROLE app_worker PASSWORD 'operation-log-test'")
+        .await
+        .expect("app_worker のテスト用パスワード設定");
+    let worker_url = format!("postgres://app_worker:operation-log-test@127.0.0.1:{port}/postgres");
+    let worker_pool = connect_with_retry(&worker_url).await;
+    assert!(
+        db::query("SELECT id FROM operation_logs LIMIT 1", vec![])
+            .fetch_all::<(i64,), _>(&worker_pool)
+            .await
+            .is_err()
+    );
+    assert!(
+        db::query(
+            "INSERT INTO operation_logs (user_id, operation, target, count) VALUES ($1, 'logout_all', 'sessions', 1)",
+            vec![Bind::from(user)],
+        )
+        .execute(&worker_pool)
+        .await
+        .is_err()
+    );
+
+    db::query(
+        "UPDATE operation_logs SET occurred_at = NOW() - INTERVAL '2 years' WHERE user_id = $1",
+        vec![Bind::from(user)],
+    )
+    .execute(&pool)
+    .await
+    .expect("古い記録の準備");
+    let pruned: i64 = db::query_scalar(
+        "SELECT public.prune_operation_logs_older_than_one_year_v1()",
+        vec![],
+    )
+    .fetch_one(&worker_pool)
+    .await
+    .expect("worker から掃除関数を実行");
+    assert_eq!(pruned, 1);
+    assert!(
+        backend::services::operation_log::list(&pool, user, 10, 0)
+            .await
+            .expect("掃除後一覧")
+            .is_empty()
+    );
 }
 
 #[tokio::test]

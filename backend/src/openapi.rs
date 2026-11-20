@@ -25,6 +25,7 @@ use crate::{
         LogoutTokenInfoResponse, LogoutWithTokenRequest, NotificationSettingsResponse,
         UpdateNotificationSettingsRequest,
     },
+    services::operation_log::{OperationLogEntry, OperationLogListResponse},
 };
 use shared::csv_kind_stats::{CsvKindStat, CsvKindStatsResponse};
 use shared::domain::FundNavStatus;
@@ -38,6 +39,7 @@ use shared::domain::FundNavStatus;
         handlers::v1::auth::delete_account,
         handlers::v1::auth::create_account_deletion_confirmation,
         handlers::v1::login_history::list_history,
+        handlers::v1::login_history::list_operation_logs,
         handlers::v1::login_history::list_devices,
         handlers::v1::login_history::delete_device,
         handlers::v1::login_history::delete_all_sessions,
@@ -95,6 +97,8 @@ use shared::domain::FundNavStatus;
             CsvKindStatsResponse,
             LoginHistoryEntry,
             LoginHistoryListResponse,
+            OperationLogEntry,
+            OperationLogListResponse,
             DeviceEntry,
             DeviceListResponse,
             NotificationSettingsResponse,

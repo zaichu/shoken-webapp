@@ -8,7 +8,7 @@ Google 認証のユーザー
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) [public.login_notify_tokens](public.login_notify_tokens.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.csv_import_history](public.csv_import_history.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) |  |  |
+| id | uuid | gen_random_uuid() | false | [public.sessions](public.sessions.md) [public.login_events](public.login_events.md) [public.admin_login_views](public.admin_login_views.md) [public.login_notify_tokens](public.login_notify_tokens.md) [public.dividends](public.dividends.md) [public.domestic_stocks](public.domestic_stocks.md) [public.mutualfunds](public.mutualfunds.md) [public.csv_import_history](public.csv_import_history.md) [public.asset_balances](public.asset_balances.md) [public.fund_balances](public.fund_balances.md) [public.operation_logs](public.operation_logs.md) |  |  |
 | google_id | varchar(255) |  | false |  |  |  |
 | email | varchar(255) |  | false |  |  |  |
 | name | varchar(255) |  | true |  |  |  |
@@ -46,6 +46,7 @@ erDiagram
 "public.csv_import_history" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.asset_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 "public.fund_balances" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+"public.operation_logs" }o--|| "public.users" : "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
 
 "public.users" {
   uuid id
@@ -184,6 +185,14 @@ erDiagram
   timestamp_with_time_zone created_at
   timestamp_with_time_zone updated_at
   text normalized_fund_name
+}
+"public.operation_logs" {
+  bigint id
+  uuid user_id FK
+  text operation
+  text target
+  bigint count
+  timestamp_with_time_zone occurred_at
 }
 ```
 

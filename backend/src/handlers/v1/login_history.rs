@@ -20,10 +20,6 @@ pub struct HistoryQuery {
     pub offset: Option<i64>,
 }
 
-fn is_current_device(current_hash: &[u8], device_hash: &[u8]) -> bool {
-    current_hash == device_hash
-}
-
 /// 自分のログイン履歴を新しい順に返す（v1）
 #[utoipa::path(
     get,
@@ -75,6 +71,37 @@ pub async fn list_devices(
     Ok(Json(DeviceListResponse { data: devices }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/operation-logs",
+    operation_id = "v1_operation_logs_list",
+    params(
+        ("limit" = Option<i64>, Query, description = "取得上限（既定: 50、最大: 100）"),
+        ("offset" = Option<i64>, Query, description = "取得開始位置（既定: 0）"),
+    ),
+    responses(
+        (status = 200, description = "自分の操作記録を新しい順に返す", body = crate::services::operation_log::OperationLogListResponse),
+        (status = 401, description = "認証が必要", body = ErrorResponse),
+    ),
+    security(("cookieAuth" = []))
+)]
+pub async fn list_operation_logs(
+    State(state): State<AppState>,
+    auth_user: AuthenticatedUser,
+    Query(query): Query<HistoryQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    let entries = crate::services::operation_log::list(
+        &state.pool,
+        auth_user.id(),
+        login_event::clamp_history_limit(query.limit),
+        login_event::clamp_history_offset(query.offset),
+    )
+    .await?;
+    Ok(Json(
+        crate::services::operation_log::OperationLogListResponse { data: entries },
+    ))
+}
+
 /// 端末を1台解除する（v1）
 #[utoipa::path(
     delete,
@@ -96,31 +123,19 @@ pub async fn delete_device(
     jar: CookieJar,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let device_hash = login_event::resolve_device_hash(&state.pool, auth_user.id(), &id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    auth_service::delete_device_sessions(&state.pool, auth_user.id(), &device_hash).await?;
     let current = oauth::get_device_token_from_jar(&jar);
-    let response = Json(MessageResponse {
+    let (_, revoked_current) =
+        login_event::revoke_device(&state.pool, auth_user.id(), &id, &current.hash())
+            .await?
+            .ok_or(ApiError::NotFound)?;
+    let mut response = Json(MessageResponse {
         message: "端末を解除しました".to_string(),
-    });
-    let mut response = response.into_response();
-    if is_current_device(&current.hash(), &device_hash) {
+    })
+    .into_response();
+    if revoked_current {
         oauth::clear_all_session_cookies(&mut response, state.config.secure_cookie)?;
     }
     Ok(response)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::is_current_device;
-
-    #[test]
-    fn current_device_matches_only_its_own_hash() {
-        let current = [7u8; 32];
-        assert!(is_current_device(&current, &current));
-        assert!(!is_current_device(&current, &[8u8; 32]));
-    }
 }
 
 /// すべての端末をログアウトする（v1）

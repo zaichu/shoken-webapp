@@ -35,6 +35,12 @@ exclude_re = [
     "backend/src/services/auth\\.rs.*rotate_session_in_tx",
     "backend/src/services/auth\\.rs.*delete_session",
     "backend/src/services/auth\\.rs.*delete_account",
+    # 操作記録・セッション削除・端末解除はDB Tx境界。
+    # 振る舞いはDocker統合テスト(db_integration)で検証する。
+    "backend/src/services/auth\\.rs.*delete_all_sessions",
+    "backend/src/services/auth\\.rs.*delete_device_sessions",
+    "backend/src/services/operation_log\\.rs.*list",
+    "backend/src/services/login_event/devices\\.rs.*revoke_device",
     # DB 前提のファセット/一括削除(DB 統合テストは #[ignore] のため評価対象外。
     # 振る舞いは tests/db_integration.rs の service_coverage_all_domains /
     # search_facets_group_by_domain_fields で検証済み。
@@ -76,7 +82,13 @@ exclude_re = [
     # revoked_device_leaves_device_list / old_rows_are_pruned_and_ip_column_is_absent
     # (Docker)で検証済み。SQL・判定条件は不変。ハンドラの同名関数は除外しない)
     "backend/src/services/login_event/devices\\.rs.*replace (fetch_device_rows|list_devices|fetch_device_hashes|resolve_device_hash) -> ",
+    # Docker 統合テストでのみ検証できる操作記録/端末失効の DB Tx。
+    "backend/src/services/auth\\.rs.*(delete_all_sessions|delete_device_sessions) -> ",
+    "backend/src/services/operation_log\\.rs.*(record|list|prune) -> ",
+    "backend/src/services/login_event/devices\\.rs.*revoke_device -> ",
     "backend/src/services/login_event/history\\.rs.*replace (list_login_history|insert_login_event_row|trim_login_events_to_cap|insert_login_event_in_tx|prune_login_events) -> ",
+    # Worker scheduled entrypoint は wasm target のみで有効。
+    "backend/src/worker_entry\\.rs",
     # 等価 mutant。clamp_history_offset は Some(0) も 0 を返すため > と >= は同値
     "replace > with >= in clamp_history_offset",
 ]

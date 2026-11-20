@@ -156,14 +156,14 @@ test('金額の表示単位設定は合計欄だけに効き、明細の行は1�
   await expect(dialog).toBeHidden();
 });
 
-test('設定の目次は7項目あり各セクションへリンクする', async ({ page }) => {
+test('設定の目次は8項目あり各セクションへリンクする', async ({ page }) => {
   await mockAuthorizedAuth(page);
   await page.goto('/settings');
 
   const nav = page.getByRole('navigation', { name: '設定セクション' });
   await expect(nav).toBeVisible();
   const links = nav.getByRole('link');
-  await expect(links).toHaveCount(7);
+  await expect(links).toHaveCount(8);
   const hrefs = await links.evaluateAll((els) =>
     els.map((el) => el.getAttribute('href')),
   );
@@ -174,6 +174,7 @@ test('設定の目次は7項目あり各セクションへリンクする', asyn
     '/settings#security',
     '/settings#devices',
     '/settings#login-history',
+    '/settings#operation-log',
     '/settings#danger',
   ]);
 });

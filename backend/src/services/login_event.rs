@@ -6,6 +6,7 @@ pub mod history;
 pub use client_info::{ClientInfo, client_info_from_headers, parse_user_agent};
 pub use devices::{
     DeviceEntry, DeviceListResponse, device_opaque_id, list_devices, resolve_device_hash,
+    revoke_device,
 };
 pub use history::{
     DEFAULT_HISTORY_LIMIT, LoginHistoryEntry, LoginHistoryListResponse, MAX_EVENTS_PER_USER,
@@ -275,7 +276,7 @@ mod tests {
                 .len(),
             1
         );
-        crate::services::auth::delete_device_sessions(&pool, user_id, &hash)
+        revoke_device(&pool, user_id, &opaque, &[32u8; 32])
             .await
             .expect("端末の解除失敗");
         assert_eq!(
@@ -325,9 +326,12 @@ mod tests {
         .execute(&pool)
         .await
         .expect("移行前のセッションの投入失敗");
-        let removed = crate::services::auth::delete_device_sessions(&pool, user_id, &hash_a)
+        let opaque_a = device_opaque_id(&user_id, &hash_a);
+        let removed = revoke_device(&pool, user_id, &opaque_a, &[])
             .await
-            .expect("端末の解除失敗");
+            .expect("端末の解除失敗")
+            .expect("対象端末が見つかるはず")
+            .0;
         assert_eq!(removed, 2);
         let remaining: i64 = crate::db::query_scalar(
             "SELECT COUNT(*) FROM sessions WHERE user_id = $1",

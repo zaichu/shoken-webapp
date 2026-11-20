@@ -6,23 +6,25 @@ use crate::ui::settings as settings_ui;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-pub(crate) const SECTION_IDS: [&str; 7] = [
+pub(crate) const SECTION_IDS: [&str; 8] = [
     "account",
     "display",
     "data",
     "security",
-    "login-history",
     "devices",
+    "login-history",
+    "operation-log",
     "danger",
 ];
 
-pub(crate) const TOC_ENTRIES: [(&str, &str); 7] = [
+pub(crate) const TOC_ENTRIES: [(&str, &str); 8] = [
     ("account", labels::ACCOUNT_BUTTON),
     ("display", labels::SETTINGS_DISPLAY_SECTION),
     ("data", labels::SETTINGS_DATA_SECTION),
     ("security", labels::SETTINGS_SECURITY_SECTION),
     ("devices", labels::REGISTERED_DEVICES_SECTION),
     ("login-history", labels::LOGIN_HISTORY_SECTION),
+    ("operation-log", labels::OPERATION_LOG_SECTION),
     ("danger", labels::SETTINGS_DANGER_SECTION),
 ];
 

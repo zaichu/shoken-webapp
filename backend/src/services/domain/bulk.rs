@@ -219,12 +219,100 @@ pub async fn bulk_replace<D: Domain>(
 pub async fn delete_all<D: Domain>(pool: &Db, user_id: UserId) -> Result<u64, ApiError> {
     info!("[{}.delete_all] リクエスト受信", D::NAME);
     let mut tx = pool.begin_with_user(user_id).await?;
+    lock_user_domain::<D>(&mut tx, user_id).await?;
     let deleted = super::delete_rows_query::<D>(user_id)
         .execute(&mut tx)
+        .await?;
+    crate::services::operation_log::record(&mut tx, user_id, "csv_delete", D::TABLE, deleted)
         .await?;
     tx.commit().await?;
     info!("[{}.delete_all] 完了: {}件削除", D::NAME, deleted);
     Ok(deleted)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod integration_tests {
+    use super::*;
+    use crate::db::Bind;
+    use crate::services::{asset_balance, operation_log};
+    use rust_decimal_macros::dec;
+    use shared::value::UserId;
+    use std::time::Duration;
+    use testcontainers::{ImageExt, runners::AsyncRunner};
+    use testcontainers_modules::postgres::Postgres;
+    use tokio::time::timeout;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    #[ignore = "requires Docker to run Postgres container"]
+    async fn concurrent_delete_and_replace_complete_without_deadlock() {
+        let node = Postgres::default()
+            .with_tag(crate::test_constants::POSTGRES_TAG)
+            .start()
+            .await
+            .expect("Postgres 起動");
+        let port = node.get_host_port_ipv4(5432).await.expect("Postgres port");
+        let pool = crate::db::connect_pool_lazy(
+            &format!("postgres://postgres:postgres@127.0.0.1:{port}/postgres"),
+            4,
+        )
+        .expect("pool 作成");
+        timeout(Duration::from_secs(30), crate::db::run_migrations(&pool))
+            .await
+            .expect("migration timeout")
+            .expect("migration");
+        let user_id = UserId::from(Uuid::new_v4());
+        crate::db::query(
+            "INSERT INTO users (id, google_id, email) VALUES ($1, $2, $3)",
+            vec![
+                Bind::from(user_id),
+                Bind::from(format!("deadlock_{user_id}")),
+                Bind::from(format!("deadlock_{user_id}@example.com")),
+            ],
+        )
+        .execute(&pool)
+        .await
+        .expect("利用者作成");
+        let item = || crate::models::asset_balance::CreateAssetBalanceRequest {
+            security_code: "1111".parse().expect("security code"),
+            security_name: "銘柄_1111".to_string(),
+            account: Some("特定".parse().expect("account")),
+            shares: dec!(10),
+            average_purchase_price: dec!(100),
+            total_purchase_amount: dec!(1000),
+            current_price: dec!(110),
+            daily_change: dec!(1),
+            market_value: dec!(1100),
+            profit_loss_rate: dec!(10),
+        };
+        asset_balance::bulk_create(&pool, user_id, &[item()], RowLimit::new(i64::MAX))
+            .await
+            .expect("初期データ作成");
+        let delete_pool = pool.clone();
+        let replace_pool = pool.clone();
+        let delete = tokio::spawn(async move {
+            delete_all::<asset_balance::AssetBalanceDomain>(&delete_pool, user_id).await
+        });
+        let replace = tokio::spawn(async move {
+            asset_balance::bulk_create(&replace_pool, user_id, &[item()], RowLimit::new(i64::MAX))
+                .await
+        });
+        let (deleted, replaced) = timeout(Duration::from_secs(10), async {
+            (
+                delete.await.expect("delete task"),
+                replace.await.expect("replace task"),
+            )
+        })
+        .await
+        .expect("同時削除・取り込みが終了する");
+        deleted.expect("CSV 削除成功");
+        replaced.expect("CSV 取り込み成功");
+        let logs = operation_log::list(&pool, user_id, 10, 0)
+            .await
+            .expect("操作記録取得");
+        assert!(logs.iter().any(|entry| entry.operation == "csv_delete"));
+    }
 }
 
 #[cfg(test)]

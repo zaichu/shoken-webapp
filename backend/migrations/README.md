@@ -66,7 +66,7 @@ revert のコミットを足して進めても同じく止まる。
 - 旧コードを再デプロイする: 再デプロイの前に、移行用の接続で
   `DELETE FROM _sqlx_migrations WHERE version BETWEEN 100 AND 106;` を流す。
   本番では土台の SQL は流れておらず記録だけなので、行を消してもスキーマは変わらない。
-  この手順が使えるのは `0107` 以降を本番に当てる前だけ(当てた後は、その版の行と変更が旧コードに無いため戻らない)。
+  この手順が使えるのは `0108` 以降を本番に当てる前だけ(当てた後は、その版の行と変更が旧コードに無いため戻らない)。
 
 ## デプロイ時（Cloudflare Workers）の動作：自動適用
 
@@ -90,7 +90,7 @@ cargo run --bin migrate
 ## 新しい schema 変更を入れる場合
 
 - 土台 `0100〜0106` と、本番に当てた migration は書き換えない(本番の記録と checksum が食い違い、デプロイが止まる)。
-- `0107_<description>.sql` のように次番号のファイルを足し、`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する。
+- `0108_<description>.sql` のように次番号のファイルを足し、`backend/src/db/migrate.rs` の `MIGRATION_FILES` に `include_str!` で登録する。
 - 1つの目的ごとに1本にまとめ、細かく分けすぎない(同じ表への列追加・索引・ポリシーは同じファイルに書く)。
 - 構造の変更(DDL)と、行数の多い静的データ(seed)は別のファイルに分ける。目安は seed が 50 行を超えるとき。
 - `fund_codes` の seed を更新するときは、マーカー(`-- gen:fund-codes-seed begin/end`)付きの新しい migration を作り、`scripts/update_fund_codes_seed.py --migration <そのファイル>` で書く(土台の `0103` は書き換えない)。

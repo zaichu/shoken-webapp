@@ -307,22 +307,8 @@ pub async fn delete_all_sessions(pool: &Db, user_id: UserId) -> Result<u64, DbEr
     )
     .execute(&mut tx)
     .await?;
-    tx.commit().await?;
-    Ok(deleted)
-}
-
-pub async fn delete_device_sessions(
-    pool: &Db,
-    user_id: UserId,
-    device_hash: &[u8],
-) -> Result<u64, DbError> {
-    let mut tx = pool.begin_with_user(user_id).await?;
-    let deleted = crate::db::query(
-        "DELETE FROM sessions WHERE user_id = $1 AND (device_hash = $2 OR device_hash IS NULL)",
-        vec![Bind::from(user_id), Bind::Bytes(device_hash.to_vec())],
-    )
-    .execute(&mut tx)
-    .await?;
+    crate::services::operation_log::record(&mut tx, user_id, "logout_all", "sessions", deleted)
+        .await?;
     tx.commit().await?;
     Ok(deleted)
 }
