@@ -203,8 +203,6 @@ pub fn HoldingsList(views: Vec<HoldingView>, dividends: RwSignal<DividendMaps>) 
                 })
                 .collect_view()}
             </ul>
-            // 算出条件は一覧の下に1行で添える(表と同じ文言)
-            <p class="text-cell text-text-muted">{labels::dividend_formula_note()}</p>
         </>
     }
 }
