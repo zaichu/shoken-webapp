@@ -2374,6 +2374,37 @@ async fn leftover_function_grants_distinguishes_extension_functions() {
 
     admin
         .batch_execute(
+            "INSERT INTO pg_catalog.pg_depend
+               (classid, objid, objsubid, refclassid, refobjid, refobjsubid, deptype)
+             SELECT 'pg_catalog.pg_class'::pg_catalog.regclass, p.oid, 0,
+                    'pg_catalog.pg_extension'::pg_catalog.regclass, e.oid, 0, 'e'
+             FROM pg_catalog.pg_proc p, pg_catalog.pg_extension e
+             WHERE p.proname = 'aaa_leftover_probe_fn'
+               AND p.pronamespace = 'public'::pg_catalog.regnamespace
+               AND e.extname = 'pgcrypto';",
+        )
+        .await
+        .unwrap();
+    let planted = db::query_scalar::<i64>(
+        "SELECT COUNT(*) FROM pg_catalog.pg_depend d
+         WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+           AND d.deptype = 'e'
+           AND d.objid = (SELECT p.oid FROM pg_catalog.pg_proc p
+                          WHERE p.proname = 'aaa_leftover_probe_fn')",
+        vec![],
+    )
+    .fetch_one(&admin)
+    .await
+    .unwrap();
+    assert_eq!(planted, 1, "別カタログで OID が重なる拡張依存を植えたはず");
+    let overlapped = leftover_function_grants(&worker).await;
+    assert_eq!(
+        overlapped, leftover,
+        "別カタログの拡張依存では振り分けが変わらないはず"
+    );
+
+    admin
+        .batch_execute(
             "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated, service_role;
              DROP ROLE anon; DROP ROLE authenticated; DROP ROLE service_role;",
         )

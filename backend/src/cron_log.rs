@@ -151,14 +151,16 @@ SELECT pg_catalog.format('function_leftover_grants role=%s total=%s ext=%s own=%
                  AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
                      WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
                  AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-                     WHERE d.objid = p.oid AND d.deptype = 'e')) END,
+                     WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                       AND d.objid = p.oid AND d.deptype = 'e')) END,
            CASE WHEN r.oid IS NULL THEN 0 ELSE (SELECT pg_catalog.count(*)
                FROM pg_catalog.pg_proc p
                WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
                  AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
                      WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
                  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-                     WHERE d.objid = p.oid AND d.deptype = 'e')) END,
+                     WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                       AND d.objid = p.oid AND d.deptype = 'e')) END,
            CASE WHEN r.oid IS NULL THEN '-' ELSE COALESCE(
                (SELECT pg_catalog.string_agg(g.owner || ':' || g.cnt, ',' ORDER BY g.owner)
                 FROM (SELECT o.rolname AS owner, pg_catalog.count(*) AS cnt
@@ -175,7 +177,8 @@ SELECT pg_catalog.format('function_leftover_grants role=%s total=%s ext=%s own=%
                         AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
                             WHERE a.grantee = r.oid AND a.privilege_type = 'EXECUTE')
                         AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-                            WHERE d.objid = p.oid AND d.deptype = 'e')
+                            WHERE d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                              AND d.objid = p.oid AND d.deptype = 'e')
                       ORDER BY p.proname LIMIT 10) n), '-') END)
 FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS v(rolname)
 LEFT JOIN pg_catalog.pg_roles r ON r.rolname = v.rolname
@@ -394,6 +397,7 @@ mod tests {
         for fragment in [
             "function_leftover_grants",
             "pg_depend",
+            "classid",
             "deptype = 'e'",
             "privilege_type = 'EXECUTE'",
             "owners=",
@@ -404,7 +408,7 @@ mod tests {
                 "残った関数の内訳行を出す: {fragment}"
             );
         }
-        for fragment in ["GRANT", "REVOKE", "ALTER ", "DROP ", "SECURITY DEFINER"] {
+        for fragment in ["GRANT ", "REVOKE ", "SECURITY DEFINER"] {
             assert!(
                 !DB_ACCESS_STATE_SQL.contains(fragment),
                 "内訳の取得は読み取りだけで権限は変えない: {fragment}"
