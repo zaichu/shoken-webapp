@@ -2478,7 +2478,38 @@ async fn supabase_roles_revoked_including_future_objects() {
 
     super_admin
         .batch_execute(
-            "DROP FUNCTION public.supabase_probe_before_fn();
+            "CREATE ROLE extowner NOLOGIN;
+             GRANT CREATE ON SCHEMA public TO extowner;",
+        )
+        .await
+        .unwrap();
+    let ext_tx = super_admin.begin().await.unwrap();
+    (&ext_tx)
+        .batch_execute(
+            "SET ROLE extowner;
+             ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+             CREATE FUNCTION public.supabase_probe_ext_fn() RETURNS bigint LANGUAGE sql RETURN 1;
+             RESET ROLE;",
+        )
+        .await
+        .unwrap();
+    ext_tx.commit().await.unwrap();
+    apply_revoke_migration(&admin).await;
+    let with_ext = default_privilege_grant_counts(&super_admin).await;
+    for (role, table, view, function, sequence) in &with_ext {
+        assert_eq!(
+            (*table, *view, *function, *sequence),
+            (0, 0, 1, 0),
+            "扱えない所有者の分は止めずに残るはず: {role}"
+        );
+    }
+
+    super_admin
+        .batch_execute(
+            "DROP FUNCTION public.supabase_probe_ext_fn();
+             DROP OWNED BY extowner;
+             DROP ROLE extowner;
+             DROP FUNCTION public.supabase_probe_before_fn();
              DROP FUNCTION public.supabase_probe_after_fn();
              DROP FUNCTION public.supabase_probe_after_exec_fn();
              DROP VIEW public.supabase_probe_before_v;

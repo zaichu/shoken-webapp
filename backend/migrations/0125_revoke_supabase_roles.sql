@@ -3,7 +3,7 @@ SET LOCAL lock_timeout = '5s';
 -- 所有者を移した関数の付与者は新所有者に書き換わるため、移行ロールの直接の
 -- REVOKE では外れない。所有者ごと(SET できる所有者になり代わって)に外す。
 -- 0100 が所有ロールを CURRENT_USER へ SET 付きで所属させている。
--- 残りがあれば異常として止める(監視ログの件数が 0 にならないままにしない)。
+-- 扱えない所有者(拡張の所有者など)の分は止めずに通知し、監視ログで確かめる。
 DO $$
 DECLARE
     target text;
@@ -11,10 +11,13 @@ DECLARE
     grantor_oid oid;
     obj text;
     me oid;
-    leftover integer;
+    leftover_own integer;
+    leftover_other integer;
+    handled_oids oid[];
     did_set boolean;
 BEGIN
     SELECT oid INTO me FROM pg_catalog.pg_roles WHERE rolname = CURRENT_USER;
+    handled_oids := ARRAY[me];
     FOREACH target IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
         IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = target) THEN
             EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', target);
@@ -34,6 +37,7 @@ BEGIN
                                WHERE p.proowner = o.oid
                                  AND p.pronamespace = 'public'::pg_catalog.regnamespace)))
     LOOP
+        handled_oids := handled_oids || grantor_oid;
         BEGIN
             did_set := (grantor <> CURRENT_USER);
             IF did_set THEN
@@ -84,22 +88,43 @@ BEGIN
             RAISE;
         END;
     END LOOP;
-    SELECT count(*) INTO leftover FROM (
+    SELECT count(*) INTO leftover_own FROM (
         SELECT 1
         FROM pg_catalog.pg_class c
         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
         JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
         WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+          AND c.relowner = ANY (handled_oids)
           AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a WHERE a.grantee = r.oid)
         UNION ALL
         SELECT 1
         FROM pg_catalog.pg_proc p
         JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
         WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+          AND p.proowner = ANY (handled_oids)
           AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee = r.oid)
-    ) AS remaining;
-    IF leftover > 0 THEN
-        RAISE EXCEPTION 'supabase 3 ロールへの権限が % 件残っている', leftover;
+    ) AS remaining_own;
+    IF leftover_own > 0 THEN
+        RAISE EXCEPTION 'supabase 3 ロールへの権限が % 件残っている', leftover_own;
+    END IF;
+    SELECT count(*) INTO leftover_other FROM (
+        SELECT 1
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+          AND c.relowner <> ALL (handled_oids)
+          AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a WHERE a.grantee = r.oid)
+        UNION ALL
+        SELECT 1
+        FROM pg_catalog.pg_proc p
+        JOIN pg_catalog.pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+        WHERE p.pronamespace = 'public'::pg_catalog.regnamespace
+          AND p.proowner <> ALL (handled_oids)
+          AND EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a WHERE a.grantee = r.oid)
+    ) AS remaining_other;
+    IF leftover_other > 0 THEN
+        RAISE NOTICE '扱えない所有者の supabase 3 ロールへの権限が % 件残っている', leftover_other;
     END IF;
 END
 $$;
