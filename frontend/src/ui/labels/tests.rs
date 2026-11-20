@@ -19,6 +19,16 @@ fn previous_cumulative_label_includes_the_period() {
     assert_eq!(cumulative_previous_label(12), "前年(12月まで)");
 }
 
+#[test]
+fn receipt_date_labels_keep_their_year_month_and_day_parts() {
+    assert_eq!(receipt_year_month_day_label("2024", 3, 1), "2024年3月1日");
+    assert_eq!(
+        receipt_year_month_day_label("2026", 10, 21),
+        "2026年10月21日"
+    );
+    assert_eq!(receipt_year_month_day_label("2026", 1, 5), "2026年1月5日");
+}
+
 fn source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
 }

@@ -624,7 +624,11 @@ pub fn receipt_year_month_label(year: &str, month: u32) -> String {
 
 /// 年月日の書き方(「2024年3月1日」)
 pub fn receipt_year_month_day_label(year: &str, month: u32, day: u32) -> String {
-    format!("{year}年{month}月{day}日")
+    format!("{year}年{}", receipt_month_day_label(month, day))
+}
+
+fn receipt_month_day_label(month: u32, day: u32) -> String {
+    format!("{month}月{day}日")
 }
 
 /// 設定: 画面名
