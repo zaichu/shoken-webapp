@@ -25,9 +25,27 @@ pub(crate) fn current_location() -> String {
             let location = window.location();
             let pathname = location.pathname().ok()?;
             let search = location.search().ok()?;
-            Some(format!("{pathname}{search}"))
+            let hash = location.hash().ok()?;
+            Some(format!("{pathname}{search}{hash}"))
         })
         .unwrap_or_default()
+}
+
+const RETURN_PATH_KEY: &str = "session_return_path";
+
+fn save_return_path(path: &str) {
+    if protected_path(path)
+        && let Some(storage) = web_sys::window().and_then(|w| w.session_storage().ok().flatten())
+    {
+        let _ = storage.set_item(RETURN_PATH_KEY, path);
+    }
+}
+
+fn take_return_path() -> Option<String> {
+    let storage = web_sys::window()?.session_storage().ok().flatten()?;
+    let path = storage.get_item(RETURN_PATH_KEY).ok().flatten()?;
+    let _ = storage.remove_item(RETURN_PATH_KEY);
+    spa_path(&path).filter(|path| protected_path(path) && pathname_of(path) != "/login")
 }
 
 /// アプリ内遷移でナビのアクティブ表示を追随させるための現在パス(pathname + search)
@@ -148,12 +166,16 @@ fn spa_href(anchor: &web_sys::Element) -> Option<String> {
     )
 }
 
-fn hash_only_change(from: &str, to: &str) -> bool {
-    to.len() > from.len() && to.starts_with(from) && to.as_bytes()[from.len()] == b'#'
-}
-
 fn strip_hash(path: &str) -> &str {
     path.split('#').next().unwrap_or(path)
+}
+
+fn same_route_path(left: &str, right: &str) -> bool {
+    strip_hash(left) == strip_hash(right)
+}
+
+fn hash_only_change(from: &str, to: &str) -> bool {
+    same_route_path(from, to) && from != to
 }
 
 // 本文は main がスクロールする。ページ遷移ではそのコンテナを先頭に戻す
@@ -233,7 +255,7 @@ fn navigate(path: RwSignal<String>, to: &str, replace: bool) {
         };
         let _ = result;
     }
-    path.set(strip_hash(to).to_string());
+    path.set(to.to_string());
     if let Some(fragment) = to.split_once('#').map(|(_, fragment)| fragment.to_string()) {
         // 遷移先の描画を待ってから該当セクションへ移る(アカウントメニューの「データをエクスポート」等)
         let window = window.clone();
@@ -296,7 +318,7 @@ pub fn App() -> impl IntoView {
         let Some(to) = spa_href(&anchor) else {
             return;
         };
-        // #要素 への移動はブラウザの既定のスクロールに任せる
+        // ハッシュ遷移はブラウザの既定のスクロールに任せる
         if hash_only_change(&path.get_untracked(), &to) {
             return;
         }
@@ -314,7 +336,7 @@ pub fn App() -> impl IntoView {
     let on_popstate = window_event_listener(ev::popstate, move |_| {
         // #フラグメント遷移でも popstate は発火するので、パスが変わらない限り再描画しない
         let next = current_location();
-        if path.get_untracked() == next {
+        if same_route_path(&path.get_untracked(), &next) {
             return;
         }
         path.set(next);
@@ -384,9 +406,20 @@ pub fn App() -> impl IntoView {
         let authed = session.user.get().is_some();
         let current = path.get();
         if protected_path(&current) && !authed && session.connection_error.get().is_none() {
+            save_return_path(&current_location());
             navigate(path, "/login", true);
         } else if route.get() == Route::Login && authed {
-            navigate(path, "/", true);
+            navigate(
+                path,
+                &take_return_path().unwrap_or_else(|| "/".to_string()),
+                true,
+            );
+        } else if authed
+            && session.loaded.get()
+            && pathname_of(&current) == "/"
+            && let Some(return_path) = take_return_path()
+        {
+            navigate(path, &return_path, true);
         }
     });
     let show_bottom_nav = move || show_bottom_nav_for(route.get());

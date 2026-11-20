@@ -116,6 +116,21 @@ fn protected_path_covers_feature_sub_paths() {
 }
 
 #[test]
+fn return_path_only_accepts_protected_same_origin_routes() {
+    for path in ["/receipts?tab=domesticstock", "/settings#login-history"] {
+        assert!(protected_path(path));
+        assert_eq!(spa_path(path).as_deref(), Some(path));
+    }
+    for path in [
+        "https://example.com/receipts",
+        "//example.com/receipts",
+        "/login",
+    ] {
+        assert!(spa_path(path).is_none() || !protected_path(path));
+    }
+}
+
+#[test]
 fn spa_path_only_accepts_root_relative() {
     assert_eq!(spa_path("/receipts").as_deref(), Some("/receipts"));
     assert_eq!(
@@ -145,19 +160,29 @@ fn pathname_of_strips_query_and_hash() {
 }
 
 #[test]
-fn hash_only_change_detects_fragment_append() {
-    assert!(hash_only_change("/receipts", "/receipts#list"));
-    assert!(hash_only_change("/receipts?t=1", "/receipts?t=1#list"));
-    assert!(!hash_only_change("/receipts", "/receipts"));
-    assert!(!hash_only_change("/receipts", "/receipts/other#x"));
-    assert!(!hash_only_change("/receipts", "/search#x"));
-}
-
-#[test]
 fn strip_hash_keeps_query() {
     assert_eq!(strip_hash("/receipts#list"), "/receipts");
     assert_eq!(strip_hash("/search?code=9904#x"), "/search?code=9904");
     assert_eq!(strip_hash("/receipts"), "/receipts");
+}
+
+#[test]
+fn same_route_path_ignores_fragment_but_keeps_query_changes() {
+    assert!(same_route_path("/settings#account", "/settings#data"));
+    assert!(same_route_path("/?tab=all#main-content", "/?tab=all"));
+    assert!(!same_route_path("/?tab=all", "/?tab=funds"));
+    assert!(!same_route_path("/settings", "/receipts"));
+}
+
+#[test]
+fn hash_only_change_detects_fragment_changes_and_same_path_fragments() {
+    assert!(hash_only_change("/", "/#main-content"));
+    assert!(hash_only_change("/settings#account", "/settings#data"));
+    assert!(!hash_only_change(
+        "/settings?tab=all",
+        "/settings?tab=funds"
+    ));
+    assert!(!hash_only_change("/settings", "/receipts#list"));
 }
 
 #[test]

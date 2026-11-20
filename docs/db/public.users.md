@@ -65,6 +65,7 @@ erDiagram
   timestamp_with_time_zone expires_at
   bytea token_hash
   bytea device_hash
+  timestamp_with_time_zone last_used_at
 }
 "public.login_events" {
   uuid id

@@ -3122,6 +3122,63 @@ async fn legacy_database_records_baseline_without_applying() {
     assert_eq!(migration_versions(&pool).await, expected);
 }
 
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn session_migration_keeps_existing_old_sessions_valid_immediately() {
+    let node = Postgres::default()
+        .with_tag(POSTGRES_TAG)
+        .start()
+        .await
+        .unwrap();
+    let port = node.get_host_port_ipv4(5432).await.unwrap();
+    let pool = connect_with_retry(&format!(
+        "postgres://postgres:postgres@127.0.0.1:{port}/postgres"
+    ))
+    .await;
+
+    apply_legacy_migrations(&pool, legacy_last_version()).await;
+    let user_id = create_test_user(&pool).await;
+    let token = SessionToken::new();
+    db::query(
+        "INSERT INTO sessions (user_id, token_hash, created_at, expires_at)
+         VALUES ($1, $2, NOW() - INTERVAL '1 day', NOW() + INTERVAL '6 days')",
+        vec![Bind::from(user_id), Bind::Bytes(token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .expect("旧形式のセッションを作成");
+
+    run_migrations(&pool).await.expect("0107 を適用");
+
+    let last_used_at = db::query_scalar::<time::OffsetDateTime>(
+        "SELECT last_used_at FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("migration後の最終利用時刻を取得");
+    let migration_recent = db::query_scalar::<bool>(
+        "SELECT last_used_at > NOW() - INTERVAL '30 minutes'
+         FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("最終利用時刻を確認");
+    assert!(migration_recent, "既存行は migration 時刻で初期化される");
+    assert!(
+        last_used_at > time::OffsetDateTime::now_utc() - time::Duration::minutes(30),
+        "作成から1日経った既存セッションでも migration 直後は有効"
+    );
+    assert!(
+        auth_svc::select_user_by_session(&pool, token)
+            .await
+            .expect("migration後の認証照会")
+            .is_some(),
+        "migration直後は既存セッションで認証できる"
+    );
+}
+
 /// 旧 migration が途中までの DB は、続きを当てられないため状態と対処を示して止める
 #[tokio::test]
 #[ignore = "requires Docker to run Postgres container"]
@@ -6820,7 +6877,7 @@ async fn stage5b_definer_functions_and_app_enter() {
     let hash_plain_b = backend::services::login_notify::token_hash(&plain_b);
 
     for signature in [
-        "public.auth_lookup_user_id_by_session(bytea)",
+        "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea,timestamptz)",
         "public.auth_delete_session_by_token(bytea)",
         "public.login_notify_peek_by_token(bytea)",
         "public.login_notify_consume_by_token(bytea)",
@@ -6882,7 +6939,10 @@ async fn stage5b_definer_functions_and_app_enter() {
 
     for (signature, volatile) in [
         ("public.app_enter(uuid)", "v"),
-        ("public.auth_lookup_user_id_by_session(bytea)", "s"),
+        (
+            "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea,timestamp with time zone)",
+            "s",
+        ),
         ("public.auth_delete_session_by_token(bytea)", "v"),
         ("public.login_notify_peek_by_token(bytea)", "s"),
         ("public.login_notify_consume_by_token(bytea)", "v"),
@@ -6923,8 +6983,11 @@ async fn stage5b_definer_functions_and_app_enter() {
     let denied_url = format!("postgres://fn_nogrant:fn-nogrant-password@127.0.0.1:{port}/postgres");
     let denied = connect_with_retry(&denied_url).await;
     let err = db::query(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(hash_a.clone())],
+        "SELECT auth_lookup_user_id_by_session_with_idle_timeout($1, $2)",
+        vec![
+            Bind::Bytes(hash_a.clone()),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .execute(&denied)
     .await
@@ -6950,8 +7013,11 @@ async fn stage5b_definer_functions_and_app_enter() {
         .await
         .expect("ロールの切り替えに失敗");
     let found = db::query_scalar::<Option<UserId>>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(hash_a.clone())],
+        "SELECT auth_lookup_user_id_by_session_with_idle_timeout($1, $2)",
+        vec![
+            Bind::Bytes(hash_a.clone()),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .fetch_one(&mut tx)
     .await
@@ -6962,8 +7028,11 @@ async fn stage5b_definer_functions_and_app_enter() {
         "所有するハッシュでは本人の利用者 ID が返るはず"
     );
     let unknown = db::query_scalar::<Option<UserId>>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(vec![91u8; 32])],
+        "SELECT auth_lookup_user_id_by_session_with_idle_timeout($1, $2)",
+        vec![
+            Bind::Bytes(vec![91u8; 32]),
+            Bind::from(time::OffsetDateTime::now_utc() - time::Duration::minutes(30)),
+        ],
     )
     .fetch_one(&mut tx)
     .await
@@ -7583,6 +7652,27 @@ async fn operation_log_services_record_list_and_prune() {
     assert_eq!(entries[0].target, "sessions");
     assert_eq!(entries[0].count, 3);
 
+    pool.batch_execute("ALTER ROLE app_worker PASSWORD 'operation-log-test'")
+        .await
+        .expect("app_worker のテスト用パスワード設定");
+    let worker_url = format!("postgres://app_worker:operation-log-test@127.0.0.1:{port}/postgres");
+    let worker_pool = connect_with_retry(&worker_url).await;
+    assert!(
+        db::query("SELECT id FROM operation_logs LIMIT 1", vec![])
+            .fetch_all::<(i64,), _>(&worker_pool)
+            .await
+            .is_err()
+    );
+    assert!(
+        db::query(
+            "INSERT INTO operation_logs (user_id, operation, target, count) VALUES ($1, 'logout_all', 'sessions', 1)",
+            vec![Bind::from(user)],
+        )
+        .execute(&worker_pool)
+        .await
+        .is_err()
+    );
+
     db::query(
         "UPDATE operation_logs SET occurred_at = NOW() - INTERVAL '2 years' WHERE user_id = $1",
         vec![Bind::from(user)],
@@ -7590,12 +7680,14 @@ async fn operation_log_services_record_list_and_prune() {
     .execute(&pool)
     .await
     .expect("古い記録の準備");
-    assert_eq!(
-        backend::services::operation_log::prune(&pool)
-            .await
-            .expect("掃除"),
-        1
-    );
+    let pruned: i64 = db::query_scalar(
+        "SELECT public.prune_operation_logs_older_than_one_year_v1()",
+        vec![],
+    )
+    .fetch_one(&worker_pool)
+    .await
+    .expect("worker から掃除関数を実行");
+    assert_eq!(pruned, 1);
     assert!(
         backend::services::operation_log::list(&pool, user, 10, 0)
             .await

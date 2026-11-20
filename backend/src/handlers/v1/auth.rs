@@ -106,7 +106,7 @@ pub async fn get_session(
 ) -> Result<impl IntoResponse, ApiError> {
     let token = auth_oauth::get_session_id_from_jar(&jar)?;
 
-    // セッションテーブルからユーザーを取得（期限切れでないセッションのみ）
+    // セッション照会は最終利用時刻も更新する
     let user = auth_service::select_user_by_session(&state.pool, token)
         .await?
         .ok_or_else(|| ApiError::Unauthorized("セッションが無効または期限切れです"))?;

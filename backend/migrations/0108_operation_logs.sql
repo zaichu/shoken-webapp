@@ -29,8 +29,6 @@ COMMENT ON COLUMN public.operation_logs.occurred_at IS '操作日時';
 
 GRANT SELECT, INSERT ON public.operation_logs TO app_restricted;
 GRANT USAGE ON SEQUENCE public.operation_logs_id_seq TO app_restricted;
-GRANT SELECT, INSERT ON public.operation_logs TO app_worker;
-GRANT USAGE ON SEQUENCE public.operation_logs_id_seq TO app_worker;
 
 GRANT SELECT (occurred_at), DELETE ON public.operation_logs TO app_login_event_prune_executor;
 

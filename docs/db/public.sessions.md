@@ -14,6 +14,7 @@
 | expires_at | timestamp with time zone | (now() + '7 days'::interval) | false |  |  |  |
 | token_hash | bytea |  | false |  |  |  |
 | device_hash | bytea |  | true |  |  | ログイン時の端末IDのSHA-256(平文は保存しない) |
+| last_used_at | timestamp with time zone | now() | false |  |  | 最後に利用した時刻。セッション作成時に開始し、API利用時に最大1分ごとに更新 |
 
 ## Constraints
 
@@ -46,6 +47,7 @@ erDiagram
   timestamp_with_time_zone expires_at
   bytea token_hash
   bytea device_hash
+  timestamp_with_time_zone last_used_at
 }
 "public.users" {
   uuid id

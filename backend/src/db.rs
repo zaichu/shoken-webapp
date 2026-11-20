@@ -1423,7 +1423,7 @@ mod tests {
                 "auth_upsert_user",
             ),
             (
-                "SELECT auth_lookup_user_id_by_session($1)",
+                "SELECT auth_lookup_user_id_by_session($1, $2)",
                 "auth_lookup_user_id_by_session",
             ),
             (
@@ -1431,7 +1431,7 @@ mod tests {
                 "auth_delete_session_by_token",
             ),
             (
-                "SELECT * FROM auth_session_user_by_token($1)",
+                "SELECT * FROM auth_session_user_by_token($1, $2, $3)",
                 "auth_session_user_by_token",
             ),
             ("INSERT INTO users (id) VALUES ($1)", "INSERT"),

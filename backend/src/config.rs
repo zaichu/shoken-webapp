@@ -1,4 +1,5 @@
 use crate::services::domain::bulk::RowLimit;
+use time::OffsetDateTime;
 
 pub mod cors;
 pub mod environment;
@@ -10,6 +11,60 @@ pub use environment::RuntimeEnv;
 
 /// `USER_ROW_LIMIT` 未設定時の既定値（ユーザー1人あたりの登録行数上限）
 pub const DEFAULT_USER_ROW_LIMIT: RowLimit = RowLimit::new(100_000);
+
+pub const SESSION_IDLE_TIMEOUT: time::Duration = time::Duration::minutes(30);
+pub const SESSION_TOUCH_INTERVAL: time::Duration = time::Duration::minutes(1);
+
+pub fn session_idle_cutoff(now: OffsetDateTime) -> OffsetDateTime {
+    now - SESSION_IDLE_TIMEOUT
+}
+
+pub fn session_deadline_valid(
+    expires_at: OffsetDateTime,
+    last_used_at: OffsetDateTime,
+    now: OffsetDateTime,
+) -> bool {
+    expires_at > now && last_used_at > now - SESSION_IDLE_TIMEOUT
+}
+
+pub fn should_touch_session(last_used_at: OffsetDateTime, now: OffsetDateTime) -> bool {
+    last_used_at <= now - SESSION_TOUCH_INTERVAL
+}
+
+#[cfg(test)]
+mod session_deadline_tests {
+    use super::*;
+
+    fn at(minutes: i64) -> time::OffsetDateTime {
+        time::OffsetDateTime::UNIX_EPOCH + time::Duration::minutes(minutes)
+    }
+
+    #[test]
+    fn session_deadline_and_touch_boundaries() {
+        let expires = at(7 * 24 * 60);
+        assert_eq!(session_idle_cutoff(at(30)), at(0));
+        assert!(session_deadline_valid(expires, at(0), at(29)));
+        assert!(!session_deadline_valid(expires, at(0), at(30)));
+        assert!(!session_deadline_valid(expires, at(0), at(31)));
+        assert!(!session_deadline_valid(expires, at(0), expires));
+        assert!(!session_deadline_valid(at(30), at(1), at(30)));
+        assert!(!session_deadline_valid(
+            expires,
+            at(7 * 24 * 60 - 31),
+            at(7 * 24 * 60 - 1)
+        ));
+        assert!(!session_deadline_valid(
+            expires,
+            at(7 * 24 * 60 - 30),
+            expires
+        ));
+        assert!(!should_touch_session(
+            at(29) + time::Duration::seconds(1),
+            at(30)
+        ));
+        assert!(should_touch_session(at(29), at(30)));
+    }
+}
 
 /// CSV取り込みの上限。実データ(行数千・列十数・セル数百文字)に数倍の余裕を持たせた値
 pub const MAX_CSV_ROWS: usize = 20_000;

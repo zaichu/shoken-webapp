@@ -206,9 +206,23 @@ pub async fn select_user_by_session(
     token: SessionToken,
 ) -> Result<Option<User>, DbError> {
     let mut tx = pool.begin_restricted().await?;
-    let user = crate::db::query_as::<User>(
-        "SELECT * FROM auth_session_user_by_token($1)",
+    let now = time::OffsetDateTime::now_utc();
+    let idle_cutoff = crate::config::session_idle_cutoff(now);
+    let last_used_at = crate::db::query_scalar::<time::OffsetDateTime>(
+        "SELECT auth_session_last_used_at($1)",
         vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_nullable_optional(&mut tx)
+    .await?;
+    let touch_session = last_used_at
+        .is_some_and(|last_used_at| crate::config::should_touch_session(last_used_at, now));
+    let user = crate::db::query_as::<User>(
+        "SELECT * FROM auth_session_user_by_token_with_idle_timeout($1, $2, $3)",
+        vec![
+            Bind::Bytes(token.hash()),
+            Bind::from(idle_cutoff),
+            Bind::from(touch_session),
+        ],
     )
     .fetch_optional(&mut tx)
     .await?;
@@ -221,9 +235,11 @@ pub async fn select_user_id_by_session(
     token: SessionToken,
 ) -> Result<Option<UserId>, DbError> {
     let mut tx = pool.begin_restricted().await?;
+    let now = time::OffsetDateTime::now_utc();
+    let idle_cutoff = crate::config::session_idle_cutoff(now);
     let user_id = crate::db::query_scalar::<UserId>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(token.hash())],
+        "SELECT auth_lookup_user_id_by_session_with_idle_timeout($1, $2)",
+        vec![Bind::Bytes(token.hash()), Bind::from(idle_cutoff)],
     )
     .fetch_nullable_optional(&mut tx)
     .await?;

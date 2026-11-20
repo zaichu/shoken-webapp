@@ -45,6 +45,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         include_str!("../../migrations/0106_limited_functions.sql"),
     ),
     (
+        "0107_session_idle_timeout",
+        include_str!("../../migrations/0107_session_idle_timeout.sql"),
+    ),
+    (
         "0108_operation_logs",
         include_str!("../../migrations/0108_operation_logs.sql"),
     ),

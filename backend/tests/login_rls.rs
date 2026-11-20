@@ -179,8 +179,11 @@ async fn owner_pool() -> (Db, Db, Db, impl Drop) {
         .expect("非 superuser のテスト用 owner で migration を適用");
     admin
         .batch_execute(
-            "ALTER FUNCTION public.auth_lookup_user_id_by_session(bytea) OWNER TO postgres;
+            "ALTER FUNCTION public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz) OWNER TO postgres;
+             ALTER FUNCTION public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean) OWNER TO postgres;
+             ALTER FUNCTION public.auth_lookup_user_id_by_session(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_session_user_by_token(bytea) OWNER TO postgres;
+             ALTER FUNCTION public.auth_session_last_used_at(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_delete_session_by_token(bytea) OWNER TO postgres;
              ALTER FUNCTION public.auth_upsert_user(text, text, text, text) OWNER TO postgres;
              ALTER FUNCTION public.auth_rotate_session(uuid, bytea, bytea) OWNER TO postgres;
@@ -1425,8 +1428,11 @@ async fn auth_paths_use_limited_functions() {
     assert!(!can_bypass, "通常接続ロールは NOBYPASSRLS であること");
 
     for signature in [
+        "public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)",
+        "public.auth_lookup_user_id_by_session_with_idle_timeout(bytea, timestamptz)",
         "public.auth_session_user_by_token(bytea)",
         "public.auth_lookup_user_id_by_session(bytea)",
+        "public.auth_session_last_used_at(bytea)",
         "public.auth_delete_session_by_token(bytea)",
     ] {
         let executable = db::query_scalar::<bool>(
@@ -1455,15 +1461,18 @@ async fn auth_paths_use_limited_functions() {
         assert!(is_definer, "{signature} は DEFINER のはず");
     }
     let volatile = db::query_scalar::<String>(
-        "SELECT provolatile::text FROM pg_proc WHERE oid = 'public.auth_session_user_by_token(bytea)'::regprocedure",
+        "SELECT provolatile::text FROM pg_proc WHERE oid = 'public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)'::regprocedure",
         vec![],
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(volatile, "s", "照会関数は STABLE のはず");
+    assert_eq!(
+        volatile, "v",
+        "最終利用時刻を更新する照会関数は VOLATILE のはず"
+    );
     let config = db::query(
-        "SELECT unnest(proconfig) FROM pg_proc WHERE oid = 'public.auth_session_user_by_token(bytea)'::regprocedure",
+        "SELECT unnest(proconfig) FROM pg_proc WHERE oid = 'public.auth_session_user_by_token_with_idle_timeout(bytea, timestamptz, boolean)'::regprocedure",
         vec![],
     )
     .fetch_all::<(String,), _>(&pool)
@@ -1493,6 +1502,114 @@ async fn auth_paths_use_limited_functions() {
         .expect("利用者特定は通るはず")
         .expect("利用者 ID があるはず");
     assert_eq!(user.id, user_id);
+
+    db::query(
+        "UPDATE sessions SET last_used_at = NOW() - INTERVAL '30 seconds' WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    auth::select_user_by_session(&pool, token)
+        .await
+        .expect("1分以内の利用は通るはず")
+        .expect("有効セッションがあるはず");
+    let recently_used: bool = db::query_scalar(
+        "SELECT last_used_at > NOW() - INTERVAL '30 seconds' FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!recently_used, "1分以内の再利用で時刻を更新しないこと");
+
+    for _ in 1..=3 {
+        db::query(
+            "UPDATE sessions SET last_used_at = NOW() - make_interval(mins => $2::int) WHERE token_hash = $1",
+            vec![Bind::Bytes(token.hash()), Bind::from(25)],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert!(
+            auth::select_user_by_session(&pool, token)
+                .await
+                .expect("25分おきの利用は通るはず")
+                .is_some(),
+            "25分おきの利用も有効であること"
+        );
+        let recently_touched: bool = db::query_scalar(
+            "SELECT last_used_at > NOW() - INTERVAL '1 minute' FROM sessions WHERE token_hash = $1",
+            vec![Bind::Bytes(token.hash())],
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(recently_touched, "25分後に最終利用時刻を更新すること");
+    }
+
+    db::query(
+        "UPDATE sessions SET last_used_at = NOW() - INTERVAL '31 minutes' WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    for (age, valid) in [(31, false), (29, true)] {
+        db::query(
+            "UPDATE sessions SET last_used_at = NOW() - make_interval(mins => $2::int) WHERE token_hash = $1",
+            vec![Bind::Bytes(token.hash()), Bind::from(age)],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            auth::select_user_by_session(&pool, token)
+                .await
+                .expect("idle cutoff query should succeed")
+                .is_some(),
+            valid,
+            "{age}分無操作の有効性"
+        );
+    }
+
+    db::query(
+        "UPDATE sessions SET last_used_at = NOW() - INTERVAL '30 seconds' WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    auth::select_user_by_session(&pool, token)
+        .await
+        .expect("1分以内の連続利用は通るはず")
+        .expect("1分以内の連続利用で有効性を維持するはず");
+    let unchanged: bool = db::query_scalar(
+        "SELECT last_used_at < NOW() - INTERVAL '20 seconds' FROM sessions WHERE token_hash = $1",
+        vec![Bind::Bytes(token.hash())],
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(unchanged, "1分以内の連続要求では更新しないこと");
+
+    for (age, valid) in [(30, false), (31, false)] {
+        db::query(
+            "UPDATE sessions SET last_used_at = NOW() - make_interval(mins => $2::int) WHERE token_hash = $1",
+            vec![Bind::Bytes(token.hash()), Bind::from(age)],
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            auth::select_user_by_session(&pool, token)
+                .await
+                .expect("idle cutoff query should succeed")
+                .is_some(),
+            valid,
+            "{age}分無操作の有効性"
+        );
+    }
 
     let unknown: auth::SessionToken = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
     assert!(
@@ -1638,8 +1755,16 @@ async fn auth_paths_use_limited_functions() {
         .unwrap();
     assert_eq!(role, "app_restricted");
     let restricted_user = db::query_as::<backend::models::user::User>(
-        "SELECT * FROM auth_session_user_by_token($1)",
-        vec![Bind::Bytes(token_c.hash())],
+        "SELECT * FROM auth_session_user_by_token_with_idle_timeout($1, $2, $3)",
+        {
+            let now = time::OffsetDateTime::now_utc();
+            let idle = backend::config::session_idle_cutoff(now);
+            vec![
+                Bind::Bytes(token_c.hash()),
+                Bind::from(idle),
+                Bind::from(true),
+            ]
+        },
     )
     .fetch_optional(&mut tx)
     .await
@@ -1647,8 +1772,12 @@ async fn auth_paths_use_limited_functions() {
     .expect("本人のセッションがあるはず");
     assert_eq!(restricted_user.id, id_c);
     let restricted_id = db::query_scalar::<Option<UserId>>(
-        "SELECT auth_lookup_user_id_by_session($1)",
-        vec![Bind::Bytes(token_c.hash())],
+        "SELECT auth_lookup_user_id_by_session_with_idle_timeout($1, $2)",
+        {
+            let now = time::OffsetDateTime::now_utc();
+            let idle = backend::config::session_idle_cutoff(now);
+            vec![Bind::Bytes(token_c.hash()), Bind::from(idle)]
+        },
     )
     .fetch_one(&mut tx)
     .await
