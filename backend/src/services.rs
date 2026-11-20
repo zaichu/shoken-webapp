@@ -13,6 +13,7 @@ pub mod login_event;
 pub mod login_notify;
 pub mod mutualfund;
 pub mod operation_log;
+pub mod price_cron;
 pub mod stock;
 pub mod stock_master;
 pub mod stock_price;

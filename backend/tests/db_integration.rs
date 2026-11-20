@@ -30,6 +30,7 @@ use backend::{
     services::fund_price::{self, FundNav},
     services::jquants::JQuantsClient,
     services::mutualfund as mutualfund_svc,
+    services::price_cron,
     services::stock_master,
     services::stock_price::{self, ClosePrice},
     state::{AppState, Secrets},
@@ -5807,6 +5808,71 @@ async fn fund_nav_status_without_failure_has_no_reason() {
         summary.nav_status.updated_at.as_deref(),
         Some("2026-10-26 23:05")
     );
+}
+
+/// ホストでは投信情報APIに触れないため取得は必ず失敗し、前回値を残したまま
+/// 失敗理由だけが残る。対象の選定と試行時刻の前進(price_cron へ寄せた部分)を確かめる
+#[tokio::test]
+#[ignore = "requires Docker to run Postgres container"]
+async fn fund_price_refresh_records_failure_and_marks_attempted() {
+    let (pool, _node) = start_test_pool().await;
+    let user_id = create_test_user(&pool).await;
+    let today = (OffsetDateTime::now_utc() + time::Duration::hours(9)).date();
+
+    db::query(
+        "INSERT INTO fund_codes SELECT fund_name_normalize($1), '90000051', $1",
+        vec![Bind::from("更新試行ファンド")],
+    )
+    .execute(&pool)
+    .await
+    .expect("fund_codes の seed に失敗");
+    insert_fund_row(
+        &pool,
+        user_id,
+        "更新試行ファンド",
+        dec!(10000),
+        dec!(100000),
+        dec!(10000),
+        None,
+        dec!(100000),
+        dec!(0),
+        today,
+        OffsetDateTime::now_utc(),
+    )
+    .await;
+
+    let selected = price_cron::select_targets(
+        &pool,
+        "SELECT association_fund_cd FROM public.scheduled_fund_price_targets_v2($1, $2)",
+        "SELECT public.scheduled_fund_price_mark_attempted_v2($1)",
+        today,
+        30,
+    )
+    .await
+    .expect("対象の選定に失敗");
+    assert_eq!(selected, ["90000051".to_string()]);
+    let marked: (Option<String>,) = db::query(
+        "SELECT fetch_error FROM fund_prices WHERE association_fund_cd = $1",
+        vec![Bind::from("90000051")],
+    )
+    .fetch_one::<(Option<String>,), _>(&pool)
+    .await
+    .expect("試行時刻の前進の確認に失敗");
+    assert_eq!(marked.0, None);
+
+    let fetched = fund_price::refresh_fund_prices(&pool, None)
+        .await
+        .expect("refresh 失敗");
+    assert_eq!(fetched, 0);
+
+    let row: (Option<String>,) = db::query(
+        "SELECT fetch_error FROM fund_prices WHERE association_fund_cd = $1",
+        vec![Bind::from("90000051")],
+    )
+    .fetch_one::<(Option<String>,), _>(&pool)
+    .await
+    .expect("失敗記録の取得に失敗");
+    assert_eq!(row.0.as_deref(), Some("取得エラー"));
 }
 
 /// 失敗が複数あるときは fetch_failed_at の新しい理由を返す(NULL は最後)。
