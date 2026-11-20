@@ -45,8 +45,8 @@ pub fn should_log_db_access_at(scheduled_ms: f64) -> bool {
 
 /// 接続ロール・共有表の RLS・限定書き込み関数の所有者・event trigger を 1 行ずつ返す。
 /// 出すのはロール名・表名・関数名・真偽値・件数だけ
-/// 末尾の range_check_violations は 0119 の CHECK 制約(#2112 で VALIDATE 予定)の
-/// 違反件数だけを出す(値・利用者は出さない)。
+/// 末尾の range_check_violations は 0119 の CHECK 制約(dividend_per_share_cache。#2112 で VALIDATE 予定)と
+/// #2112 で追加予定の shares > 0 制約に先立つ違反件数だけを出す(値・利用者は出さない)。
 /// 個人表への直接参照は権限のないロールで検査自体が落ちるため、
 /// 件数の取得は SECURITY DEFINER の range_check_violation_counts_v2 に閉じ込める
 pub const DB_ACCESS_STATE_SQL: &str = r"

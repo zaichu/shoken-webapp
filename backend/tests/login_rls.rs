@@ -420,7 +420,8 @@ async fn force_rls_blocks_remaining_owner_paths_but_keeps_app_restricted_paths()
         state_lines.contains(&"role_owner postgres member=false can_set=false".to_string()),
         "{state_lines:?}"
     );
-    // 0119 の CHECK 制約(#2112 で VALIDATE 予定)の違反件数。監視用 DEFINER 関数経由のため
+    // 0119 の CHECK 制約(dividend_per_share_cache。#2112 で VALIDATE 予定)と
+    // #2112 で追加予定の shares > 0 制約に先立つ違反件数。監視用 DEFINER 関数経由のため
     // app_worker からも読め、投入した行は制約内のためすべて 0
     let violations = state_lines
         .iter()

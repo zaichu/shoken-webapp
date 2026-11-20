@@ -1,4 +1,5 @@
--- 0119 の CHECK 制約(#2112 で VALIDATE 予定)の違反件数だけを返す監視用関数。
+-- 0119 の CHECK 制約(dividend_per_share_cache の status・dividend_per_share。#2112 で VALIDATE 予定)と、
+-- #2112 で追加予定の shares > 0 制約に先立つ違反件数だけを返す監視用関数。
 -- 個人表の行は件数だけを返し、値・利用者は出さない。
 -- SECURITY DEFINER(所有は移行ロール)のため、呼び出し側の権限・RLS に関わらず全行を数えられる。
 -- 個人表へ直接触る SQL を cron ログの検査文に書くと、権限のないロールで検査自体が落ちる
