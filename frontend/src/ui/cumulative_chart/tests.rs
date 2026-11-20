@@ -162,6 +162,43 @@ fn step_month_moves_within_this_year() {
 }
 
 #[test]
+fn click_keeps_hovered_month_but_toggles_on_touch() {
+    assert_eq!(next_selected(Some(3), 3, true), Some(3));
+    assert_eq!(next_selected(None, 3, true), Some(3));
+    assert_eq!(next_selected(Some(2), 3, true), Some(3));
+    assert_eq!(next_selected(Some(3), 3, false), None);
+    assert_eq!(next_selected(None, 3, false), Some(3));
+    assert_eq!(next_selected(Some(2), 3, false), Some(3));
+}
+
+#[test]
+fn tip_goes_below_when_tip_does_not_fit_above() {
+    // デスクトップ(220px): 上に112px以上あれば上に出す
+    assert!(!tip_below(100.0, 220.0));
+    assert!(!tip_below(51.0, 220.0));
+    assert!(tip_below(50.0, 220.0));
+    assert!(tip_below(0.0, 220.0));
+    // スマホ(112px): 下端付近の丸だけ上に出し、それ以外は下に出す
+    assert!(!tip_below(100.0, 112.0));
+    assert!(tip_below(99.0, 112.0));
+    assert!(tip_below(30.0, 112.0));
+}
+
+#[test]
+fn tip_edge_keeps_tip_inside_on_narrow_screens() {
+    assert_eq!(tip_edge(1, false), "left");
+    assert_eq!(tip_edge(2, false), "");
+    assert_eq!(tip_edge(3, false), "");
+    assert_eq!(tip_edge(10, false), "right");
+    assert_eq!(tip_edge(12, false), "right");
+    assert_eq!(tip_edge(1, true), "left");
+    assert_eq!(tip_edge(2, true), "left");
+    assert_eq!(tip_edge(3, true), "left");
+    assert_eq!(tip_edge(4, true), "");
+    assert_eq!(tip_edge(12, true), "right");
+}
+
+#[test]
 fn table_monthly_text_hides_future_months() {
     let monthly = [
         0.0, 0.0, 5_000.0, 0.0, 0.0, 0.0, 0.0, 3_000.0, 0.0, 0.0, 0.0, 0.0,

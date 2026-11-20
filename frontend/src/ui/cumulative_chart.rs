@@ -102,6 +102,48 @@ pub fn month_for_position(x: f64, width: f64, current_month: u32) -> u32 {
         .unwrap_or(max)
 }
 
+/// クリック後の選択。ホバー可能なPCではホバーが既に同じ月を選んでいるため、
+/// 同じ月のクリックでも表示を維持する。タッチでは同月タップで開閉する
+pub fn next_selected(current: Option<u32>, month: u32, hover: bool) -> Option<u32> {
+    if hover {
+        return Some(month);
+    }
+    if current == Some(month) {
+        None
+    } else {
+        Some(month)
+    }
+}
+
+/// 吹き出しの横位置。端の月はグラフの内側に寄せる。
+/// 狭い画面では中央の月でも吹き出しが柱より広いため、左の3か月を左寄せにする。
+/// 640未満は Tailwind の max-sm と同じ境目
+pub const fn tip_edge(month: u32, narrow: bool) -> &'static str {
+    if month == 1 || (narrow && month <= 3) {
+        "left"
+    } else if month >= 10 {
+        "right"
+    } else {
+        ""
+    }
+}
+
+/// 吹き出しの高さの概算(px)。上に収まるかの判定に使う。実測で約98px(3行)のため余裕を見て100px
+const TIP_HEIGHT_PX: f64 = 100.0;
+/// 描画域の高さ(px)。`h-55`(style/input.css)。狭い画面は `max-sm:h-28` で112px
+const PLOT_HEIGHT_PX: f64 = 220.0;
+const PLOT_HEIGHT_NARROW_PX: f64 = 112.0;
+/// 吹き出しの下端から丸までの間隔(px)。`calc(… + 8px)` と `.home-cum-tip` の `mb-2` で計16px。
+/// 上の行との間は `mt-1` の4pxだけなので、丸が `TIP_HEIGHT_PX + 12px` より上にあるときだけ上に収まる
+const TIP_ABOVE_MARGIN_PX: f64 = 12.0;
+
+/// 吹き出しを点の下に出すか。点の少し上を基本にし、上の丸より上に
+/// 吹き出しの高さが入らないときは下の丸の少し下に出す。
+/// 今年・前年の丸をどちらも隠さないよう、上下の丸のうち上の方を基準にする
+pub fn tip_below(anchor_top_percent: f64, plot_height_px: f64) -> bool {
+    anchor_top_percent / 100.0 * plot_height_px < TIP_HEIGHT_PX + TIP_ABOVE_MARGIN_PX
+}
+
 /// スライダーのキー操作で月を1つ動かす。範囲外は端に寄せる
 pub fn step_month(month: u32, delta: i32, current_month: u32) -> u32 {
     let max = current_month.clamp(1, 12);
@@ -119,6 +161,25 @@ pub fn step_month(month: u32, delta: i32, current_month: u32) -> u32 {
 // 線と丸も同じ帯中心から出す(全幅に広げると端で半月ずれる)
 fn x_percent(month: u32) -> f64 {
     (f64::from(month.saturating_sub(1)) + 0.5) / 12.0 * 100.0
+}
+
+fn hover_capable() -> bool {
+    web_sys::window()
+        .and_then(|window| {
+            window
+                .match_media("(hover: hover) and (pointer: fine)")
+                .ok()
+                .flatten()
+        })
+        .is_some_and(|query| query.matches())
+}
+
+// Tailwind の max-sm と同じ境目(640px 未満)で吹き出しの寄せを切り替える
+fn narrow_screen() -> bool {
+    web_sys::window()
+        .and_then(|window| window.inner_width().ok())
+        .and_then(|width| width.as_f64())
+        .is_some_and(|width| width < 640.0)
 }
 
 fn y_percent(value: f64, top: f64) -> f64 {
@@ -333,9 +394,32 @@ pub fn CumulativeChart(
                             rect.width(),
                             current_month,
                         );
+                        let hover = hover_capable();
                         selected.update(|state| {
-                            *state = if *state == Some(month) { None } else { Some(month) };
+                            *state = next_selected(*state, month, hover);
                         });
+                    }
+                    on:pointermove=move |event| {
+                        if !hover_capable() {
+                            return;
+                        }
+                        let Some(plot) = plot_ref.get() else { return };
+                        let rect = plot.get_bounding_client_rect();
+                        let month = month_for_position(
+                            f64::from(event.client_x()) - rect.left(),
+                            rect.width(),
+                            current_month,
+                        );
+                        selected.update(|state| {
+                            if *state != Some(month) {
+                                *state = Some(month);
+                            }
+                        });
+                    }
+                    on:pointerleave=move |_| {
+                        if hover_capable() {
+                            dismiss();
+                        }
                     }
                     on:keydown=move |event| {
                         let key = event.key();
@@ -433,22 +517,41 @@ pub fn CumulativeChart(
                         let previous_value = previous_cum
                             .as_ref()
                             .and_then(|sums| sums.get(month as usize - 1).copied());
+                        let previous_top = previous_value.map(|value| y_percent(value, top));
                         let current_text = format::format_currency(current_value);
                         let previous_text = previous_value.map(format::format_currency);
                         let month_label = labels::receipt_month_label(month);
                         let current_cell = current_label.clone();
                         let previous_cell = previous_label.clone();
                         let dot_top = y_percent(current_value, top);
-                        // 端の月は吹き出しを内側に寄せ、点より上にあるときは
-                        // 直接ラベルに被せないよう点の下に出す
-                        let edge = if month == 1 {
-                            "left"
-                        } else if month >= 10 {
-                            "right"
+                        // 吹き出しは点の近くに出す。上の丸の少し上を基本にし、
+                        // 上に入らないときは下の丸の少し下に出す。
+                        // 端の月は吹き出しを内側に寄せる
+                        let narrow = narrow_screen();
+                        let edge = tip_edge(month, narrow);
+                        let highest_top = previous_top
+                            .map_or(dot_top, |previous| dot_top.min(previous));
+                        let plot_height_px = if narrow {
+                            PLOT_HEIGHT_NARROW_PX
                         } else {
-                            ""
+                            PLOT_HEIGHT_PX
                         };
-                        let tip_below = dot_top < 50.0;
+                        let tip_below = tip_below(highest_top, plot_height_px);
+                        // 上の丸も下の丸も隠さないよう、上下それぞれの丸を基準にする
+                        let tip_anchor = previous_top.map_or(dot_top, |previous| {
+                            if tip_below {
+                                dot_top.max(previous)
+                            } else {
+                                dot_top.min(previous)
+                            }
+                        });
+                        let tip_top =
+                            tip_below.then(|| format!("calc({tip_anchor:.2}% + 12px)"));
+                        let tip_bottom = if tip_below {
+                            "auto".to_string()
+                        } else {
+                            format!("calc({:.2}% + 8px)", 100.0 - tip_anchor)
+                        };
                         let is_current = month == current_month;
                         view! {
                             <div
@@ -465,9 +568,8 @@ pub fn CumulativeChart(
                                 <div
                                     class="home-cum-tip"
                                     aria-hidden="true"
-                                    style:top=tip_below
-                                        .then(|| format!("calc({dot_top}% + 12px)"))
-                                    style:bottom=tip_below.then(|| "auto".to_string())
+                                    style:top=tip_top
+                                    style:bottom=tip_bottom
                                 >
                                     <p class="font-bold text-text">{month_label}</p>
                                     <dl class="mt-1 space-y-0.5">
