@@ -249,6 +249,23 @@ pub fn parse_required_number(
     parse_number(raw).map_err(|e| cell_error(row_num, format!("{col}: {e}")))
 }
 
+/// 必須の正数フィールドを取得（0以下は行エラー）
+/// DB の CHECK 制約違反を一括登録全体の失敗にせず、原因の行番号を行エラーで返す
+pub fn parse_required_positive_number(
+    row: &CsvRowView<'_>,
+    col: &str,
+    row_num: RowNumber,
+) -> Result<Decimal, CsvRowError> {
+    let value = parse_required_number(row, col, row_num)?;
+    if value <= Decimal::ZERO {
+        return Err(cell_error(
+            row_num,
+            format!("{col}: 0より大きい値を指定してください"),
+        ));
+    }
+    Ok(value)
+}
+
 /// 任意の数値フィールドを取得（列なし・空・"-" は 0、パース失敗はエラー）
 pub fn parse_optional_number(
     row: &CsvRowView<'_>,

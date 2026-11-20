@@ -29,6 +29,7 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| dividends_shares_check | CHECK | CHECK ((shares > (0)::numeric)) |
 | dividends_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE |
 | dividends_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

@@ -100,6 +100,10 @@ const MIGRATION_FILES: &[(&str, &str)] = &[
         "0120_range_check_violation_counts",
         include_str!("../../migrations/0120_range_check_violation_counts.sql"),
     ),
+    (
+        "0121_range_checks_and_validate",
+        include_str!("../../migrations/0121_range_checks_and_validate.sql"),
+    ),
 ];
 
 /// 土台に畳んだ旧 migration(`migrations/archive`)の最後の版
